@@ -1,5 +1,11 @@
 # System patterns
 
+## Start here next session
+
+Pick up **PR 03** before any UI: add **`src/lib/firebase.ts`** + **`firestore.rules`** so the app can talk to Firebase safely. Full ordered steps → [progress.md](./progress.md) section **“Start here next session”**.
+
+---
+
 ## High-level architecture
 
 ```text
@@ -12,7 +18,7 @@ Browser (Next.js React)
 ## Separation of concerns
 
 - **UI / Konva:** rendering, local interaction, debounced writes.
-- **Firestore:** source of truth for **objects**, **cursors**, **presence** (exact paths TBD).
+- **Firestore:** source of truth for **objects**, **cursors**, **presence** — paths in [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md): `boards/{boardId}/objects|presence|cursors` (MVP `boardId = demo`).
 - **API routes:** **AI only** (and any future server-only logic); **never** expose `GEMINI_API_KEY` to the client.
 
 ## Realtime & conflicts
@@ -23,7 +29,7 @@ Browser (Next.js React)
 
 ## Security
 
-- **Firestore rules:** authenticated users only; narrow to board paths when structure is fixed.
+- **Firestore rules:** `request.auth != null` for all `boards/{boardId}/**` (tighten to `boardId == "demo"` later if desired). Rules file not in repo yet — **PR 03**.
 - Secrets only in **Vercel env** + local **`.env.local`** (gitignored).
 
 ## Conventions

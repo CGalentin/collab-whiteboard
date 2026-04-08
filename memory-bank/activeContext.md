@@ -4,13 +4,13 @@
 
 ## Current focus
 
-- **Done:** Pre-search captured; **Phase 1.1** — Next.js + TS + Tailwind + ESLint/Prettier scaffold in repo root (`npm run dev` / `build` OK).
-- **Next:** **Firebase console** (project, Auth providers, Firestore) → **`src/lib/firebase.ts`** + **rules** → **auth UI** (see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) PR 02–04).
+- **Done through PR 02:** Firebase console + **`.env.local`**; GitHub + Vercel deploy; checklist updates.
+- **Next session:** Read **[progress.md → Start here next session](./progress.md)** first — then **PR 03** (`firebase` package, **`src/lib/firebase.ts`**, **`firestore.rules`**, **`firebase.json`**, README rules note).
 
 ## Open decisions (revisit in code)
 
-- Exact **Firestore paths** (`boards/demo` vs `boards/{id}/objects/...`) — sketch in `docs/ARCHITECTURE.md` when chosen.
-- **Cold start** tolerance for Vercel AI routes — acceptable for AI-only if sync stays on Firebase client.
+- **Firestore paths:** [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — `boards/{boardId}/objects|cursors|presence`; `boardId = demo` for MVP.
+- **Cold start** for Vercel AI routes — revisit when `/api` exists.
 
 ## Blockers
 
@@ -18,6 +18,6 @@
 
 ## Commands
 
-- Dev: `npm run dev`
+- Dev: `npm run dev` (one terminal; if “another server running,” stop Node for this folder or clear `.next\dev`)
 - Build: `npm run build`
-- Env template: copy [.env.example](../.env.example) → `.env.local`
+- Env: [`.env.local`](../.env.local) (gitignored)

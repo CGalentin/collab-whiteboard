@@ -47,6 +47,8 @@ Real-time collaborative whiteboard (Gauntlet CollabBoard PRD): **Next.js (App Ro
 - [Pre-search & checkpoints](./PRESEARCH_AND_TRACKING.md)
 - [Build roadmap (15m tasks)](./BUILD_ROADMAP.md)
 - [Gauntlet best practices](./docs/GAUNTLET_FULLSTACK_BEST_PRACTICES.md)
+- [Architecture & Firestore paths](./docs/ARCHITECTURE.md)
+- [Firebase console checklist (PR 02)](./docs/FIREBASE_CONSOLE_CHECKLIST.md)
 
 ## Deploy
 

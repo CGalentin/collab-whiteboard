@@ -40,7 +40,7 @@ Use this file to stay on track: complete **Pre-Search** before writing code, the
 - [x] **0.2** Phase 2 architecture answered (questions 6–11)
 - [x] **0.3** Phase 3 refinement answered (questions 12–16)
 - [x] **0.4** Decision summary written (stack table + conflict model + top 3 risks) — *refine after first implementation pass*
-- [ ] **0.5** Save AI conversation or this doc as Pre-Search reference for submission
+- [x] **0.5** Save AI conversation or this doc as Pre-Search reference for submission — *repo: this file + exported chats as needed for submission*
 
 ### Phase 1 — Build: multiplayer core
 
@@ -80,8 +80,8 @@ Use this file to stay on track: complete **Pre-Search** before writing code, the
 
 ### Phase 5 — Ship & submit
 
-- [ ] **5.1** Production deploy; URL public and stable
-- [ ] **5.2** README: setup guide + architecture overview
+- [x] **5.1** Production deploy; URL public and stable — *Vercel; refine when board ships*
+- [x] **5.2** README: setup guide + architecture overview — *expand with full architecture when PR 03+ lands*
 - [ ] **5.3** Demo video (3–5 min): collab + AI + architecture
 - [ ] **5.4** AI Development Log (1 page per PRD template)
 - [ ] **5.5** AI Cost Analysis: dev spend + 100 / 1K / 10K / 100K user projections

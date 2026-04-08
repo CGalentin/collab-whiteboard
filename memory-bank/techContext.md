@@ -1,5 +1,18 @@
 # Tech context
 
+## Start here next session
+
+| Step | Action |
+|------|--------|
+| 1 | `npm install firebase` |
+| 2 | Add **`src/lib/firebase.ts`** (init app, auth, Firestore from `NEXT_PUBLIC_*`) |
+| 3 | Add **`firestore.rules`** + **`firebase.json`**; deploy or paste rules in Console |
+| 4 | `npm run build` · verify **`.env.local`** still local-only |
+
+Details: [progress.md](./progress.md) → **Start here next session** · Roadmap: [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) **PR 03**.
+
+---
+
 ## Stack
 
 | Layer | Choice |
@@ -18,10 +31,12 @@
 
 ## Environment variables
 
-See [.env.example](../.env.example):
+**Local:** [`.env.local`](../.env.local) (gitignored) — already has **six** `NEXT_PUBLIC_FIREBASE_*` values for **collab-board**.
 
-- `NEXT_PUBLIC_FIREBASE_*` — client Firebase config
-- `GEMINI_API_KEY` — **server only** (no `NEXT_PUBLIC_` prefix)
+Template: [.env.example](../.env.example)
+
+- `NEXT_PUBLIC_FIREBASE_*` — client Firebase config (**done** for local dev)
+- `GEMINI_API_KEY` — **server only** (add when first AI route exists; set on Vercel too)
 
 ## Scripts
 

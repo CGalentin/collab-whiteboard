@@ -16,7 +16,7 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Repo hygiene + runnable app (no Firebase yet OK).*
 
-- [ ] Create **GitHub** repo and clone locally into this folder (or move existing files in).
+- [x] Create **GitHub** repo and clone locally into this folder (or move existing files in).
 - [x] Add / verify **`.gitignore`** (`node_modules`, `.env.local`, `.vercel`, `dist`, `.next`, OS junk).
 - [x] Scaffold **Next.js App Router + TypeScript** (recommended for Vercel `/app/api/*`) *or* Vite + plan for `api/` routes—pick one and stick to it.
 - [x] Run **`npm run dev`** and confirm the starter page loads.
@@ -31,12 +31,12 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Firebase project ready for web app (no UI wiring yet).*
 
-- [ ] Create **Firebase project** in console (name + default region note).
-- [ ] Enable **Firestore** (start in **test mode** only if you’ll lock rules before any public deploy).
-- [ ] Enable **Authentication** → **Email/Password** provider.
-- [ ] Enable **Authentication** → **Google** provider (support email, OAuth consent basics).
-- [ ] Register a **Web app** in Firebase; copy config object for env vars.
-- [ ] Sketch **Firestore paths** on paper or in `docs/ARCHITECTURE.md` (e.g. `boards/demo`, `cursors`, `objects`).
+- [x] Create **Firebase project** in console (name + default region note). → [Checklist](./docs/FIREBASE_CONSOLE_CHECKLIST.md)
+- [x] Enable **Firestore** (start in **test mode** only if you’ll lock rules before any public deploy).
+- [x] Enable **Authentication** → **Email/Password** provider.
+- [x] Enable **Authentication** → **Google** provider (support email, OAuth consent basics).
+- [x] Register a **Web app** in Firebase; copy config object for **`.env.local`** (see [.env.example](./.env.example)).
+- [x] Sketch **Firestore paths** in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) (`boards/{boardId}/objects`, `cursors`, `presence`).
 - [ ] Install **Firebase CLI** (optional this session); `firebase login` if you’ll deploy rules from repo later.
 
 ---
@@ -46,7 +46,7 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 *App talks to Firebase safely from the client.*
 
 - [ ] Add **`lib/firebase.ts`** (or `src/lib/firebase.ts`): initialize app from `NEXT_PUBLIC_*` env vars.
-- [ ] Wire env vars in **`.env.local`** (never commit); confirm app still builds (`NEXT_PUBLIC_*` required at build for client).
+- [x] Wire env vars in **`.env.local`** (never commit); confirm app still builds (`NEXT_PUBLIC_*` required at build for client).
 - [ ] Add **`firestore.rules`**: require `request.auth != null` for board paths you’ll use (tighten to specific `boardId` when known).
 - [ ] Deploy rules **or** use **Firestore emulator** locally—document which in README.
 - [ ] Add **`firebase.json`** pointing at rules file (if using CLI deploy).
