@@ -2,7 +2,7 @@
 
 ## Start here next session
 
-Pick up **PR 03** before any UI: add **`src/lib/firebase.ts`** + **`firestore.rules`** so the app can talk to Firebase safely. Full ordered steps → [progress.md](./progress.md) section **“Start here next session”**.
+Follow [progress.md](./progress.md) **“Start here next session”** (read **`activeContext.md`** too).
 
 ---
 
@@ -23,13 +23,14 @@ Browser (Next.js React)
 
 ## Realtime & conflicts
 
-- **Last-write-wins (LWW)** on concurrent edits; document field-level behavior in `docs/CONFLICTS.md` once implemented.
-- Prefer **`updatedAt`** / server timestamps for ordering where it matters.
-- **Debounce** drag/move and cursor writes to protect quotas and latency.
+- **Per-field** `updateDoc` merges; **same-field LWW** when two clients race. See **[docs/CONFLICTS.md](../docs/CONFLICTS.md)**.
+- **`updatedAt`** is set server-side on object patches (not used for client merge yet).
+- **Debounce** object patches (~400ms merged per id), drag/move, and cursor writes for quotas and latency.
+- **Clipboard (PR 15):** `collabwb:v1:` JSON in **`src/lib/board-clipboard.ts`**; **`board-canvas`** Copy/Paste + shortcuts; internal ref fallback.
 
 ## Security
 
-- **Firestore rules:** `request.auth != null` for all `boards/{boardId}/**` (tighten to `boardId == "demo"` later if desired). Rules file not in repo yet — **PR 03**.
+- **Firestore rules:** `request.auth != null` for all `boards/{boardId}/**` (tighten to `boardId == "demo"` later if desired). Source: **[`firestore.rules`](../firestore.rules)**.
 - Secrets only in **Vercel env** + local **`.env.local`** (gitignored).
 
 ## Conventions

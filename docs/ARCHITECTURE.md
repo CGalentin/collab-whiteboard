@@ -17,28 +17,40 @@ Single demo board for MVP; one constant board id (e.g. `demo`).
 | Path | Purpose |
 |------|--------|
 | `boards/{boardId}` | Board metadata doc: `title`, `createdAt`, optional `updatedAt`. |
-| `boards/{boardId}/objects/{objectId}` | Canvas entities: sticky, shape, frame, text, connector fields in one doc per object. |
-| `boards/{boardId}/cursors/{userId}` | Live cursor: `x`, `y`, `name`, `updatedAt` (throttle writes). |
-| `boards/{boardId}/presence/{userId}` | Presence: `displayName`, `online`, `lastSeen` (heartbeat / onDisconnect pattern TBD). |
+| `boards/{boardId}/objects/{objectId}` | Canvas entities — **PR 09:** one **subcollection doc per object** (not a single map doc): `type` discriminator + geometry/style fields; see `src/lib/board-object.ts`. |
+| `boards/{boardId}/cursors/{userId}` | Live cursor: **`x`**, **`y`** in **Konva world** space (pan/zoom; PR 08), **`name`**, **`updatedAt`** — ~50ms trailing debounce + world epsilon; doc removed on leave board. |
+| `boards/{boardId}/presence/{userId}` | Presence: `displayName`, `online`, `lastSeen` — **PR 06:** ~12s heartbeat, `online: false` on unmount / `pagehide`; UI treats users as online if `lastSeen` is within ~30s and `online !== false`. |
 
 **MVP constant:** `boardId = "demo"` (or set `NEXT_PUBLIC_APP_DEMO_BOARD_ID` in env).
+
+## Object storage (PR 09)
+
+- **Choice:** **`boards/{boardId}/objects/{objectId}`** subcollection — scales with many shapes, simple security rules, per-object listeners.
+- **Client:** `useBoardObjects` → `onSnapshot` on the collection; Konva renders from sorted `zIndex`.
 
 ## Object document (example fields)
 
 Unified `type` discriminator; adjust to match Konva + PRD.
 
-- `type`: `"sticky"` \| `"rect"` \| `"circle"` \| `"line"` \| `"text"` \| `"frame"` \| `"connector"`
+- `type`: `"sticky"` \| `"rect"` \| `"circle"` \| `"line"` \| `"frame"` \| `"text"` \| `"connector"` \| … — **PR 10:** `sticky` uses `text` (string), `fill` / `stroke`, `width` / `height` ~220×160; debounced `updateDoc` for `x`,`y` and `text`. **PR 11:** `circle` uses center `x`,`y` + `radius`; `line` uses `x1`,`y1`,`x2`,`y2` and `stroke` (no fill). **PR 12:** client-only **selection** (click, Shift+toggle, marquee); **Konva `Transformer`** on rect/circle/sticky/frame/text; geometry patches debounced via `queueObjectPatch` (~400ms merge per object). **Lines** and **connectors** are selectable but not transformable. Selection is **not** synced—remote deletes prune stale ids locally. **PR 14:** **`frame`** — `title`, semi-transparent `fill`, new frames get `zIndex` below existing objects so later objects paint on top (no `childIds` list yet). **`text`** — `fontSize`, `fill` (text color), double-click HTML editor like stickies. **`connector`** — `fromId` / `toId`; **Konva `Arrow`** between object **centers**; layer draws after other objects; if an endpoint is missing the connector is not rendered.
 - `x`, `y`, `width`, `height`, `rotation`
 - `fill`, `stroke`, `text`, `zIndex` (or `order`)
-- `updatedAt` (server or client timestamp for LWW narrative)
+- `updatedAt` — **server** timestamp on each `updateDoc` from the client; narrative for LWW / debugging, not used for merge logic yet. See **[CONFLICTS.md](./CONFLICTS.md)** (per-field merge, same-field LWW).
 - Connector: `fromObjectId`, `toObjectId` (or anchor points)
 
 ## Security rules (PR 03)
 
-- Require `request.auth != null` for all `boards/{boardId}/**` paths.
+- Implemented in repo root [`firestore.rules`](../firestore.rules): `request.auth != null` for `boards/{boardId}/**`; default deny elsewhere.
+- **Publish** via Console or `firebase deploy --only firestore:rules` (see README).
 - Optionally restrict `boardId` to `demo` until multi-board ships.
+
+## Clipboard (PR 15)
+
+- **Copy** writes a prefixed JSON string (`collabwb:v1:` + payload) via **`navigator.clipboard`** and mirrors it in an in-memory ref for the same session if the write fails.
+- **Paste** assigns new Firestore doc ids, shifts geometry by **32px**, remaps **connector** endpoints when both ends were in the copied set, then **`setDoc`** each item.
 
 ## Related
 
+- [CONFLICTS.md](./CONFLICTS.md) — concurrent edits, per-field `updateDoc`, LWW on same field; connector endpoint deletes
 - [FIREBASE_CONSOLE_CHECKLIST.md](./FIREBASE_CONSOLE_CHECKLIST.md) — PR 02 console steps
 - [PRESEARCH_AND_TRACKING.md](../PRESEARCH_AND_TRACKING.md) — stack decisions

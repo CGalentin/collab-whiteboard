@@ -2,15 +2,19 @@
 
 *Update this file when your focus changes (each session or each PR).*
 
+## Session handoff
+
+At the start of a work session, read **[`progress.md`](./progress.md)** and this file, then **[`BUILD_ROADMAP.md`](../BUILD_ROADMAP.md)** (and code as needed). That keeps continuity across chats.
+
 ## Current focus
 
-- **Done through PR 02:** Firebase console + **`.env.local`**; GitHub + Vercel deploy; checklist updates.
-- **Next session:** Read **[progress.md → Start here next session](./progress.md)** first — then **PR 03** (`firebase` package, **`src/lib/firebase.ts`**, **`firestore.rules`**, **`firebase.json`**, README rules note).
+- **Done through PR 15** — Shapes, stickies, frames, text, connectors, selection/transform, delete/duplicate, clipboard copy/paste (**`collabwb:v1:`** + **Ctrl/Cmd+C·V**).
+- **Next:** **PR 16** — Toolbar **search** input; **client-side** filter on **sticky** + **`text`** objects (substring); optional canvas highlight; README limits if no Algolia.
 
 ## Open decisions (revisit in code)
 
-- **Firestore paths:** [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — `boards/{boardId}/objects|cursors|presence`; `boardId = demo` for MVP.
-- **Cold start** for Vercel AI routes — revisit when `/api` exists.
+- **Firestore paths:** [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) — `boards/{DEMO_BOARD_ID}/objects|cursors|presence`
+- **Clipboard:** cross-origin / permission quirks; internal buffer is same-tab only
 
 ## Blockers
 
@@ -18,6 +22,6 @@
 
 ## Commands
 
-- Dev: `npm run dev` (one terminal; if “another server running,” stop Node for this folder or clear `.next\dev`)
+- Dev: `npm run dev`
 - Build: `npm run build`
-- Env: [`.env.local`](../.env.local) (gitignored)
+- Rules deploy: `npm run deploy:rules` (or global `firebase deploy --only firestore:rules`)

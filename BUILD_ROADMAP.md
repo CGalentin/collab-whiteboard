@@ -45,11 +45,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *App talks to Firebase safely from the client.*
 
-- [ ] Add **`lib/firebase.ts`** (or `src/lib/firebase.ts`): initialize app from `NEXT_PUBLIC_*` env vars.
+- [x] Add **`lib/firebase.ts`** (or `src/lib/firebase.ts`): initialize app from `NEXT_PUBLIC_*` env vars.
 - [x] Wire env vars in **`.env.local`** (never commit); confirm app still builds (`NEXT_PUBLIC_*` required at build for client).
-- [ ] Add **`firestore.rules`**: require `request.auth != null` for board paths you’ll use (tighten to specific `boardId` when known).
-- [ ] Deploy rules **or** use **Firestore emulator** locally—document which in README.
-- [ ] Add **`firebase.json`** pointing at rules file (if using CLI deploy).
+- [x] Add **`firestore.rules`**: require `request.auth != null` for board paths you’ll use (tighten to specific `boardId` when known).
+- [x] Deploy rules **or** use **Firestore emulator** locally—document which in README.
+- [x] Add **`firebase.json`** pointing at rules file (if using CLI deploy).
 
 ---
 
@@ -57,12 +57,12 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Signed-in users only for the board (aligns with PRD).*
 
-- [ ] Create **login** route/page: minimal layout + email/password fields + “Sign in with Google”.
-- [ ] Implement **email sign-up / sign-in** with Firebase Auth (`createUserWithEmailAndPassword` / `signInWithEmailAndPassword`).
-- [ ] Implement **Google** `signInWithPopup` (or redirect) and handle errors in UI.
-- [ ] Add **auth state listener** (`onAuthStateChanged`): loading → signed-in vs signed-out.
-- [ ] **Protect** board route: redirect unauthenticated users to login.
-- [ ] Add **sign out** button and test full loop.
+- [x] Create **login** route/page: minimal layout + email/password fields + “Sign in with Google”.
+- [x] Implement **email sign-up / sign-in** with Firebase Auth (`createUserWithEmailAndPassword` / `signInWithEmailAndPassword`).
+- [x] Implement **Google** `signInWithPopup` (or redirect) and handle errors in UI.
+- [x] Add **auth state listener** (`onAuthStateChanged`): loading → signed-in vs signed-out.
+- [x] **Protect** board route: redirect unauthenticated users to login.
+- [x] Add **sign out** button and test full loop.
 
 ---
 
@@ -70,9 +70,9 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Placeholder board page behind auth.*
 
-- [ ] Add **`/board`** (or `/board/[id]` later) protected route with empty canvas area + header (user email / sign out).
-- [ ] Add **“shared demo board”** constant ID in code matching Firestore path from architecture note.
-- [ ] Verify only **authenticated** reads/writes succeed against Firestore (rules smoke test).
+- [x] Add **`/board`** (or `/board/[id]` later) protected route with empty canvas area + header (user email / sign out).
+- [x] Add **“shared demo board”** constant ID in code matching Firestore path from architecture note.
+- [x] Verify only **authenticated** reads/writes succeed against Firestore (rules smoke test).
 
 ---
 
@@ -80,10 +80,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Who’s online (PRD presence).*
 
-- [ ] Choose **presence model** (e.g. `boards/{id}/presence/{uid}` with `displayName`, `lastSeen`, `online`).
-- [ ] On board mount: **write** presence doc; on unload/tab close: **update** offline or use `onDisconnect` if using RTDB—*if staying on Firestore only*, use heartbeat + `lastSeen` threshold (~30s).
-- [ ] **Listen** to presence collection; derive “online” list in UI.
-- [ ] Render **sidebar or header** list: display name (fallback email) for each online user.
+- [x] Choose **presence model** (e.g. `boards/{id}/presence/{uid}` with `displayName`, `lastSeen`, `online`).
+- [x] On board mount: **write** presence doc; on unload/tab close: **update** offline or use `onDisconnect` if using RTDB—*if staying on Firestore only*, use heartbeat + `lastSeen` threshold (~30s).
+- [x] **Listen** to presence collection; derive “online” list in UI.
+- [x] Render **sidebar or header** list: display name (fallback email) for each online user.
 
 ---
 
@@ -91,11 +91,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Other users’ pointers + names (PRD order: cursors early).*
 
-- [ ] Add Firestore path for **cursors** (e.g. `boards/{id}/cursors/{uid}`: `x`, `y`, `name`, `updatedAt`).
-- [ ] On `pointermove` on board container: **throttle** (~50ms) and **write** cursor doc (avoid writes when coords unchanged).
-- [ ] **Subscribe** to cursors query; render **remote** cursors (exclude self) as DOM overlay or Konva layer.
-- [ ] Show **name label** next to each remote cursor.
-- [ ] **Debounce/throttle** writes enough to stay under quotas; document rate in README if non-obvious.
+- [x] Add Firestore path for **cursors** (e.g. `boards/{id}/cursors/{uid}`: `x`, `y`, `name`, `updatedAt`).
+- [x] On `pointermove` on board container: **throttle** (~50ms) and **write** cursor doc (avoid writes when coords unchanged).
+- [x] **Subscribe** to cursors query; render **remote** cursors (exclude self) as DOM overlay or Konva layer.
+- [x] Show **name label** next to each remote cursor.
+- [x] **Debounce/throttle** writes enough to stay under quotas; document rate in README if non-obvious.
 
 ---
 
@@ -103,11 +103,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Infinite-feel board base (before heavy object sync).*
 
-- [ ] Install **`konva`** + **`react-konva`**.
-- [ ] Create **`BoardStage`**: full-viewport `Stage` + `Layer`.
-- [ ] Implement **wheel zoom** toward cursor (scale + position math).
-- [ ] Implement **pan** (e.g. middle-mouse or space+drag or stage drag).
-- [ ] Keep **stage state** (scale, position) in React state; optional: persist view per user later (skip for MVP if time tight).
+- [x] Install **`konva`** + **`react-konva`**.
+- [x] Create **`BoardStage`**: full-viewport `Stage` + `Layer`.
+- [x] Implement **wheel zoom** toward cursor (scale + position math).
+- [x] Implement **pan** (e.g. middle-mouse or space+drag or stage drag).
+- [x] Keep **stage state** (scale, position) in React state; optional: persist view per user later (skip for MVP if time tight).
 
 ---
 
@@ -115,11 +115,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Single source of truth for board objects.*
 
-- [ ] Define **TypeScript types** for `BoardObject` (id, type, x, y, width, height, rotation, style, text…).
-- [ ] Choose storage: **subcollection** `boards/{id}/objects/{objectId}` *or* one doc with map—document choice in `docs/ARCHITECTURE.md`.
-- [ ] Implement **read**: `onSnapshot` → normalized state in React (or small store).
-- [ ] Implement **create** (local only first): add one **test rectangle** to Firestore from a button.
-- [ ] Confirm **second browser** sees the new object (first real sync win).
+- [x] Define **TypeScript types** for `BoardObject` (id, type, x, y, width, height, rotation, style, text…).
+- [x] Choose storage: **subcollection** `boards/{id}/objects/{objectId}` *or* one doc with map—document choice in `docs/ARCHITECTURE.md`.
+- [x] Implement **read**: `onSnapshot` → normalized state in React (or small store).
+- [x] Implement **create** (local only first): add one **test rectangle** to Firestore from a button.
+- [x] Confirm **second browser** sees the new object (first real sync win).
 
 ---
 
@@ -127,11 +127,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *PRD: stickies with text + color.*
 
-- [ ] Add toolbar control **“Add sticky”** → creates Firestore object `type: 'sticky'`.
-- [ ] Render stickies as **Konva Group** (rect + text) from snapshot state.
-- [ ] **Inline edit**: click/double-click to edit text → **debounced** `updateDoc` on change.
-- [ ] **Color**: preset swatches → update Firestore `fill` / `color` field.
-- [ ] **Move sticky**: drag on canvas → update `x`,`y` with **debounce** (LWW on those fields).
+- [x] Add toolbar control **“Add sticky”** → creates Firestore object `type: 'sticky'`.
+- [x] Render stickies as **Konva Group** (rect + text) from snapshot state.
+- [x] **Inline edit**: click/double-click to edit text → **debounced** `updateDoc` on change.
+- [x] **Color**: preset swatches → update Firestore `fill` / `color` field.
+- [x] **Move sticky**: drag on canvas → update `x`,`y` with **debounce** (LWW on those fields).
 
 ---
 
@@ -139,11 +139,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *PRD: at least rectangle, circle, line.*
 
-- [ ] Toolbar: add **rectangle** tool → write object with `type: 'rect'`.
-- [ ] Toolbar: add **circle** / **ellipse** tool.
-- [ ] Toolbar: add **line** tool (two-point or drag-to-define).
-- [ ] Render each type in Konva from shared object list.
-- [ ] **Solid fill/stroke** colors consistent with sticky color model.
+- [x] Toolbar: add **rectangle** tool → write object with `type: 'rect'`.
+- [x] Toolbar: add **circle** / **ellipse** tool.
+- [x] Toolbar: add **line** tool (two-point or drag-to-define).
+- [x] Render each type in Konva from shared object list.
+- [x] **Solid fill/stroke** colors consistent with sticky color model.
 
 ---
 
@@ -151,11 +151,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Move / resize / rotate (PRD).*
 
-- [ ] **Select** object on click; show **Transformer** (Konva) for selected node.
-- [ ] On transform end: **write** width/height/scale/rotation/x/y to Firestore (debounced).
-- [ ] **Multi-select** (shift-click): extend selection set; optional multi-transform if time allows.
-- [ ] **Marquee** drag-select (rect intersection with object bounds).
-- [ ] Verify **two users** selecting different objects doesn’t break (local selection vs remote updates).
+- [x] **Select** object on click; show **Transformer** (Konva) for selected node.
+- [x] On transform end: **write** width/height/scale/rotation/x/y to Firestore (debounced).
+- [x] **Multi-select** (shift-click): extend selection set; optional multi-transform if time allows.
+- [x] **Marquee** drag-select (rect intersection with object bounds).
+- [x] Verify **two users** selecting different objects doesn’t break (local selection vs remote updates).
 
 ---
 
@@ -163,10 +163,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *PRD: simultaneous edits + documented LWW.*
 
-- [ ] Pick **LWW granularity** (per-field vs whole object); add `updatedAt` / `version` if needed.
-- [ ] Ensure writes **merge** safe fields without stomping unrelated properties (`updateDoc` with dot paths if applicable).
-- [ ] Add **`docs/CONFLICTS.md`** (short): what users see under concurrent drag/edit.
-- [ ] **Stress test** 5 min: two browsers edit **same** sticky—confirm acceptable behavior.
+- [x] Pick **LWW granularity** (per-field vs whole object); add `updatedAt` / `version` if needed.
+- [x] Ensure writes **merge** safe fields without stomping unrelated properties (`updateDoc` with dot paths if applicable).
+- [x] Add **`docs/CONFLICTS.md`** (short): what users see under concurrent drag/edit.
+- [x] **Stress test** 5 min: two browsers edit **same** sticky—confirm acceptable behavior.
 
 ---
 
@@ -174,11 +174,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *PRD extended board features (slice per sub-bullet).*
 
-- [ ] **Frames**: object type `frame` + title; render behind children or as labeled rect; optional “children ids” list.
-- [ ] **Standalone text**: `type: 'text'` without sticky chrome.
-- [ ] **Connectors**: `type: 'connector'` with `fromId`/`toId` (or anchor points); draw `Line`/`Arrow`; update on object move (listen to positions).
-- [ ] **Delete** selected object(s) → Firestore delete.
-- [ ] **Duplicate** selection → clone with new ids.
+- [x] **Frames**: object type `frame` + title; render behind children or as labeled rect; optional “children ids” list.
+- [x] **Standalone text**: `type: 'text'` without sticky chrome.
+- [x] **Connectors**: `type: 'connector'` with `fromId`/`toId` (or anchor points); draw `Line`/`Arrow`; update on object move (listen to positions).
+- [x] **Delete** selected object(s) → Firestore delete.
+- [x] **Duplicate** selection → clone with new ids.
 
 ---
 
@@ -186,10 +186,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Duplicate / copy-paste (PRD).*
 
-- [ ] **Duplicate** button for selection (already started in PR 14—finish if split).
-- [ ] **Copy** serializes selected objects to clipboard (structured JSON) or internal buffer.
-- [ ] **Paste** creates new ids + offset position + writes to Firestore.
-- [ ] Keyboard shortcuts **Ctrl+C / Ctrl+V** (prevent default where needed).
+- [x] **Duplicate** button for selection (already started in PR 14—finish if split).
+- [x] **Copy** serializes selected objects to clipboard (structured JSON) or internal buffer.
+- [x] **Paste** creates new ids + offset position + writes to Firestore.
+- [x] Keyboard shortcuts **Ctrl+C / Ctrl+V** (prevent default where needed).
 
 ---
 
