@@ -2,7 +2,7 @@
 
 ## Start here next session
 
-Follow **[`progress.md`](./progress.md)** → **“Start here next session”** and **[`activeContext.md`](./activeContext.md)**. Next feature slice: **PR 16** (`feat/search-mvp`) in [`BUILD_ROADMAP.md`](../BUILD_ROADMAP.md).
+Follow **[`progress.md`](./progress.md)** → **“Start here next session”** and **[`activeContext.md`](./activeContext.md)**. Next feature slice: **PR 22** (`chore/vercel-production`) in [`BUILD_ROADMAP.md`](../BUILD_ROADMAP.md).
 
 ---
 

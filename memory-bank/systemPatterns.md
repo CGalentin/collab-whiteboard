@@ -27,6 +27,10 @@ Browser (Next.js React)
 - **`updatedAt`** is set server-side on object patches (not used for client merge yet).
 - **Debounce** object patches (~400ms merged per id), drag/move, and cursor writes for quotas and latency.
 - **Clipboard (PR 15):** `collabwb:v1:` JSON in **`src/lib/board-clipboard.ts`**; **`board-canvas`** Copy/Paste + shortcuts; internal ref fallback.
+- **Text search (PR 16):** **`getTextSearchMatchIds`** in **`src/lib/board-search.ts`** — in-memory substring on **`sticky`** / **`text`**; canvas dim + amber hit ring.
+- **Perf (PR 17):** **`useBoardObjectWrites`** — one debounce + **`writeBatch`**; shape components **`memo`**; see **`docs/PERF_NOTES.md`**.
+- **QA (PR 18):** **`docs/MANUAL_QA_MATRIX.md`** — multiplayer, refresh, stress, network; 5+ session log.
+- **AI API (PR 19–20):** **`POST /api/ai`** + **`boardContext`**; client **`executeAiToolCallsClient`**; **`AiBoardPanel`** on **`/board`**.
 
 ## Security
 

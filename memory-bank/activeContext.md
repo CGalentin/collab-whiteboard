@@ -8,8 +8,22 @@ At the start of a work session, read **[`progress.md`](./progress.md)** and this
 
 ## Current focus
 
-- **Done through PR 15** — Shapes, stickies, frames, text, connectors, selection/transform, delete/duplicate, clipboard copy/paste (**`collabwb:v1:`** + **Ctrl/Cmd+C·V**).
-- **Next:** **PR 16** — Toolbar **search** input; **client-side** filter on **sticky** + **`text`** objects (substring); optional canvas highlight; README limits if no Algolia.
+- **Shipped:** **PR 21** — `buildBoardSystemInstruction` in **`ai-board-system-prompt.ts`** (six command areas + SWOT / retro / grid); richer **`ai-board-tools`**; optional sticky **`fill`**; AI panel loading/accessibility; **CONFLICTS.md** note on two users + AI.
+- **Next:** **PR 22** — **`chore/vercel-production`**: Vercel + GitHub, env vars (Firebase + **`GEMINI_API_KEY`**), production Firestore rules, smoke test.
+
+### AI feature — key files
+
+| Piece | Path |
+|--------|------|
+| API route | `src/app/api/ai/route.ts` — `GEMINI_API_KEY`; **`Authorization: Bearer`** Firebase ID token |
+| Token verify | `src/lib/verify-firebase-id-token.ts` — Firebase ID JWT (securetoken x509 + `jsonwebtoken`) |
+| System prompt | `src/lib/ai-board-system-prompt.ts` |
+| Gemini call | `src/lib/run-board-gemini.ts` — model fallbacks; optional **`GEMINI_MODEL`** in `.env.local` |
+| Tool defs | `src/lib/ai-board-tools.ts` |
+| Client executor | `src/lib/ai-execute-tools-client.ts` |
+| Board snapshot | `src/lib/board-context-for-ai.ts` |
+| UI | `src/components/ai-board-panel.tsx` |
+| Types | `src/lib/ai-api-types.ts` |
 
 ## Open decisions (revisit in code)
 

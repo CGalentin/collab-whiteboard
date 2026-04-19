@@ -48,6 +48,8 @@ Real-time collaborative whiteboard (Gauntlet CollabBoard PRD): **Next.js (App Ro
 - [Build roadmap (15m tasks)](./BUILD_ROADMAP.md)
 - [Gauntlet best practices](./docs/GAUNTLET_FULLSTACK_BEST_PRACTICES.md)
 - [Architecture & Firestore paths](./docs/ARCHITECTURE.md)
+- [Performance notes (PR 17)](./docs/PERF_NOTES.md)
+- [Manual QA matrix (PR 18)](./docs/MANUAL_QA_MATRIX.md)
 - [Firebase console checklist (PR 02)](./docs/FIREBASE_CONSOLE_CHECKLIST.md)
 
 ## Firestore security rules
@@ -59,15 +61,21 @@ Rules live in [`firestore.rules`](./firestore.rules) (see [`firebase.json`](./fi
 
 MVP behavior: only **authenticated** users can read/write `boards/{boardId}/**`; everything else is denied.
 
-**Multiplayer cursors (PR 07–08):** each user writes `boards/{boardId}/cursors/{uid}` with **Konva world** `x`/`y` (same space as the pannable/zoomable stage after PR 08). Writes use a **~50ms trailing debounce** and a small **world-space epsilon**; leaving the board **deletes** that cursor doc.
+**Multiplayer cursors (PR 07–08):** each user writes `boards/{boardId}/cursors/{uid}` with **Konva world** `x`/`y` (same space as the pannable/zoomable stage after PR 08). Writes use a **~75ms trailing debounce** (PR 17) and a small **world-space epsilon**; leaving the board **deletes** that cursor doc.
 
-**Board objects (PR 09–15):** canvas entities live in **`boards/{boardId}/objects/{objectId}`** (subcollection). Types include **`rect`**, **`circle`**, **`line`**, **`sticky`**, **`frame`**, **`text`**, and **`connector`**. Toolbar: frame/text, **Connect**, **Duplicate**, **Copy**, **Paste**, **Delete**; **Del/Backspace** when not typing; **Ctrl/Cmd+C** and **Ctrl/Cmd+V** copy/paste a `collabwb:v1:` JSON payload (with in-app fallback if the clipboard API is blocked).
+**Board objects (PR 09–16):** canvas entities live in **`boards/{boardId}/objects/{objectId}`** (subcollection). Types include **`rect`**, **`circle`**, **`line`**, **`sticky`**, **`frame`**, **`text`**, and **`connector`**. Toolbar: **Search** (client-side substring on **sticky** + **`text`** only; matches get an amber outline, non-matches fade; no Algolia/server index), frame/text, **Connect**, **Duplicate**, **Copy**, **Paste**, **Delete**; **Del/Backspace** when not typing; **Ctrl/Cmd+C** and **Ctrl/Cmd+V** copy/paste a `collabwb:v1:` JSON payload (with in-app fallback if the clipboard API is blocked). **Esc** clears an active search query before clearing selection.
 
 **Sticky notes (PR 10):** **Add sticky**, drag to move (debounced position writes), **double-click** for textarea edit (debounced text + flush on blur/Escape), **color swatches** when a sticky is selected (`fill` + `stroke` in Firestore).
 
 **Shape colors (PR 11):** the **shape swatch** row sets fill/stroke for **new** rectangles and circles and stroke for **new** lines (same palette as sticky colors).
 
-**Selection & transforms (PR 12):** **click** to select, **Shift+click** to toggle in the set, **drag** on empty board to **marquee** (axis-aligned bounds vs objects). **Transformer** resize/rotate (and drag) for **rect**, **circle**, and **sticky**; **line** is selectable only. Geometry writes are **debounced** (~400ms, merged per object). **Esc** clears selection and the line tool. Selection is **local** to each browser.
+**Selection & transforms (PR 12):** **click** to select, **Shift+click** to toggle in the set, **drag** on empty board to **marquee** (axis-aligned bounds vs objects). **Transformer** resize/rotate (and drag) for **rect**, **circle**, and **sticky**; **line** is selectable only. Geometry writes are **debounced** (~400ms, merged; PR 17 **batched `writeBatch`** when the flush window includes multiple objects). **Esc** clears selection and the line tool. Selection is **local** to each browser.
+
+**AI API (PR 19–20):** `POST /api/ai` with `Authorization: Bearer <Firebase ID token>` and JSON `{ "prompt": "…", "boardId": "demo", "boardContext": "…" }` (`boardContext` optional; UI sends **`buildBoardContextForAi()`**). Server uses **`GEMINI_API_KEY`**. Returns **`toolCalls`**; the **client** runs **`executeAiToolCallsClient`** so Firestore matches UI paths. **AI panel** on `/board`. Probe: `GET /api/ai`. Types: `src/lib/ai-api-types.ts`.
+
+**Try `/api/ai` from the browser (dev):** set `GEMINI_API_KEY` in `.env.local`, restart `npm run dev`, sign in and open `/board`. In **DevTools → Console** run:
+`const t = await window.__collabBoardGetIdToken(); const r = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t }, body: JSON.stringify({ prompt: 'Say hello in one sentence.', boardId: 'demo' }) }); console.log(await r.json());`
+(`__collabBoardGetIdToken` exists only in **development** builds.)
 
 **Concurrent edits (PR 13):** object updates use **partial** Firestore `updateDoc` (top-level fields only). Different fields usually compose; the **same** field is **last-write-wins**. Details and a manual two-browser sticky test → **[docs/CONFLICTS.md](./docs/CONFLICTS.md)**.
 

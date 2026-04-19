@@ -32,6 +32,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsub();
   }, []);
 
+  /** Dev only: lets you `await window.__collabBoardGetIdToken()` in the browser console to test `/api/ai`. */
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development" || typeof window === "undefined") {
+      return;
+    }
+    (
+      window as unknown as {
+        __collabBoardGetIdToken?: () => Promise<string>;
+      }
+    ).__collabBoardGetIdToken = async () => {
+      const u = getFirebaseAuth().currentUser;
+      if (!u) {
+        throw new Error("Sign in first (e.g. open /board), then run again.");
+      }
+      return u.getIdToken();
+    };
+  }, []);
+
   const value = useMemo(() => ({ user, loading }), [user, loading]);
 
   return (

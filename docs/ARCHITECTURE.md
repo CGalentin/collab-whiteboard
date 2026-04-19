@@ -6,9 +6,22 @@
 
 ```text
 Next.js (Vercel)
-  ├─ Browser: Firebase Auth + Firestore listeners/writes
-  └─ /app/api/* : Gemini (server-only key) → optional Firestore writes
+  ├─ Browser: Firebase Auth + Firestore listeners/writes + AI tool execution (PR 20)
+  └─ /app/api/ai : Gemini (server-only GEMINI_API_KEY) — PR 19; client applies toolCalls to Firestore (PR 20)
 ```
+
+### AI route (PR 19)
+
+| Item | Detail |
+|------|--------|
+| Endpoint | `POST /api/ai` (`src/app/api/ai/route.ts`), Node runtime |
+| Auth | `Authorization: Bearer <Firebase ID token>` — verified with `google-auth-library` (project id + `securetoken.google.com` audience); no Admin SDK required |
+| Body | `{ "prompt": string, "boardId"?: string, "boardContext"?: string }` — MVP allows only the shared **demo** `boardId`; optional **boardContext** from `buildBoardContextForAi()` |
+| Secrets | `GEMINI_API_KEY`, optional `GEMINI_MODEL` (default `gemini-2.0-flash`) |
+| Response | `{ ok: true, data: { model, replyText, toolCalls, boardId, uid } }` or `{ ok: false, error: { code, message } }` — see `src/lib/ai-api-types.ts` |
+| Tools | Declarations in `src/lib/ai-board-tools.ts`; **client execution** in `src/lib/ai-execute-tools-client.ts` after `/api/ai` returns (PR 20) |
+| Board context | `buildBoardContextForAi()` in `src/lib/board-context-for-ai.ts` — sent as `boardContext` in POST body for Gemini |
+| UI | `AiBoardPanel` on `/board` — loading, errors, reply + tool execution summary |
 
 ## Firestore path sketch (shared demo board)
 
@@ -49,8 +62,20 @@ Unified `type` discriminator; adjust to match Konva + PRD.
 - **Copy** writes a prefixed JSON string (`collabwb:v1:` + payload) via **`navigator.clipboard`** and mirrors it in an in-memory ref for the same session if the write fails.
 - **Paste** assigns new Firestore doc ids, shifts geometry by **32px**, remaps **connector** endpoints when both ends were in the copied set, then **`setDoc`** each item.
 
+## Performance (PR 17)
+
+- Object patches: debounced merge + **`writeBatch`** (see `useBoardObjectWrites`, `docs/PERF_NOTES.md`).
+- Cursors: debounced `setDoc` + epsilon (`src/lib/cursors.ts`).
+- Konva: split layers; memoized shape components where equality is cheap.
+
+## Text search (PR 16)
+
+- **Client-only:** substring match (case-insensitive) on **`sticky.text`** and **`text.text`** in the current snapshot — no Firestore query, no Algolia.
+- **UI:** toolbar `type="search"` input; match count; non-matching stickies/text are **dimmed**, matches get an **amber** stroke (selection green still wins). **Esc** clears the query first (see board keyboard handler).
+
 ## Related
 
+- [MANUAL_QA_MATRIX.md](./MANUAL_QA_MATRIX.md) — two-browser checklist, refresh, stress, network (PR 18)
 - [CONFLICTS.md](./CONFLICTS.md) — concurrent edits, per-field `updateDoc`, LWW on same field; connector endpoint deletes
 - [FIREBASE_CONSOLE_CHECKLIST.md](./FIREBASE_CONSOLE_CHECKLIST.md) — PR 02 console steps
 - [PRESEARCH_AND_TRACKING.md](../PRESEARCH_AND_TRACKING.md) — stack decisions

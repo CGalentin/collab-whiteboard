@@ -88,7 +88,10 @@ export function FirestoreRulesSmoke({ userId }: { userId: string }) {
 
   if (state.kind === "running") {
     return (
-      <p className="text-xs text-zinc-500" aria-live="polite">
+      <p
+        className="text-xs text-zinc-500 dark:text-zinc-500"
+        aria-live="polite"
+      >
         Checking Firestore rules…
       </p>
     );
@@ -97,11 +100,11 @@ export function FirestoreRulesSmoke({ userId }: { userId: string }) {
   if (state.kind === "ok") {
     return (
       <p
-        className="text-xs text-emerald-400/90"
+        className="text-xs text-emerald-700 dark:text-emerald-400/90"
         aria-live="polite"
       >
         Firestore: authenticated read/write OK (
-        <span className="font-mono text-emerald-500/90">
+        <span className="font-mono text-emerald-800 dark:text-emerald-500/90">
           boards/{DEMO_BOARD_ID}/…
         </span>
         )
@@ -110,7 +113,10 @@ export function FirestoreRulesSmoke({ userId }: { userId: string }) {
   }
 
   return (
-    <p className="text-xs text-red-400" role="alert">
+    <p
+      className="text-xs text-red-600 dark:text-red-400"
+      role="alert"
+    >
       Firestore smoke test failed: {state.message}
     </p>
   );

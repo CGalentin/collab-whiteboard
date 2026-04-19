@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { useAuth } from "@/components/auth-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function authErrorMessage(code: string): string {
   switch (code) {
@@ -98,7 +99,7 @@ function LoginForm() {
 
   if (loading || user) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-zinc-500">
+      <div className="flex min-h-[40vh] items-center justify-center text-zinc-500 dark:text-zinc-500">
         <p className="text-sm">Loading…</p>
       </div>
     );
@@ -107,10 +108,10 @@ function LoginForm() {
   return (
     <div className="mx-auto w-full max-w-sm space-y-8">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">
           Sign in
         </h1>
-        <p className="mt-2 text-sm text-zinc-400">
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
           Use your account to open the shared board.
         </p>
       </div>
@@ -119,7 +120,7 @@ function LoginForm() {
         <div className="space-y-2">
           <label
             htmlFor="email"
-            className="block text-xs font-medium uppercase tracking-wide text-zinc-500"
+            className="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-500"
           >
             Email
           </label>
@@ -130,14 +131,14 @@ function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-600"
             placeholder="you@example.com"
           />
         </div>
         <div className="space-y-2">
           <label
             htmlFor="password"
-            className="block text-xs font-medium uppercase tracking-wide text-zinc-500"
+            className="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-500"
           >
             Password
           </label>
@@ -151,7 +152,7 @@ function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white placeholder:text-zinc-600 focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+            className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-600"
             placeholder="••••••••"
           />
         </div>
@@ -178,13 +179,13 @@ function LoginForm() {
         </button>
       </form>
 
-      <p className="text-center text-sm text-zinc-500">
+      <p className="text-center text-sm text-zinc-600 dark:text-zinc-500">
         {mode === "signin" ? (
           <>
             No account?{" "}
             <button
               type="button"
-              className="text-emerald-400 hover:text-emerald-300"
+              className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
               onClick={() => {
                 setMode("signup");
                 setError(null);
@@ -198,7 +199,7 @@ function LoginForm() {
             Already have an account?{" "}
             <button
               type="button"
-              className="text-emerald-400 hover:text-emerald-300"
+              className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
               onClick={() => {
                 setMode("signin");
                 setError(null);
@@ -212,10 +213,12 @@ function LoginForm() {
 
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-zinc-800" />
+          <div className="w-full border-t border-zinc-200 dark:border-zinc-800" />
         </div>
         <div className="relative flex justify-center text-xs uppercase tracking-wide">
-          <span className="bg-zinc-950 px-2 text-zinc-600">or</span>
+          <span className="bg-zinc-50 px-2 text-zinc-500 dark:bg-zinc-950 dark:text-zinc-600">
+            or
+          </span>
         </div>
       </div>
 
@@ -223,7 +226,7 @@ function LoginForm() {
         type="button"
         disabled={busy}
         onClick={handleGoogle}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
       >
         <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
           <path
@@ -249,7 +252,7 @@ function LoginForm() {
       <p className="text-center text-sm">
         <Link
           href="/"
-          className="text-zinc-500 underline-offset-4 hover:text-zinc-400 hover:underline"
+          className="text-zinc-600 underline-offset-4 hover:text-zinc-800 hover:underline dark:text-zinc-500 dark:hover:text-zinc-400"
         >
           Back to home
         </Link>
@@ -260,10 +263,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 px-6 py-16 font-sans text-zinc-100">
+    <main className="relative flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-6 py-16 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+      <div className="fixed right-4 top-4 z-50">
+        <ThemeToggle />
+      </div>
       <Suspense
         fallback={
-          <p className="text-sm text-zinc-500">Loading…</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-500">Loading…</p>
         }
       >
         <LoginForm />

@@ -1,7 +1,7 @@
 import type { Timestamp } from "firebase/firestore";
 
-/** Trailing debounce for `setDoc` on pointer move (~20 writes/s max if always moving). */
-export const CURSOR_WRITE_DEBOUNCE_MS = 50;
+/** Trailing debounce for `setDoc` on pointer move (PR 17: ~13 writes/s max if always moving). */
+export const CURSOR_WRITE_DEBOUNCE_MS = 75;
 
 /** Hide remote cursors if `updatedAt` is older than this (no explicit delete on idle). */
 export const CURSOR_STALE_MS = 5_000;

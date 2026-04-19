@@ -42,6 +42,11 @@ A **`connector`** references `fromId` and `toId`. If either object is **deleted*
 
 - [`src/hooks/use-board-object-writes.ts`](../src/hooks/use-board-object-writes.ts) — merged debounced patches per object id, `flushTextNow` merges pending fields with final `text`.
 
+## AI assistant (two users, PR 21)
+
+- The AI panel sends **one request at a time**: while a request is in flight, **Send** is disabled and a second submit is ignored (no queue).
+- Tool calls run on **each signed-in client** after the model responds. If two users trigger AI close together, each gets their own `/api/ai` round-trip; Firestore writes use the same **LWW** rules as manual edits (see above). New objects use **new random ids**, so creates rarely collide; concurrent **moveObject** on the same id follows same-field LWW.
+
 ## Related
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — Firestore paths and object shape

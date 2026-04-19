@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -30,6 +31,7 @@ import { useRemoteCursors } from "@/hooks/use-board-cursors";
 import { getFirebaseDb } from "@/lib/firebase";
 import type { BoardObject, BoardObjectSticky } from "@/lib/board-object";
 import { DEMO_BOARD_FIRESTORE_PATH, DEMO_BOARD_ID } from "@/lib/board";
+import { getTextSearchMatchIds } from "@/lib/board-search";
 
 const STICKY_SWATCHES: { fill: string; stroke: string }[] = [
   { fill: "#fef08a", stroke: "#854d0e" },
@@ -85,6 +87,18 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
   const [lineState, setLineState] = useState<LineToolState>({ kind: "off" });
   const lineStateRef = useRef<LineToolState>({ kind: "off" });
   const shapePaletteRef = useRef(STICKY_SWATCHES[0]);
+  const [boardSearchQuery, setBoardSearchQuery] = useState("");
+  const boardSearchQueryRef = useRef("");
+  useEffect(() => {
+    boardSearchQueryRef.current = boardSearchQuery;
+  }, [boardSearchQuery]);
+
+  const boardSearchTrim = boardSearchQuery.trim();
+  const textSearchActive = boardSearchTrim.length > 0;
+  const textSearchMatchIds = useMemo(
+    () => getTextSearchMatchIds(objects, boardSearchTrim),
+    [objects, boardSearchTrim],
+  );
 
   const shapeStyle = STICKY_SWATCHES[shapeSwatchIndex];
 
@@ -374,6 +388,10 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
+        if (boardSearchQueryRef.current.trim().length > 0) {
+          setBoardSearchQuery("");
+          return;
+        }
         cancelLineTool();
         setSelectedObjectIds([]);
         return;
@@ -611,23 +629,49 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
 
   return (
     <div
-      className="relative flex min-h-[min(50vh,420px)] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 shadow-inner touch-none lg:min-h-[min(70vh,560px)]"
+      className="relative flex min-h-[min(50vh,420px)] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white/80 shadow-inner touch-none dark:border-zinc-800 dark:bg-zinc-900/40 lg:min-h-[min(70vh,560px)]"
       aria-label="Board canvas — wheel zoom, Space or middle-drag pan, pointer broadcasts cursor"
     >
-      <div
-        className="pointer-events-none absolute inset-0 z-0 opacity-[0.35]"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, rgb(39 39 42) 1px, transparent 1px),
-            linear-gradient(to bottom, rgb(39 39 42) 1px, transparent 1px)
-          `,
-          backgroundSize: "24px 24px",
-        }}
-      />
+      <div className="board-canvas-grid pointer-events-none absolute inset-0 z-0 opacity-45 dark:opacity-[0.35]" />
 
       <div className="absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2 pointer-events-auto">
+        <div className="flex min-w-[9rem] max-w-[14rem] flex-1 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white/95 px-2 py-1 shadow dark:border-zinc-700 dark:bg-zinc-900/95 sm:min-w-[12rem] sm:max-w-[18rem]">
+          <label htmlFor="board-text-search" className="sr-only">
+            Search sticky notes and text boxes
+          </label>
+          <span className="text-zinc-400 dark:text-zinc-500" aria-hidden>
+            <svg
+              className="h-4 w-4 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+              />
+            </svg>
+          </span>
+          <input
+            id="board-text-search"
+            type="search"
+            value={boardSearchQuery}
+            onChange={(e) => setBoardSearchQuery(e.target.value)}
+            placeholder="Search stickies & text…"
+            autoComplete="off"
+            className="min-w-0 flex-1 bg-transparent py-0.5 text-xs text-zinc-900 placeholder:text-zinc-500 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500"
+          />
+          {textSearchActive ? (
+            <span className="shrink-0 tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
+              {textSearchMatchIds.size} match
+              {textSearchMatchIds.size === 1 ? "" : "es"}
+            </span>
+          ) : null}
+        </div>
         <div
-          className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900/95 p-1.5 shadow"
+          className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white/95 p-1.5 shadow dark:border-zinc-700 dark:bg-zinc-900/95"
           role="group"
           aria-label="New shape colors"
         >
@@ -636,9 +680,9 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
               key={i}
               type="button"
               title={`Use for new shapes: ${s.fill}`}
-              className={`h-7 w-7 rounded border border-zinc-600 shadow-sm ring-offset-2 hover:ring-2 hover:ring-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500 ${
+              className={`h-7 w-7 rounded border border-zinc-300 shadow-sm ring-offset-2 hover:ring-2 hover:ring-sky-500/60 focus:outline-none focus:ring-2 focus:ring-sky-500 dark:border-zinc-600 ${
                 shapeSwatchIndex === i
-                  ? "ring-2 ring-sky-400 ring-offset-2 ring-offset-zinc-900"
+                  ? "ring-2 ring-sky-500 ring-offset-2 ring-offset-white dark:ring-sky-400 dark:ring-offset-zinc-900"
                   : ""
               }`}
               style={{ backgroundColor: s.fill }}
@@ -650,7 +694,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           type="button"
           onClick={() => void addRectangle()}
           disabled={addingShape === "rect"}
-          className="rounded-lg border border-emerald-800/80 bg-emerald-950/90 px-3 py-1.5 text-xs font-medium text-emerald-100 shadow hover:bg-emerald-900/90 disabled:opacity-50"
+          className="rounded-lg border border-emerald-600/90 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-emerald-500 disabled:opacity-50 dark:border-emerald-800/80 dark:bg-emerald-950/90 dark:text-emerald-100 dark:hover:bg-emerald-900/90"
         >
           {addingShape === "rect" ? "Adding…" : "Rectangle"}
         </button>
@@ -658,7 +702,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           type="button"
           onClick={() => void addCircle()}
           disabled={addingShape === "circle"}
-          className="rounded-lg border border-teal-800/80 bg-teal-950/90 px-3 py-1.5 text-xs font-medium text-teal-100 shadow hover:bg-teal-900/90 disabled:opacity-50"
+          className="rounded-lg border border-teal-600/90 bg-teal-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-teal-500 disabled:opacity-50 dark:border-teal-800/80 dark:bg-teal-950/90 dark:text-teal-100 dark:hover:bg-teal-900/90"
         >
           {addingShape === "circle" ? "Adding…" : "Circle"}
         </button>
@@ -668,8 +712,8 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           title="Click twice on the canvas for start and end. Esc cancels."
           className={`rounded-lg border px-3 py-1.5 text-xs font-medium shadow disabled:opacity-50 ${
             lineToolActive
-              ? "border-sky-500 bg-sky-900/90 text-sky-100 ring-2 ring-sky-500/50"
-              : "border-sky-800/80 bg-sky-950/90 text-sky-100 hover:bg-sky-900/90"
+              ? "border-sky-500 bg-sky-600 text-white ring-2 ring-sky-500/50 dark:bg-sky-900/90 dark:text-sky-100"
+              : "border-sky-500/80 bg-sky-500 text-white hover:bg-sky-400 dark:border-sky-800/80 dark:bg-sky-950/90 dark:text-sky-100 dark:hover:bg-sky-900/90"
           }`}
         >
           Line
@@ -678,7 +722,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           type="button"
           onClick={() => void addSticky()}
           disabled={addingSticky}
-          className="rounded-lg border border-amber-800/80 bg-amber-950/90 px-3 py-1.5 text-xs font-medium text-amber-100 shadow hover:bg-amber-900/90 disabled:opacity-50"
+          className="rounded-lg border border-amber-600/90 bg-amber-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-amber-500 disabled:opacity-50 dark:border-amber-800/80 dark:bg-amber-950/90 dark:text-amber-100 dark:hover:bg-amber-900/90"
         >
           {addingSticky ? "Adding…" : "Add sticky"}
         </button>
@@ -687,7 +731,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           onClick={() => void addFrame()}
           disabled={addingFrame}
           title="Frame uses a low z-index so newer objects draw on top."
-          className="rounded-lg border border-zinc-600/90 bg-zinc-800/90 px-3 py-1.5 text-xs font-medium text-zinc-100 shadow hover:bg-zinc-700/90 disabled:opacity-50"
+          className="rounded-lg border border-zinc-300 bg-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-900 shadow hover:bg-zinc-300 disabled:opacity-50 dark:border-zinc-600/90 dark:bg-zinc-800/90 dark:text-zinc-100 dark:hover:bg-zinc-700/90"
         >
           {addingFrame ? "Adding…" : "Frame"}
         </button>
@@ -695,7 +739,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           type="button"
           onClick={() => void addTextObject()}
           disabled={addingTextObj}
-          className="rounded-lg border border-violet-800/80 bg-violet-950/90 px-3 py-1.5 text-xs font-medium text-violet-100 shadow hover:bg-violet-900/90 disabled:opacity-50"
+          className="rounded-lg border border-violet-600/90 bg-violet-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-violet-500 disabled:opacity-50 dark:border-violet-800/80 dark:bg-violet-950/90 dark:text-violet-100 dark:hover:bg-violet-900/90"
         >
           {addingTextObj ? "Adding…" : "Text"}
         </button>
@@ -706,7 +750,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
             linkingConnector || selectedObjectIds.length !== 2
           }
           title="Select exactly two objects (Shift+click), then link."
-          className="rounded-lg border border-cyan-800/80 bg-cyan-950/90 px-3 py-1.5 text-xs font-medium text-cyan-100 shadow hover:bg-cyan-900/90 disabled:opacity-40"
+          className="rounded-lg border border-cyan-600/90 bg-cyan-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-cyan-500 disabled:opacity-40 dark:border-cyan-800/80 dark:bg-cyan-950/90 dark:text-cyan-100 dark:hover:bg-cyan-900/90"
         >
           {linkingConnector ? "Linking…" : "Connect"}
         </button>
@@ -714,7 +758,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           type="button"
           onClick={() => void duplicateSelection()}
           disabled={duplicatingSelection || selectedObjectIds.length === 0}
-          className="rounded-lg border border-lime-800/80 bg-lime-950/90 px-3 py-1.5 text-xs font-medium text-lime-100 shadow hover:bg-lime-900/90 disabled:opacity-40"
+          className="rounded-lg border border-lime-600/90 bg-lime-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-lime-500 disabled:opacity-40 dark:border-lime-800/80 dark:bg-lime-950/90 dark:text-lime-100 dark:hover:bg-lime-900/90"
         >
           {duplicatingSelection ? "Duplicating…" : "Duplicate"}
         </button>
@@ -723,7 +767,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           onClick={() => void copySelection()}
           disabled={selectedObjectIds.length === 0}
           title="Copy selection (Ctrl/Cmd+C). Also stored in-app if the browser blocks clipboard."
-          className="rounded-lg border border-slate-700/90 bg-slate-900/90 px-3 py-1.5 text-xs font-medium text-slate-100 shadow hover:bg-slate-800/90 disabled:opacity-40"
+          className="rounded-lg border border-slate-400/90 bg-slate-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-slate-500 disabled:opacity-40 dark:border-slate-700/90 dark:bg-slate-900/90 dark:text-slate-100 dark:hover:bg-slate-800/90"
         >
           Copy
         </button>
@@ -732,7 +776,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           onClick={() => void pasteFromClipboard()}
           disabled={pasting}
           title="Paste (Ctrl/Cmd+V). Uses system clipboard or last in-app copy."
-          className="rounded-lg border border-slate-600/90 bg-slate-800/90 px-3 py-1.5 text-xs font-medium text-slate-100 shadow hover:bg-slate-700/90 disabled:opacity-40"
+          className="rounded-lg border border-slate-400/80 bg-slate-500 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-slate-400 disabled:opacity-40 dark:border-slate-600/90 dark:bg-slate-800/90 dark:text-slate-100 dark:hover:bg-slate-700/90"
         >
           {pasting ? "Pasting…" : "Paste"}
         </button>
@@ -740,7 +784,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           type="button"
           onClick={() => void deleteSelection()}
           disabled={deletingSelection || selectedObjectIds.length === 0}
-          className="rounded-lg border border-orange-900/80 bg-orange-950/90 px-3 py-1.5 text-xs font-medium text-orange-100 shadow hover:bg-orange-900/90 disabled:opacity-40"
+          className="rounded-lg border border-orange-600/90 bg-orange-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-orange-500 disabled:opacity-40 dark:border-orange-900/80 dark:bg-orange-950/90 dark:text-orange-100 dark:hover:bg-orange-900/90"
         >
           {deletingSelection ? "Deleting…" : "Delete"}
         </button>
@@ -749,12 +793,12 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
           onClick={() => void clearBoardObjects()}
           disabled={clearingBoard || objects.length === 0}
           title="Removes every doc under boards/…/objects. Does not clear cursors or presence."
-          className="rounded-lg border border-red-900/80 bg-red-950/90 px-3 py-1.5 text-xs font-medium text-red-100 shadow hover:bg-red-900/90 disabled:opacity-40"
+          className="rounded-lg border border-red-600/90 bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-red-500 disabled:opacity-40 dark:border-red-900/80 dark:bg-red-950/90 dark:text-red-100 dark:hover:bg-red-900/90"
         >
           {clearingBoard ? "Clearing…" : "Clear board"}
         </button>
         {lineToolActive ? (
-          <p className="w-full text-[11px] text-zinc-400 sm:w-auto">
+          <p className="w-full text-[11px] text-zinc-600 dark:text-zinc-400 sm:w-auto">
             {lineState.kind === "awaiting_first"
               ? "Click the board for the line start."
               : "Click again for the end point. Esc cancels."}
@@ -762,7 +806,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
         ) : null}
         {selectedSticky ? (
           <div
-            className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-900/95 p-1.5 shadow"
+            className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white/95 p-1.5 shadow dark:border-zinc-700 dark:bg-zinc-900/95"
             role="group"
             aria-label="Sticky color"
           >
@@ -771,7 +815,7 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
                 key={i}
                 type="button"
                 title={`${s.fill}`}
-                className="h-7 w-7 rounded border border-zinc-600 shadow-sm ring-offset-2 hover:ring-2 hover:ring-emerald-500/60 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="h-7 w-7 rounded border border-zinc-300 shadow-sm ring-offset-2 hover:ring-2 hover:ring-emerald-500/60 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:border-zinc-600"
                 style={{ backgroundColor: s.fill }}
                 onClick={() =>
                   void writes.setStickyColors(
@@ -805,30 +849,34 @@ export function BoardCanvas({ user, children }: BoardCanvasProps) {
             ? onLineStagePointerMoveWorld
             : undefined
         }
+        textSearchActive={textSearchActive}
+        textSearchMatchIds={textSearchMatchIds}
       />
 
       <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center p-8">
         {children ?? (
           <div className="max-w-sm text-center">
-            <p className="text-xs font-medium uppercase tracking-widest text-zinc-600">
+            <p className="text-xs font-medium uppercase tracking-widest text-zinc-500 dark:text-zinc-600">
               Konva stage
             </p>
-            <p className="mt-2 text-lg font-medium text-zinc-300">
-              Board objects (PR 10–15)
+            <p className="mt-2 text-lg font-medium text-zinc-800 dark:text-zinc-300">
+              Board objects (PR 10–16)
             </p>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-              <strong className="text-zinc-400">Frame</strong> (sent back),{" "}
-              <strong className="text-zinc-400">Text</strong> (double-click edit),{" "}
-              <strong className="text-zinc-400">Connect</strong> with two selected.{" "}
-              <strong className="text-zinc-400">Copy / Paste</strong>{" "}
-              (<strong className="font-medium text-zinc-400">Ctrl/Cmd+C · V</strong> when
-              not in an input), <strong className="text-zinc-400">Duplicate</strong>,{" "}
-              <strong className="text-zinc-400">Delete</strong>;{" "}
-              <strong className="text-zinc-400">Del</strong> key when not typing.{" "}
-              <strong className="text-zinc-400">Marquee</strong>,{" "}
-              <strong className="text-zinc-400">Transformer</strong>, stickies, shapes
+            <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-500">
+              <strong className="text-zinc-800 dark:text-zinc-400">Search</strong> (toolbar) filters
+              stickies/text on the canvas (client-side).{" "}
+              <strong className="text-zinc-800 dark:text-zinc-400">Frame</strong> (sent back),{" "}
+              <strong className="text-zinc-800 dark:text-zinc-400">Text</strong> (double-click edit),{" "}
+              <strong className="text-zinc-800 dark:text-zinc-400">Connect</strong> with two selected.{" "}
+              <strong className="text-zinc-800 dark:text-zinc-400">Copy / Paste</strong>{" "}
+              (<strong className="font-medium text-zinc-800 dark:text-zinc-400">Ctrl/Cmd+C · V</strong> when
+              not in an input), <strong className="text-zinc-800 dark:text-zinc-400">Duplicate</strong>,{" "}
+              <strong className="text-zinc-800 dark:text-zinc-400">Delete</strong>;{" "}
+              <strong className="text-zinc-800 dark:text-zinc-400">Del</strong> key when not typing.{" "}
+              <strong className="text-zinc-800 dark:text-zinc-400">Marquee</strong>,{" "}
+              <strong className="text-zinc-800 dark:text-zinc-400">Transformer</strong>, stickies, shapes
               as before.{" "}
-              <span className="font-mono text-zinc-400">
+              <span className="font-mono text-zinc-700 dark:text-zinc-400">
                 {DEMO_BOARD_FIRESTORE_PATH}/objects
               </span>
               .

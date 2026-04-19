@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (next-themes sets `.dark` on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
+  --background: #fafafa;
   --foreground: #171717;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -12,15 +20,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Board canvas dot grid: light vs dark line color */
+.board-canvas-grid {
+  background-image:
+    linear-gradient(to right, rgb(228 228 231) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(228 228 231) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.dark .board-canvas-grid {
+  background-image:
+    linear-gradient(to right, rgb(39 39 42) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(39 39 42) 1px, transparent 1px);
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type Konva from "konva";
 import { Circle, Line, Rect } from "react-konva";
@@ -15,7 +16,7 @@ type BoardObjectShapeProps = {
   onDragEnd: (e: KonvaEventObject<DragEvent>) => void;
 };
 
-export function BoardObjectShape({
+function BoardObjectShapeInner({
   object,
   isSelected,
   innerRef,
@@ -108,3 +109,54 @@ export function BoardObjectShape({
     />
   );
 }
+
+function boardObjectShapeEqual(
+  a: BoardObjectShapeProps,
+  b: BoardObjectShapeProps,
+): boolean {
+  if (a.isSelected !== b.isSelected) return false;
+  const o = a.object;
+  const p = b.object;
+  if (o.type !== p.type || o.id !== p.id) return false;
+  if (o === p) return true;
+  if (o.type === "rect" && p.type === "rect") {
+    return (
+      o.x === p.x &&
+      o.y === p.y &&
+      o.width === p.width &&
+      o.height === p.height &&
+      o.rotation === p.rotation &&
+      o.fill === p.fill &&
+      o.stroke === p.stroke &&
+      o.strokeWidth === p.strokeWidth &&
+      (o.text ?? "") === (p.text ?? "")
+    );
+  }
+  if (o.type === "circle" && p.type === "circle") {
+    return (
+      o.x === p.x &&
+      o.y === p.y &&
+      o.radius === p.radius &&
+      o.rotation === p.rotation &&
+      o.fill === p.fill &&
+      o.stroke === p.stroke &&
+      o.strokeWidth === p.strokeWidth
+    );
+  }
+  if (o.type === "line" && p.type === "line") {
+    return (
+      o.x1 === p.x1 &&
+      o.y1 === p.y1 &&
+      o.x2 === p.x2 &&
+      o.y2 === p.y2 &&
+      o.stroke === p.stroke &&
+      o.strokeWidth === p.strokeWidth
+    );
+  }
+  return false;
+}
+
+export const BoardObjectShape = memo(
+  BoardObjectShapeInner,
+  boardObjectShapeEqual,
+);

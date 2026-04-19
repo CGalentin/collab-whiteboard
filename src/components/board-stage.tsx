@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { User } from "firebase/auth";
 import Konva from "konva";
+import { useTheme } from "next-themes";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { Stage as KonvaStage } from "konva/lib/Stage";
 import { Circle, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
@@ -63,6 +64,9 @@ type BoardStageProps = {
   linePreviewSegment?: LinePreviewSegment | null;
   onLineStageBackgroundDown?: (world: { x: number; y: number }) => void;
   onLineStagePointerMoveWorld?: (world: { x: number; y: number }) => void;
+  /** PR 16: client substring search on sticky + text — dim non-matches, amber ring on matches */
+  textSearchActive?: boolean;
+  textSearchMatchIds?: ReadonlySet<string>;
 };
 
 function pointerToWorld(
@@ -163,7 +167,16 @@ export function BoardStage({
   linePreviewSegment = null,
   onLineStageBackgroundDown,
   onLineStagePointerMoveWorld,
+  textSearchActive = false,
+  textSearchMatchIds,
 }: BoardStageProps) {
+  const searchOn = textSearchActive;
+  const searchHits = textSearchMatchIds ?? new Set<string>();
+
+  const textSearchVisualFor = (id: string) => {
+    if (!searchOn) return "inactive";
+    return searchHits.has(id) ? "match" : "dim";
+  };
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
   const stageRef = useRef<KonvaStage>(null);
@@ -593,6 +606,7 @@ export function BoardStage({
                       key={o.id}
                       object={o}
                       isSelected={selectedObjectIds.includes(o.id)}
+                      textSearchVisual={textSearchVisualFor(o.id)}
                       innerRef={(n) => registerTransformTarget(o.id, n)}
                       onObjectTap={(ev) =>
                         onSelectObject(o.id, ev.evt.shiftKey)
@@ -624,6 +638,7 @@ export function BoardStage({
                       key={o.id}
                       object={o}
                       isSelected={selectedObjectIds.includes(o.id)}
+                      textSearchVisual={textSearchVisualFor(o.id)}
                       innerRef={(n) => registerTransformTarget(o.id, n)}
                       onObjectTap={(ev) =>
                         onSelectObject(o.id, ev.evt.shiftKey)
@@ -738,6 +753,8 @@ export function BoardStage({
 }
 
 function RemoteCursorShape({ cursor }: { cursor: RemoteCursor }) {
+  const { resolvedTheme } = useTheme();
+  const light = resolvedTheme === "light";
   const pad = 6;
   const label =
     cursor.name.length > 24 ? `${cursor.name.slice(0, 22)}…` : cursor.name;
@@ -747,8 +764,8 @@ function RemoteCursorShape({ cursor }: { cursor: RemoteCursor }) {
         x={cursor.x}
         y={cursor.y}
         radius={5}
-        fill="#38bdf8"
-        stroke="#09090b"
+        fill={light ? "#0284c7" : "#38bdf8"}
+        stroke={light ? "#f4f4f5" : "#09090b"}
         strokeWidth={2}
         listening={false}
       />
@@ -758,12 +775,12 @@ function RemoteCursorShape({ cursor }: { cursor: RemoteCursor }) {
         text={label}
         fontSize={11}
         fontFamily="system-ui, sans-serif"
-        fill="#e0f2fe"
+        fill={light ? "#0f172a" : "#e0f2fe"}
         padding={4}
         listening={false}
-        shadowColor="black"
+        shadowColor={light ? "rgba(255,255,255,0.9)" : "black"}
         shadowBlur={4}
-        shadowOpacity={0.6}
+        shadowOpacity={light ? 0.5 : 0.6}
       />
     </>
   );

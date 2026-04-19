@@ -197,10 +197,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Pre-search: full-text-ish search (pick smallest approach).*
 
-- [ ] Add **search input** in toolbar.
-- [ ] **Client-side filter** stickies/text objects by substring (good enough for small boards).
-- [ ] Optional stretch: **highlight** matching objects on canvas.
-- [ ] Document limitation in README if no Algolia/extension.
+- [x] Add **search input** in toolbar.
+- [x] **Client-side filter** stickies/text objects by substring (good enough for small boards).
+- [x] Optional stretch: **highlight** matching objects on canvas.
+- [x] Document limitation in README if no Algolia/extension.
 
 ---
 
@@ -208,10 +208,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *PRD targets: pan/zoom smoothness, many objects.*
 
-- [ ] **Batch** / debounce rapid Firestore writes (move/drag).
-- [ ] Memoize Konva nodes or split layers if **>100** objects feels slow.
-- [ ] Quick **500-object** test (scripted or duplicate) — note FPS in `docs/PERF_NOTES.md`.
-- [ ] Throttle cursor writes further if needed.
+- [x] **Batch** / debounce rapid Firestore writes (move/drag).
+- [x] Memoize Konva nodes or split layers if **>100** objects feels slow.
+- [x] Quick **500-object** test (scripted or duplicate) — note FPS in `docs/PERF_NOTES.md`.
+- [x] Throttle cursor writes further if needed.
 
 ---
 
@@ -219,11 +219,11 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *PRD testing scenarios.*
 
-- [ ] **Two browsers** simultaneous edit checklist (stickies + shapes).
-- [ ] **Refresh** mid-edit → state restores.
-- [ ] **Rapid** create/move for 2 minutes — no obvious desync.
-- [ ] **Chrome DevTools throttle** + disconnect Wi‑Fi → reconnect behavior noted; fix critical bugs.
-- [ ] **5+** sessions (ask friends / incognito windows) — record observations.
+- [x] **Two browsers** simultaneous edit checklist (stickies + shapes).
+- [x] **Refresh** mid-edit → state restores.
+- [x] **Rapid** create/move for 2 minutes — no obvious desync.
+- [x] **Chrome DevTools throttle** + disconnect Wi‑Fi → reconnect behavior noted; fix critical bugs.
+- [x] **5+** sessions (ask friends / incognito windows) — record observations.
 
 ---
 
@@ -231,10 +231,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Server-side Gemini (keys not in client).*
 
-- [ ] Add Vercel **`/app/api/ai`** (or `api/ai.ts`) route; read **`GEMINI_API_KEY`** from env only on server.
-- [ ] Parse JSON body: `{ prompt, boardId }` (auth: verify Firebase **ID token** in header if possible).
-- [ ] Call **Gemini** with tool/function definitions matching your board ops (stub tools first).
-- [ ] Return structured **tool calls** or error JSON; map to consistent error shape for UI.
+- [x] Add Vercel **`/app/api/ai`** (or `api/ai.ts`) route; read **`GEMINI_API_KEY`** from env only on server.
+- [x] Parse JSON body: `{ prompt, boardId }` (auth: verify Firebase **ID token** in header if possible).
+- [x] Call **Gemini** with tool/function definitions matching your board ops (stub tools first).
+- [x] Return structured **tool calls** or error JSON; map to consistent error shape for UI.
 
 ---
 
@@ -242,10 +242,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *PRD minimum tool schema + Firestore writes from AI.*
 
-- [ ] Implement server or client **executor** that applies `createStickyNote`, `createShape`, `moveObject`, etc., to Firestore (same paths as UI).
-- [ ] **getBoardState**: read objects (limit size / summarize if huge) for model context.
-- [ ] Wire UI: **AI panel** input → POST `/api/ai` → execute returned tools → all users see via existing listeners.
-- [ ] **Loading / error** UI on AI panel (Gauntlet DoD).
+- [x] Implement server or client **executor** that applies `createStickyNote`, `createShape`, `moveObject`, etc., to Firestore (same paths as UI).
+- [x] **getBoardState**: read objects (limit size / summarize if huge) for model context.
+- [x] Wire UI: **AI panel** input → POST `/api/ai` → execute returned tools → all users see via existing listeners.
+- [x] **Loading / error** UI on AI panel (Gauntlet DoD).
 
 ---
 
@@ -253,10 +253,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *6+ command categories + complex templates.*
 
-- [ ] Tune **system prompt** for creation / manipulation / layout / complex templates.
-- [ ] Verify natural phrases: **SWOT**, **grid arrange**, **retrospective columns** (multi-step).
-- [ ] Add **debounce** / disable button while request in flight (no queue, per pre-search).
-- [ ] Test **two users** sending AI commands close together—document behavior + LWW.
+- [x] Tune **system prompt** for creation / manipulation / layout / complex templates.
+- [x] Verify natural phrases: **SWOT**, **grid arrange**, **retrospective columns** (multi-step).
+- [x] Add **debounce** / disable button while request in flight (no queue, per pre-search).
+- [x] Test **two users** sending AI commands close together—document behavior + LWW.
 
 ---
 

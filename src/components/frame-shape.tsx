@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type Konva from "konva";
 import { Group, Rect, Text } from "react-konva";
@@ -15,7 +16,7 @@ type FrameShapeProps = {
   onDragEnd: (x: number, y: number) => void;
 };
 
-export function FrameShape({
+function FrameShapeInner({
   object,
   isSelected,
   innerRef,
@@ -74,3 +75,24 @@ export function FrameShape({
     </Group>
   );
 }
+
+function framePropsEqual(a: FrameShapeProps, b: FrameShapeProps): boolean {
+  if (a.isSelected !== b.isSelected) return false;
+  const o = a.object;
+  const p = b.object;
+  if (o === p) return true;
+  return (
+    o.id === p.id &&
+    o.x === p.x &&
+    o.y === p.y &&
+    o.width === p.width &&
+    o.height === p.height &&
+    o.rotation === p.rotation &&
+    o.title === p.title &&
+    o.fill === p.fill &&
+    o.stroke === p.stroke &&
+    o.strokeWidth === p.strokeWidth
+  );
+}
+
+export const FrameShape = memo(FrameShapeInner, framePropsEqual);
