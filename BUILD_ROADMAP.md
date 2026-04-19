@@ -264,10 +264,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Public deploy.*
 
-- [ ] Connect **GitHub → Vercel**; production branch **auto-deploy**.
-- [ ] Set **all env vars** on Vercel (Firebase public + server secrets).
-- [ ] Deploy **Firestore rules** to production project; remove unsafe test rules.
-- [ ] Smoke test **production URL** login + board + AI once.
+- [x] Connect **GitHub → Vercel**; production branch **auto-deploy**.
+- [x] Set **all env vars** on Vercel (Firebase public + server secrets).
+- [x] Deploy **Firestore rules** to production project; remove unsafe test rules.
+- [x] Smoke test **production URL** login + board + AI once.
 
 ---
 
@@ -275,22 +275,108 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Assignment deliverables.*
 
-- [ ] **README**: setup, env, scripts, architecture **1-pager** link, known issues.
-- [ ] **`docs/ARCHITECTURE.md`**: diagram (boxes/arrows) FE ↔ API ↔ Firestore.
-- [ ] **AI Development Log** (PRD template) — 1 page.
-- [ ] **AI Cost Analysis**: dev spend + 100 / 1K / 10K / 100K table + assumptions.
-- [ ] Record **Pre-Search** reference (this repo + exported chat if required).
+- [x] **README**: setup, env, scripts, architecture **1-pager** link, known issues.
+- [x] **`docs/ARCHITECTURE.md`**: diagram (boxes/arrows) FE ↔ API ↔ Firestore.
+- [x] **AI Development Log** (PRD template) — 1 page.
+- [x] **AI Cost Analysis**: dev spend + 100 / 1K / 10K / 100K table + assumptions.
+- [x] Record **Pre-Search** reference (this repo + exported chat if required).
 
 ---
 
 ## PR 24 — `chore/demo-and-social`
 
-*Final polish.*
+*Final polish (optional if not submitting yet).*
 
 - [ ] **Demo script** outline (3–5 min): collab, AI, architecture.
 - [ ] Record **demo video**; upload unlisted if needed.
 - [ ] **Social post** draft + screenshot; tag **@GauntletAI**.
 - [ ] Final **Gauntlet delivery checklist** pass ([playbook §8](docs/GAUNTLET_FULLSTACK_BEST_PRACTICES.md)).
+
+---
+
+## Epic — Boards v2, tools & mobile (PR 25+)
+
+*Post-MVP product work. Same rules as above: **~15 min** tasks, **small PRs**, branch names `feat/…` / `chore/…`. **Priority:** **save / multi-board first**, then **left tool rail**, then **mobile**.*
+
+### PR 25 — `feat/multi-board-save` *(priority: save first)*
+
+*Per-user boards in Firestore; real `boardId` instead of only `demo`.*
+
+- [ ] Add **`boards/{boardId}`** metadata docs: `title`, `ownerUid`, `createdAt`, `updatedAt` (and indexes as needed).
+- [ ] Add **user → board** index (e.g. `users/{uid}/boards/{boardId}` **or** query `boards` where `ownerUid == uid`).
+- [ ] Introduce **`/board/[boardId]`** route; move canvas from fixed demo id to **dynamic** `boardId` from the URL.
+- [ ] Centralize **`boardId`** in hooks/context (replace stray `DEMO_BOARD_ID` usages for runtime paths).
+- [ ] Tighten **`firestore.rules`**: authenticated users may read/write only **boards they own** (document membership rule); keep deny-default elsewhere.
+- [ ] Update **`POST /api/ai`**: allow `boardId` when the **token uid owns** that board (same rule as Firestore), not only demo.
+- [ ] Smoke: create board doc → open `/board/{id}` → object sync + AI still work.
+
+### PR 26 — `feat/dashboard-your-boards`
+
+*Dashboard / home: list, create, open — “Your boards” like the reference.*
+
+- [ ] Add **`/`** or **`/dashboard`** (choose one as canonical) **after login**: list user’s boards (title, last opened optional).
+- [ ] **Create board** → new `boardId` + metadata + navigate to **`/board/[boardId]`**.
+- [ ] **Open** existing board from list; optional **rename** / **delete** with confirm.
+- [ ] **Auth redirect**: logged-out users → `/login`; logged-in root → dashboard (adjust current `/` marketing vs dashboard split).
+- [ ] Document new paths in **`docs/ARCHITECTURE.md`** (short delta).
+
+### PR 27 — `feat/toolbar-sidebar-shell`
+
+*Left vertical tool rail — structure first; wire tools in later PRs.*
+
+- [ ] Add **collapsible left sidebar** on the board page with icon buttons: **Templates**, **Draw**, **Pen**, **Highlighter**, **Eraser**, **Lasso**, **Comments**, **Hyperlinks**, **Undo**, **Redo** (labels + `aria-label`s).
+- [ ] **Tool state** in React (active tool enum); **no-op or toast** for tools not implemented yet — avoid silent failures.
+- [ ] Reserve space so the **Konva stage** reflows when sidebar opens/closes (desktop); prep for **drawer** on small screens (see PR 32).
+- [ ] **Undo / Redo** buttons wired to a **history stub** (stack in later PR) so UI is stable.
+
+### PR 28 — `feat/drawing-tools-pen-eraser`
+
+*Freehand drawing: pen, highlighter, eraser (Konva line or custom layer).*
+
+- [ ] **Drawing layer** above/below object layer; persist strokes as **`line`** or new `freehand` type (decide in `board-object.ts`).
+- [ ] **Pen** + **Highlighter** (width + opacity + stroke color); **Eraser** removes intersecting strokes (or mask — document tradeoff).
+- [ ] Integrate with **`useBoardObjectWrites`** (debounced / batched) per existing perf patterns.
+- [ ] Manual QA: two browsers see drawing sync.
+
+### PR 29 — `feat/lasso-comments`
+
+- [ ] **Lasso**: freehand closed path → select contained objects (intersection test); integrate with existing selection model.
+- [ ] **Comments** MVP: pin to canvas (e.g. small marker + thread or linked sticky) — smallest shippable; document in **CONFLICTS** if LWW on text.
+
+### PR 30 — `feat/hyperlinks`
+
+- [ ] **Hyperlinks**: attach **URL** to shape/sticky/text or standalone link hotspot; open in new tab; validate URL client-side.
+- [ ] Firestore fields + render hit-target on canvas.
+
+### PR 31 — `feat/undo-redo-history`
+
+- [ ] **Undo / Redo** for board edits (objects + drawing): command stack or snapshot strategy; cap depth for memory.
+- [ ] Keyboard shortcuts **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z**; sync with sidebar buttons.
+
+### PR 32 — `feat/templates-gallery`
+
+*Predefined layouts + Templates entry point (deterministic first).*
+
+- [ ] **Templates** button opens **modal / panel** with gallery cards (e.g. Kanban, SWOT, Retro, blank).
+- [ ] **Apply template**: seed objects via shared **`applyTemplate(boardId, templateId)`** (batch writes; no Gemini required for v1).
+- [ ] Optional thumbnails (static SVG/PNG or simplified preview).
+
+### PR 33 — `feat/ai-template-assistant-dashboard`
+
+*Top-of-dashboard AI block (reference: “Generate template”) — optional after templates work without AI.*
+
+- [ ] Large prompt + **quick chips** (Sprint, Retro, SWOT, Journey map) prefilling prompt.
+- [ ] **Generate** calls **`/api/ai`** for **new or empty** board; enforce **max tool calls** / board bounds.
+- [ ] Loading / error UX consistent with **`AiBoardPanel`**.
+
+### PR 34 — `feat/mobile-responsive-board`
+
+*Mobile-friendly UI — last in epic so layout doesn’t fight new toolbars.*
+
+- [ ] **Responsive** dashboard: stack cards; touch-friendly tap targets (min ~44px).
+- [ ] **Board page**: bottom **toolbar** or **drawer** for tools on narrow viewports; pinch/zoom/pan tested on iOS/Android browsers.
+- [ ] **Viewport meta** + reduce overflow-x; smoke on real devices or DevTools device mode.
+- [ ] Note limitations in **README** (e.g. drawing precision on small screens).
 
 ---
 
@@ -304,7 +390,10 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | 14–18 | Frames/connectors/ops/search/perf/QA |
 | 19–21 | AI agent |
 | 22–24 | Deploy + submission + demo |
+| **25+** | **Multi-board save, dashboard, tool rail, drawing, templates, AI templates, mobile** |
 
 ---
 
 *Total tasks ≈ 120 × ~15 min ≈ 30 h ceiling—tight for a 20 h week; **cut** PRs 14–16 or defer search/post-MVP if needed. Ship **cursors → objects → persistence → deploy** before polishing frames/connectors.*
+
+*Epic PR 25+:* ship **PR 25 → 26** before deep tool work; **mobile (PR 34)** after toolbars are stable.*

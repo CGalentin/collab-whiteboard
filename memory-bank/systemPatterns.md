@@ -2,7 +2,7 @@
 
 ## Start here next session
 
-Follow [progress.md](./progress.md) **“Start here next session”** (read **`activeContext.md`** too).
+Follow **[`progress.md`](./progress.md)** (“Start here next session”) and **[`activeContext.md`](./activeContext.md)**.
 
 ---
 
@@ -11,33 +11,30 @@ Follow [progress.md](./progress.md) **“Start here next session”** (read **`a
 ```text
 Browser (Next.js React)
   ├── Firebase Auth (client SDK)
-  ├── Firestore listeners + writes (board, cursors, presence, objects)
-  └── fetch → /app/api/... (Vercel) → Gemini (server-only key) → tool execution → Firestore
+  ├── Firestore listeners + writes (boards/{boardId}/objects|cursors|presence)
+  └── fetch → POST /api/ai (Vercel) → Gemini (server key) → toolCalls → client executes → Firestore
 ```
+
+**Today:** MVP uses a **constant demo `boardId`** (`src/lib/board.ts`). **PR 25+** moves to **per-user boards** and **`/board/[boardId]`** — see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) epic.
 
 ## Separation of concerns
 
-- **UI / Konva:** rendering, local interaction, debounced writes.
-- **Firestore:** source of truth for **objects**, **cursors**, **presence** — paths in [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md): `boards/{boardId}/objects|presence|cursors` (MVP `boardId = demo`).
-- **API routes:** **AI only** (and any future server-only logic); **never** expose `GEMINI_API_KEY` to the client.
+- **UI / Konva:** rendering, interaction, debounced writes.
+- **Firestore:** source of truth — [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
+- **API routes:** **`/api/ai`** only for Gemini; key never exposed.
 
 ## Realtime & conflicts
 
-- **Per-field** `updateDoc` merges; **same-field LWW** when two clients race. See **[docs/CONFLICTS.md](../docs/CONFLICTS.md)**.
-- **`updatedAt`** is set server-side on object patches (not used for client merge yet).
-- **Debounce** object patches (~400ms merged per id), drag/move, and cursor writes for quotas and latency.
-- **Clipboard (PR 15):** `collabwb:v1:` JSON in **`src/lib/board-clipboard.ts`**; **`board-canvas`** Copy/Paste + shortcuts; internal ref fallback.
-- **Text search (PR 16):** **`getTextSearchMatchIds`** in **`src/lib/board-search.ts`** — in-memory substring on **`sticky`** / **`text`**; canvas dim + amber hit ring.
-- **Perf (PR 17):** **`useBoardObjectWrites`** — one debounce + **`writeBatch`**; shape components **`memo`**; see **`docs/PERF_NOTES.md`**.
-- **QA (PR 18):** **`docs/MANUAL_QA_MATRIX.md`** — multiplayer, refresh, stress, network; 5+ session log.
-- **AI API (PR 19–20):** **`POST /api/ai`** + **`boardContext`**; client **`executeAiToolCallsClient`**; **`AiBoardPanel`** on **`/board`**.
+- Per-field **`updateDoc`**; **same-field LWW** — [docs/CONFLICTS.md](../docs/CONFLICTS.md) (includes AI two-user note).
+- **Debounced** patches, batched **`writeBatch`** where applicable — [docs/PERF_NOTES.md](../docs/PERF_NOTES.md).
+- **AI:** [docs/AI_DEVELOPMENT_LOG.md](../docs/AI_DEVELOPMENT_LOG.md); tools run on client after API returns.
 
 ## Security
 
-- **Firestore rules:** `request.auth != null` for all `boards/{boardId}/**` (tighten to `boardId == "demo"` later if desired). Source: **[`firestore.rules`](../firestore.rules)**.
-- Secrets only in **Vercel env** + local **`.env.local`** (gitignored).
+- **`firestore.rules`:** today **`request.auth != null`** under `boards/{boardId}/**`. **PR 25** tightens to **board owner** (and later sharing).
+- Secrets: **Vercel env** + **`.env.local`** only.
 
 ## Conventions
 
-- TypeScript **strict**; ESLint + Prettier; import alias `@/*` → `src/*`.
-- Small PRs; feature work follows [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) PR order where possible.
+- TypeScript strict; `@/*` → `src/*`.
+- Small PRs; order per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) — **PR 25** next.

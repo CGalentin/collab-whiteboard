@@ -2,26 +2,24 @@
 
 ## Who
 
-- **Solo** builder; demo audience = Gauntlet / class / public deploy.
+- **Solo** builder; audience = Gauntlet / class / portfolio; app is **deployed** (Vercel).
 
 ## Usage pattern
 
-- **Many boards**, **short-lived workshops** (not one 24/7 war room).
-- **5+ concurrent users** on a board (PRD target); optional higher cap later.
-- **Shared demo board** for MVP (not full multi-tenant “my boards” yet).
-- **Everyone who can open the board can edit** (no viewer role v1).
+- **Workshops / collaboration** — short-lived boards.
+- **PRD target:** 5+ concurrent users on a **board**; realtime cursors + presence.
+- **MVP shipped:** shared **demo** board id for all users (simplest security story).
+- **Next (PR 25+):** **multiple saved boards per user**, dashboard, tool rail, templates, mobile — see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md).
 
-## Constraints
+## Constraints (original MVP)
 
-- **~20 hours** toward first working MVP; **~$20** AI/hosting comfort cap for getting MVP up; track spend for assignment cost doc.
-- Prefer **familiar stack** (React/TS/Firebase); **perfect architecture** after MVP works.
+- Time/budget comfort caps; track AI spend — [docs/AI_COST_ANALYSIS.md](../docs/AI_COST_ANALYSIS.md).
 
-## AI agent expectations
+## AI agent
 
-- **Gemini** + **function/tool calling**; tools write/read **Firestore** like the UI.
-- **6+** distinct command categories; **multi-step** templates (SWOT, grids, retros).
-- All users see AI changes in **real time** (same listeners as human edits).
+- **Gemini** + function calling; client applies tools to Firestore.
+- **PR 21:** six command areas + SWOT / retro / grid style prompts — [docs/AI_DEVELOPMENT_LOG.md](../docs/AI_DEVELOPMENT_LOG.md).
 
 ## Standards
 
-- [Gauntlet best practices](../docs/GAUNTLET_FULLSTACK_BEST_PRACTICES.md) — small PRs, explicit errors, DoD for features.
+- [Gauntlet best practices](../docs/GAUNTLET_FULLSTACK_BEST_PRACTICES.md)

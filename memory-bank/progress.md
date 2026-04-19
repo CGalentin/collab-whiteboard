@@ -2,22 +2,27 @@
 
 *Snapshot log; align with [PRESEARCH_AND_TRACKING.md](../PRESEARCH_AND_TRACKING.md) and [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) checkboxes.*
 
-**Status:** Done through **PR 21** · Next milestone **PR 22** (Vercel production).
+**Status:** **MVP + PR 22–23 complete** (deploy + submission docs). **PR 24** optional. **Next: epic PR 25+** — start with **`feat/multi-board-save`**.
 
-## Start here next session
+## Start here next session (new chat)
 
 1. Read **`memory-bank/progress.md`** (this file) and **`memory-bank/activeContext.md`**.
-2. Open [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) → **PR 22 — `chore/vercel-production`**.
-3. Run **`npm run lint`** and **`npm run build`** before / after changes.
+2. Open **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** → section **“Epic — Boards v2, tools & mobile (PR 25+)”** — first unchecked PR is **PR 25**.
+3. Run **`npm run lint`** and **`npm run build`** before / after code changes.
 
 **Repo:** `C:\Users\GauntletAI\Desktop\GauntletAI\CollabWhiteBoard` · **Remote:** `https://github.com/CGalentin/collab-whiteboard`
 
-### PR 22 (next) — checklist
+### What to build next (priority order)
 
-- Connect **GitHub → Vercel**; enable **auto-deploy** for the production branch.
-- Set **all env vars** on Vercel (`NEXT_PUBLIC_FIREBASE_*`, **`GEMINI_API_KEY`**, optional **`GEMINI_MODEL`**).
-- Deploy **Firestore rules** to the production Firebase project; avoid leaving test-only rules public.
-- **Smoke test** production URL: login, board, AI panel.
+| Step | PR | Theme |
+|------|-----|--------|
+| **1** | **25** | Multi-board **save**: `boards/{boardId}` metadata, owner index, `/board/[boardId]`, Firestore rules, `/api/ai` scoped to owned boards |
+| **2** | **26** | **Dashboard** — “Your boards”, create / open |
+| **3** | **27–34** | Left **tool rail**, drawing, lasso, comments, hyperlinks, undo/redo, **templates**, AI template assistant, **mobile** — see roadmap |
+
+### PR 24 (optional — only if submitting to Gauntlet)
+
+- Demo script, video, social post, delivery checklist — see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md).
 
 ---
 
@@ -29,32 +34,30 @@
 
 ---
 
-## Done (recent)
+## Done (shipped)
 
-- **PR 21:** **`ai-board-system-prompt.ts`** — system prompt for creation / manipulation / layout / templates (SWOT, retro, grid); **`ai-board-tools`** expanded; **`createStickyNote`** optional **`fill`** (hex) in executor; AI panel **`aria-busy`**; **`docs/CONFLICTS.md`** two-user AI + LWW.
-- **PR 20:** **`ai-execute-tools-client.ts`**, **`board-context-for-ai.ts`**, **`AiBoardPanel`** on `/board`; `boardContext` on API; client runs tool calls after Gemini. Follow-up: **`run-board-gemini`** (model fallbacks, quota/404 handling); **`ai-board-panel`** fetch/JSON parsing and reply/error area.
-- **PR 19:** **`POST /api/ai`** — `GEMINI_API_KEY`, Firebase ID token verification (`verify-firebase-id-token` — JWT + securetoken certs), Gemini + tools (`ai-board-tools.ts`), shared JSON types (`ai-api-types.ts`).
-- **PR 18:** **`docs/MANUAL_QA_MATRIX.md`** — two-browser checklist, refresh, 2m stress, DevTools throttle/offline, 5+ session table + sign-off.
-- **PR 17:** Batched **`writeBatch`** object patches (`use-board-object-writes`), **React.memo** on canvas shapes (data-only compare), cursor debounce **75ms**, **`docs/PERF_NOTES.md`**.
-- **PR 16:** Toolbar **search** (`getTextSearchMatchIds` in **`board-search.ts`**), client substring on **sticky** + **`text`**, dim non-matches / amber ring on matches, README + ARCHITECTURE.
-- **PR 14:** Frames, standalone **text**, **connectors**, unified z-order layer, **Delete** / **Duplicate**, `clone-board-object`, etc.
-- **PR 15:** **`board-clipboard.ts`** (`collabwb:v1:`), Copy/Paste toolbar, **Ctrl/Cmd+C·V**, internal clipboard fallback, paste **32px** offset + connector id remap.
+- **PR 23:** Submission pack — README, **`docs/ARCHITECTURE.md`** (mermaid), **`docs/AI_DEVELOPMENT_LOG.md`**, **`docs/AI_COST_ANALYSIS.md`**, **`docs/PRESEARCH_REFERENCE.md`**.
+- **PR 22:** Vercel production, env vars, Firestore rules, smoke test.
+- **PR 21:** **`ai-board-system-prompt.ts`**, **`ai-board-tools`**, sticky **`fill`**, AI panel **`aria-busy`**, **`docs/CONFLICTS.md`** AI + two users.
+- **PR 19–20:** **`POST /api/ai`**, **`verify-firebase-id-token`**, **`executeAiToolCallsClient`**, **`AiBoardPanel`**.
+- **PR 01–18:** Full MVP per roadmap (objects, shapes, cursors, presence, search, perf, QA, etc.).
 
-## Earlier (PR 01–13)
+## Earlier detail
 
-- Pre-search, Firebase, auth, board shell, Konva pan/zoom, objects, stickies, shapes, selection/transformer, conflicts doc + merged patches — see **git history** and **BUILD_ROADMAP**.
+- See **git history** and **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** checkboxes.
 
 ## In progress
 
-- None (next: **PR 22**)
+- None.
 
-## Not started
+## Not started (intentional)
 
-- **PR 23+** — submission pack (README polish, architecture diagram, AI log, cost analysis, etc.)
+- **PR 24** — demo/social (optional).
+- **PR 25–34** — Boards v2 epic — **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** (save first, then dashboard, tools, templates, mobile).
 
 ## Known issues / debt
 
-- **Publish** `firestore.rules` if the DB is still in **test mode** or rules are stale (required before real public deploy).
-- Orphan **connector** docs when an endpoint is deleted (no GC yet).
-- Clipboard **readText** may need user permission in some browsers; in-app buffer is **same tab only**.
-- If **`npm run dev`** serves **404 for every route**, delete the **`.next`** folder and restart dev (corrupted dev cache).
+- **Single `demo` board id** in code today — **PR 25** replaces with real **`boardId`** per board.
+- Orphan **connector** docs if endpoint deleted — see [docs/CONFLICTS.md](../docs/CONFLICTS.md).
+- Clipboard **readText** permission; in-app buffer **same tab only**.
+- **`npm run dev`** → **404 on all routes**: delete **`.next`**, restart dev.

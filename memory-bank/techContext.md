@@ -2,7 +2,7 @@
 
 ## Start here next session
 
-Follow **[`progress.md`](./progress.md)** → **“Start here next session”** and **[`activeContext.md`](./activeContext.md)**. Next feature slice: **PR 22** (`chore/vercel-production`) in [`BUILD_ROADMAP.md`](../BUILD_ROADMAP.md).
+Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. Next implementation slice: **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md) PR 25** (`feat/multi-board-save`), then **PR 26** dashboard. **PR 24** (demo/social) is optional.
 
 ---
 
@@ -15,29 +15,32 @@ Follow **[`progress.md`](./progress.md)** → **“Start here next session”** 
 | Canvas | **Konva** + **react-konva** (`BoardStage` on `/board`) |
 | Auth + data | **Firebase Auth** (email + Google), **Firestore** |
 | Hosting | **Vercel** (Git → auto deploy) |
-| AI | **Google Gemini API** via **Route Handler** / server route; **function calling** |
+| AI | **Google Gemini API** via **`POST /api/ai`**; **`GEMINI_API_KEY`** server-only |
 
 ## Repo
 
-- **Package name:** `collab-whiteboard` (npm naming)
-- **Entry:** `src/app/`; shared code → `src/lib/`
+- **Package:** `collab-whiteboard`
+- **App:** `src/app/` · shared **`src/lib/`**
 
 ## Environment variables
 
-**Local:** [`.env.local`](../.env.local) (gitignored) — **six** `NEXT_PUBLIC_FIREBASE_*` values for **collab-board**.
+Template: **[`.env.example`](../.env.example)** · local secrets: **`.env.local`** (gitignored)
 
-Template: [.env.example](../.env.example)
+| Variable | Scope |
+|----------|--------|
+| `NEXT_PUBLIC_FIREBASE_*` (6) | Client + build |
+| `GEMINI_API_KEY` | Server only — Vercel + `.env.local` |
+| `GEMINI_MODEL` | Optional server override |
 
-- `NEXT_PUBLIC_FIREBASE_*` — client Firebase config
-- `GEMINI_API_KEY` — **server only** (when first AI route exists; set on Vercel too)
+Redeploy Vercel after changing env. **Never** prefix Gemini key with `NEXT_PUBLIC_`.
 
 ## Scripts
 
-- `npm run dev` — local dev
-- `npm run build` / `npm run start` — production
+- `npm run dev` / `npm run build` / `npm run start`
 - `npm run lint` / `npm run format`
+- `npm run deploy:rules` — Firestore rules ([`firestore.rules`](../firestore.rules))
 
 ## CLIs (optional)
 
-- **Firebase CLI** — rules deploy / emulators
-- **Vercel CLI** — optional if not using dashboard-only deploy
+- **Firebase CLI** — rules, emulators
+- **Vercel CLI** — deploy from terminal

@@ -1,23 +1,39 @@
-# Architecture — CollabBoard (MVP draft)
+# Architecture — CollabBoard (MVP)
 
-*Refine this as you implement PR 03+.*
+## One-page diagram (FE ↔ API ↔ Firestore)
 
-## High-level
-
-```text
-Next.js (Vercel)
-  ├─ Browser: Firebase Auth + Firestore listeners/writes + AI tool execution (PR 20)
-  └─ /app/api/ai : Gemini (server-only GEMINI_API_KEY) — PR 19; client applies toolCalls to Firestore (PR 20)
+```mermaid
+flowchart LR
+  subgraph Client["Browser"]
+    UI["Next.js pages /board, /login"]
+    Auth["Firebase Auth"]
+    FS["Firestore listeners + writes"]
+    Exec["executeAiToolCallsClient"]
+  end
+  subgraph Vercel["Vercel (Node)"]
+    API["POST /api/ai"]
+    Gemini["Google Gemini API"]
+  end
+  UI --> Auth
+  UI --> FS
+  UI -->|"Bearer ID token + JSON body"| API
+  API -->|"generateContent + tools"| Gemini
+  Gemini -->|"replyText + toolCalls"| API
+  API -->|"JSON response"| UI
+  UI --> Exec
+  Exec -->|"setDoc / updateDoc"| FS
 ```
 
-### AI route (PR 19)
+**Data flow:** The AI **never** writes Firestore directly. The server returns **tool calls**; the **client** applies them with the user’s credentials so rules and realtime behavior match the rest of the app.
+
+### AI route (PR 19–21)
 
 | Item | Detail |
 |------|--------|
 | Endpoint | `POST /api/ai` (`src/app/api/ai/route.ts`), Node runtime |
-| Auth | `Authorization: Bearer <Firebase ID token>` — verified with `google-auth-library` (project id + `securetoken.google.com` audience); no Admin SDK required |
+| Auth | `Authorization: Bearer <Firebase ID token>` — verified in `verify-firebase-id-token.ts` (JWT signature + `aud` / `iss` vs `NEXT_PUBLIC_FIREBASE_PROJECT_ID`) |
 | Body | `{ "prompt": string, "boardId"?: string, "boardContext"?: string }` — MVP allows only the shared **demo** `boardId`; optional **boardContext** from `buildBoardContextForAi()` |
-| Secrets | `GEMINI_API_KEY`, optional `GEMINI_MODEL` (default `gemini-2.0-flash`) |
+| Secrets | `GEMINI_API_KEY`, optional `GEMINI_MODEL` (see `run-board-gemini.ts` fallbacks) |
 | Response | `{ ok: true, data: { model, replyText, toolCalls, boardId, uid } }` or `{ ok: false, error: { code, message } }` — see `src/lib/ai-api-types.ts` |
 | Tools | Declarations in `src/lib/ai-board-tools.ts`; **client execution** in `src/lib/ai-execute-tools-client.ts` after `/api/ai` returns (PR 20) |
 | Board context | `buildBoardContextForAi()` in `src/lib/board-context-for-ai.ts` — sent as `boardContext` in POST body for Gemini |

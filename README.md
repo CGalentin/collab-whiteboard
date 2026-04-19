@@ -41,16 +41,37 @@ Real-time collaborative whiteboard (Gauntlet CollabBoard PRD): **Next.js (App Ro
 | `npm run lint` | ESLint                     |
 | `npm run format` | Prettier (write)         |
 
+## Environment variables
+
+| Variable | Where | Purpose |
+|----------|--------|---------|
+| `NEXT_PUBLIC_FIREBASE_*` (6 vars) | Client + build | Firebase web app config from Console |
+| `GEMINI_API_KEY` | Server only (Vercel + `.env.local`) | Gemini on `POST /api/ai` — **never** `NEXT_PUBLIC_` |
+| `GEMINI_MODEL` | Server only | Optional; defaults + fallbacks in `run-board-gemini.ts` |
+
+Copy [`.env.example`](./.env.example) → `.env.local` locally. On **Vercel**, set the same names under **Settings → Environment Variables**, then **redeploy** after changes.
+
 ## Project docs
 
 - [Memory bank](./memory-bank/README.md) — short context files for Cursor (`@memory-bank/...`)
-- [Pre-search & checkpoints](./PRESEARCH_AND_TRACKING.md)
+- [Pre-search & checkpoints](./PRESEARCH_AND_TRACKING.md) — **Pre-Search reference** for submission
+- [Pre-Search submission pointer](./docs/PRESEARCH_REFERENCE.md) — repo + where to find answers
 - [Build roadmap (15m tasks)](./BUILD_ROADMAP.md)
 - [Gauntlet best practices](./docs/GAUNTLET_FULLSTACK_BEST_PRACTICES.md)
-- [Architecture & Firestore paths](./docs/ARCHITECTURE.md)
+- [Architecture & Firestore paths](./docs/ARCHITECTURE.md) — includes **diagram** (FE ↔ API ↔ Firestore)
+- [AI development log](./docs/AI_DEVELOPMENT_LOG.md) — how the board agent was built
+- [AI cost analysis](./docs/AI_COST_ANALYSIS.md) — illustrative token / cost table
 - [Performance notes (PR 17)](./docs/PERF_NOTES.md)
 - [Manual QA matrix (PR 18)](./docs/MANUAL_QA_MATRIX.md)
+- [Concurrent edits / LWW](./docs/CONFLICTS.md)
 - [Firebase console checklist (PR 02)](./docs/FIREBASE_CONSOLE_CHECKLIST.md)
+
+## Known issues (MVP)
+
+- **Orphan connectors** if an endpoint object is deleted — cleanup TBD ([CONFLICTS.md](./docs/CONFLICTS.md)).
+- **Clipboard**: system clipboard may require permission; same-tab fallback for copy/paste.
+- **AI**: single shared demo `boardId` on the API; tool set is sticky / rect / move ([AI development log](./docs/AI_DEVELOPMENT_LOG.md)).
+- **Local dev:** if every route returns **404**, delete the `.next` folder and restart `npm run dev` (corrupted Next cache).
 
 ## Firestore security rules
 
@@ -79,6 +100,10 @@ MVP behavior: only **authenticated** users can read/write `boards/{boardId}/**`;
 
 **Concurrent edits (PR 13):** object updates use **partial** Firestore `updateDoc` (top-level fields only). Different fields usually compose; the **same** field is **last-write-wins**. Details and a manual two-browser sticky test → **[docs/CONFLICTS.md](./docs/CONFLICTS.md)**.
 
-## Deploy
+## Deploy (Vercel)
 
-Connect the GitHub repo to [Vercel](https://vercel.com) and set the same `NEXT_PUBLIC_FIREBASE_*` vars as `.env.local` (use **server-only** storage for `GEMINI_API_KEY`).
+1. Import the GitHub repo on [Vercel](https://vercel.com); production branch (e.g. `main`) auto-deploys.
+2. Add **all** env vars from the table above for **Production** (and Preview if needed).
+3. In **Firebase Console** → **Authentication** → **Authorized domains**, add your `*.vercel.app` (and custom domain) so sign-in works.
+4. Publish **[`firestore.rules`](./firestore.rules)** to the **same** Firebase project as `NEXT_PUBLIC_FIREBASE_PROJECT_ID` (Console or `npm run deploy:rules` with CLI + project).
+5. Smoke test: `/` → `/login` → `/board` → AI panel on production URL.
