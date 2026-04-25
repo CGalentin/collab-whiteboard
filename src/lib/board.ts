@@ -1,9 +1,20 @@
-/**
- * Shared demo board id for MVP. Firestore layout: `boards/{DEMO_BOARD_ID}/…`
- * (objects, cursors, presence) — see `docs/ARCHITECTURE.md`.
- */
-export const DEMO_BOARD_ID =
-  process.env.NEXT_PUBLIC_APP_DEMO_BOARD_ID ?? "demo";
+/** Conservatively allow URL-safe ids for board docs and routes. */
+const BOARD_ID_RE = /^[A-Za-z0-9_-]{3,120}$/;
 
-/** Same path prefix as architecture table, for logs and UI. */
-export const DEMO_BOARD_FIRESTORE_PATH = `boards/${DEMO_BOARD_ID}`;
+export function isValidBoardId(raw: string): boolean {
+  return BOARD_ID_RE.test(raw);
+}
+
+export function assertBoardId(raw: string): string {
+  const next = raw.trim();
+  if (!isValidBoardId(next)) {
+    throw new Error(
+      "Invalid board id. Use 3-120 characters: letters, numbers, underscore, dash.",
+    );
+  }
+  return next;
+}
+
+export function boardFirestorePath(boardId: string): string {
+  return `boards/${boardId}`;
+}

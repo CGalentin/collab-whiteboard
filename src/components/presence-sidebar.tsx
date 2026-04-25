@@ -5,12 +5,17 @@ import {
   usePresenceOnlineList,
   usePresencePublisher,
 } from "@/hooks/use-board-presence";
-import { DEMO_BOARD_ID } from "@/lib/board";
 import { PRESENCE_ONLINE_THRESHOLD_MS } from "@/lib/presence";
 
-export function PresenceSidebar({ user }: { user: User }) {
-  usePresencePublisher(user, DEMO_BOARD_ID);
-  const online = usePresenceOnlineList(DEMO_BOARD_ID, user.uid);
+export function PresenceSidebar({
+  user,
+  boardId,
+}: {
+  user: User;
+  boardId: string;
+}) {
+  usePresencePublisher(user, boardId);
+  const online = usePresenceOnlineList(boardId, user.uid);
 
   return (
     <aside

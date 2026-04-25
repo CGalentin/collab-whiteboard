@@ -25,6 +25,7 @@ export function cloneBoardObjectFields(
         strokeWidth: o.strokeWidth,
         zIndex,
         ...(o.text !== undefined ? { text: o.text } : {}),
+        ...(o.href ? { href: o.href } : {}),
       };
     case "sticky":
       return {
@@ -39,6 +40,7 @@ export function cloneBoardObjectFields(
         strokeWidth: o.strokeWidth,
         text: o.text,
         zIndex,
+        ...(o.href ? { href: o.href } : {}),
       };
     case "circle":
       return {
@@ -51,6 +53,7 @@ export function cloneBoardObjectFields(
         stroke: o.stroke,
         strokeWidth: o.strokeWidth,
         zIndex,
+        ...(o.href ? { href: o.href } : {}),
       };
     case "line":
       return {
@@ -61,6 +64,15 @@ export function cloneBoardObjectFields(
         y2: o.y2 + dy,
         stroke: o.stroke,
         strokeWidth: o.strokeWidth,
+        zIndex,
+      };
+    case "freehand":
+      return {
+        type: "freehand",
+        points: o.points.map((v, i) => (i % 2 === 0 ? v + dx : v + dy)),
+        stroke: o.stroke,
+        strokeWidth: o.strokeWidth,
+        opacity: o.opacity,
         zIndex,
       };
     case "frame":
@@ -76,6 +88,7 @@ export function cloneBoardObjectFields(
         stroke: o.stroke,
         strokeWidth: o.strokeWidth,
         zIndex,
+        ...(o.href ? { href: o.href } : {}),
       };
     case "text":
       return {
@@ -88,6 +101,28 @@ export function cloneBoardObjectFields(
         text: o.text,
         fontSize: o.fontSize,
         fill: o.fill,
+        zIndex,
+        ...(o.href ? { href: o.href } : {}),
+      };
+    case "comment":
+      return {
+        type: "comment",
+        x: o.x + dx,
+        y: o.y + dy,
+        body: o.body,
+        zIndex,
+        ...(o.href ? { href: o.href } : {}),
+      };
+    case "link":
+      return {
+        type: "link",
+        x: o.x + dx,
+        y: o.y + dy,
+        width: o.width,
+        height: o.height,
+        rotation: o.rotation,
+        href: o.href,
+        label: o.label,
         zIndex,
       };
     case "connector":

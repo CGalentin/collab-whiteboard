@@ -58,6 +58,31 @@ function BoardObjectShapeInner({
     );
   }
 
+  if (object.type === "freehand") {
+    const strokeW = object.strokeWidth + (isSelected ? 1 : 0);
+    return (
+      <Line
+        id={object.id}
+        ref={innerRef}
+        points={object.points}
+        stroke={isSelected ? SELECT_STROKE : object.stroke}
+        strokeWidth={strokeW}
+        opacity={object.opacity}
+        lineCap="round"
+        lineJoin="round"
+        perfectDrawEnabled={false}
+        hitStrokeWidth={Math.max(24, object.strokeWidth * 4)}
+        onMouseDown={(e) => {
+          e.cancelBubble = true;
+        }}
+        onClick={(e) => {
+          e.cancelBubble = true;
+          onPointerDown(e);
+        }}
+      />
+    );
+  }
+
   if (object.type === "circle") {
     return (
       <Circle
@@ -151,6 +176,17 @@ function boardObjectShapeEqual(
       o.y2 === p.y2 &&
       o.stroke === p.stroke &&
       o.strokeWidth === p.strokeWidth
+    );
+  }
+  if (o.type === "freehand" && p.type === "freehand") {
+    if (o.points.length !== p.points.length) return false;
+    for (let i = 0; i < o.points.length; i++) {
+      if (o.points[i] !== p.points[i]) return false;
+    }
+    return (
+      o.stroke === p.stroke &&
+      o.strokeWidth === p.strokeWidth &&
+      o.opacity === p.opacity
     );
   }
   return false;

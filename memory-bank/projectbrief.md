@@ -10,7 +10,7 @@ Pan/zoom, stickies, shapes, sync, cursors, presence, auth, deploy, AI panel — 
 
 ## Post-MVP epic (in roadmap)
 
-**PR 25–34:** Multi-board **save**, **dashboard**, left **tool rail** (templates, drawing tools, comments, hyperlinks, undo/redo), **template gallery**, **AI template** assistant on dashboard, **mobile**-friendly UI. **Priority: PR 25 (save) first.**
+**PR 25–34 (roadmap order):** Multi-board **save**, **dashboard**, left **tool rail**, **drawing (PR 28)**, **lasso / comments (PR 29)**, **hyperlinks (PR 30)**, **undo/redo (PR 31)**, **template gallery (PR 32+)**, **AI template** assistant, **mobile**. **PR 35** (board sharing, invites, editor AI) stays on the roadmap; finish **deploy** and **QA** when shipping.
 
 ## Non-goals (still)
 

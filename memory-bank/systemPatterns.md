@@ -15,7 +15,7 @@ Browser (Next.js React)
   └── fetch → POST /api/ai (Vercel) → Gemini (server key) → toolCalls → client executes → Firestore
 ```
 
-**Today:** MVP uses a **constant demo `boardId`** (`src/lib/board.ts`). **PR 25+** moves to **per-user boards** and **`/board/[boardId]`** — see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) epic.
+**Today:** Runtime **`boardId`** from **`/board/[boardId]`** (validated in **`src/lib/board.ts`**); Firestore **`boards/{boardId}/objects|cursors|presence`**. **PR 35:** owners + **members** (editor/viewer roles); **`ensureBoardAccess`**; rules in **`firestore.rules`**. See [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) epic.
 
 ## Separation of concerns
 
@@ -26,15 +26,15 @@ Browser (Next.js React)
 ## Realtime & conflicts
 
 - Per-field **`updateDoc`**; **same-field LWW** — [docs/CONFLICTS.md](../docs/CONFLICTS.md) (includes AI two-user note).
-- **Debounced** patches, batched **`writeBatch`** where applicable — [docs/PERF_NOTES.md](../docs/PERF_NOTES.md).
+- **Debounced** patches, batched **`writeBatch`** where applicable — [docs/PERF_NOTES.md](../docs/PERF_NOTES.md). **New object creates** (e.g. **`freehand`** strokes) use **`setDoc`** per stroke (same as other one-shot creates); merged edits still use **`useBoardObjectWrites`**.
 - **AI:** [docs/AI_DEVELOPMENT_LOG.md](../docs/AI_DEVELOPMENT_LOG.md); tools run on client after API returns.
 
 ## Security
 
-- **`firestore.rules`:** today **`request.auth != null`** under `boards/{boardId}/**`. **PR 25** tightens to **board owner** (and later sharing).
+- **`firestore.rules`:** board **metadata** owner-only; **objects / cursors / presence** for **owner + editor** members; **viewers** read-only; **invites** + **members** subpaths — see repo **`firestore.rules`** (deploy after changes: **`npm run deploy:rules`**).
 - Secrets: **Vercel env** + **`.env.local`** only.
 
 ## Conventions
 
 - TypeScript strict; `@/*` → `src/*`.
-- Small PRs; order per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) — **PR 25** next.
+- Small PRs; order per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) — epic **PR 25+**; shipped through **31** (undo/redo) and **35** (sharing) per repo; next **32+**. See roadmap for **PR 35** deploy/QA.

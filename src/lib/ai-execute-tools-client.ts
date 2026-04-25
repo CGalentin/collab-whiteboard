@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import type { AiToolCallPayload } from "@/lib/ai-api-types";
 import { getFirebaseDb } from "@/lib/firebase";
-import { parseBoardObject } from "@/lib/board-object";
+import { boardObjectAnchor, parseBoardObject } from "@/lib/board-object";
 
 export type AiToolExecutionResult = {
   name: string;
@@ -203,6 +203,27 @@ async function execMoveObject(
       y1: o.y1 + dy,
       x2: o.x2 + dx,
       y2: o.y2 + dy,
+      updatedAt: serverTimestamp(),
+    });
+    return;
+  }
+
+  if (o.type === "comment") {
+    await updateDoc(ref, {
+      x,
+      y,
+      updatedAt: serverTimestamp(),
+    });
+    return;
+  }
+
+  if (o.type === "freehand") {
+    const anchor = boardObjectAnchor(o);
+    const dx = x - anchor.x;
+    const dy = y - anchor.y;
+    const nextPts = o.points.map((v, i) => (i % 2 === 0 ? v + dx : v + dy));
+    await updateDoc(ref, {
+      points: nextPts,
       updatedAt: serverTimestamp(),
     });
     return;

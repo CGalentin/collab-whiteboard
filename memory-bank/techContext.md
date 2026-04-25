@@ -2,7 +2,7 @@
 
 ## Start here next session
 
-Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. Next implementation slice: **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md) PR 25** (`feat/multi-board-save`), then **PR 26** dashboard. **PR 24** (demo/social) is optional.
+Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. Next: **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** **PR 32+** (templates, AI template assistant, mobile). **PR 24** (demo/social) is optional. **PR 35** (sharing) — use roadmap for any remaining **rules deploy** and **QA**.
 
 ---
 

@@ -5,11 +5,11 @@ import { useState } from "react";
 import type { AiApiResponseBody } from "@/lib/ai-api-types";
 import { executeAiToolCallsClient } from "@/lib/ai-execute-tools-client";
 import { buildBoardContextForAi } from "@/lib/board-context-for-ai";
-import { DEMO_BOARD_ID } from "@/lib/board";
 import { useBoardObjects } from "@/hooks/use-board-objects";
 
 type AiBoardPanelProps = {
   user: User;
+  boardId: string;
 };
 
 async function parseAiResponse(res: Response): Promise<AiApiResponseBody> {
@@ -26,8 +26,8 @@ async function parseAiResponse(res: Response): Promise<AiApiResponseBody> {
 /**
  * Prompt → `POST /api/ai` (Gemini + tools) → client executes tool calls on Firestore (PR 20).
  */
-export function AiBoardPanel({ user }: AiBoardPanelProps) {
-  const objects = useBoardObjects(DEMO_BOARD_ID);
+export function AiBoardPanel({ user, boardId }: AiBoardPanelProps) {
+  const objects = useBoardObjects(boardId);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function AiBoardPanel({ user }: AiBoardPanelProps) {
         },
         body: JSON.stringify({
           prompt: p,
-          boardId: DEMO_BOARD_ID,
+          boardId,
           boardContext,
         }),
       });
@@ -81,7 +81,7 @@ export function AiBoardPanel({ user }: AiBoardPanelProps) {
 
       if (toolCalls.length > 0) {
         const results = await executeAiToolCallsClient(
-          DEMO_BOARD_ID,
+          boardId,
           user,
           toolCalls,
         );

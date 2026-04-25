@@ -73,7 +73,7 @@ function TextObjectShapeInner({
       <Rect
         width={object.width}
         height={object.height}
-        fill="rgba(24,24,27,0.35)"
+        fill="rgba(255,255,255,0.88)"
         stroke={strokeColor}
         strokeWidth={strokeW}
         cornerRadius={4}

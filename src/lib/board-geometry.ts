@@ -47,6 +47,7 @@ export function boardObjectWorldAabb(
     case "sticky":
     case "frame":
     case "text":
+    case "link":
       return rotatedRectAabb(o.x, o.y, o.width, o.height, o.rotation);
     case "circle": {
       const r = o.radius;
@@ -64,6 +65,35 @@ export function boardObjectWorldAabb(
         width: Math.max(x2 - x1 + 2 * pad, 1),
         height: Math.max(y2 - y1 + 2 * pad, 1),
       };
+    }
+    case "freehand": {
+      const pts = o.points;
+      if (pts.length < 2) {
+        return { x: 0, y: 0, width: 1, height: 1 };
+      }
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (let i = 0; i < pts.length; i += 2) {
+        const px = pts[i]!;
+        const py = pts[i + 1]!;
+        minX = Math.min(minX, px);
+        minY = Math.min(minY, py);
+        maxX = Math.max(maxX, px);
+        maxY = Math.max(maxY, py);
+      }
+      const pad = Math.max(6, o.strokeWidth * 2);
+      return {
+        x: minX - pad,
+        y: minY - pad,
+        width: Math.max(maxX - minX + 2 * pad, 1),
+        height: Math.max(maxY - minY + 2 * pad, 1),
+      };
+    }
+    case "comment": {
+      const r = 18;
+      return { x: o.x - r, y: o.y - r, width: 2 * r, height: 2 * r };
     }
     case "connector": {
       if (!resolve) {

@@ -41,7 +41,7 @@ function LoginForm() {
   const from =
     fromRaw && fromRaw.startsWith("/") && !fromRaw.startsWith("//")
       ? fromRaw
-      : "/board";
+      : "/dashboard";
 
   const { user, loading } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -112,7 +112,7 @@ function LoginForm() {
           Sign in
         </h1>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Use your account to open the shared board.
+          Use your account to open your boards.
         </p>
       </div>
 

@@ -1,17 +1,112 @@
 rules_version = '2';
 
-// Deploy: Firebase Console → Firestore → Rules → paste, or: firebase deploy --only firestore:rules
-// MVP: any signed-in user can read/write under boards/* (tighten boardId or roles later).
+// Deploy: Firebase Console -> Firestore -> Rules -> paste, or: firebase deploy --only firestore:rules
+// get()/exists() in conditions use privileged reads (not client ACL), per Firebase rules docs.
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Board root doc + every subcollection/doc under it (presence, cursors, objects, …).
-    match /boards/{boardId} {
-      allow read, write: if request.auth != null;
+    function isAuthed() {
+      return request.auth != null;
+    }
 
-      match /{document=**} {
-        allow read, write: if request.auth != null;
+    function boardPath(boardId) {
+      return /databases/$(database)/documents/boards/$(boardId);
+    }
+
+    function boardOwnerUid(boardId) {
+      return get(boardPath(boardId)).data.ownerUid;
+    }
+
+    function isBoardOwner(boardId) {
+      return isAuthed() && boardOwnerUid(boardId) == request.auth.uid;
+    }
+
+    function memberRole(boardId, uid) {
+      return get(/databases/$(database)/documents/boards/$(boardId)/members/$(uid)).data.role;
+    }
+
+    function isBoardEditor(boardId) {
+      return isAuthed()
+        && exists(/databases/$(database)/documents/boards/$(boardId)/members/$(request.auth.uid))
+        && memberRole(boardId, request.auth.uid) == "editor";
+    }
+
+    function isBoardViewer(boardId) {
+      return isAuthed()
+        && exists(/databases/$(database)/documents/boards/$(boardId)/members/$(request.auth.uid))
+        && memberRole(boardId, request.auth.uid) == "viewer";
+    }
+
+    function canReadBoardData(boardId) {
+      return isBoardOwner(boardId) || isBoardEditor(boardId) || isBoardViewer(boardId);
+    }
+
+    function canWriteBoardData(boardId) {
+      return isBoardOwner(boardId) || isBoardEditor(boardId);
+    }
+
+    function inviteDoc(inviteId) {
+      return get(/databases/$(database)/documents/boardInvites/$(inviteId)).data;
+    }
+
+    function inviteJoinOk(boardId, inviteId) {
+      return inviteDoc(inviteId).boardId == boardId
+        && inviteDoc(inviteId).ownerUid == boardOwnerUid(boardId);
+    }
+
+    // Invite links: secret is unguessable doc id; any signed-in user may read a doc by id (not list).
+    match /boardInvites/{inviteId} {
+      allow read: if isAuthed();
+      allow create: if isAuthed()
+        && request.resource.data.keys().hasAll(["boardId", "ownerUid", "createdAt"])
+        && request.resource.data.ownerUid == request.auth.uid
+        && boardOwnerUid(request.resource.data.boardId) == request.auth.uid;
+      allow update: if false;
+      allow delete: if isAuthed() && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /boards/{boardId} {
+      allow read: if isAuthed() && canReadBoardData(boardId);
+      allow create: if isAuthed() && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isBoardOwner(boardId);
+
+      match /members/{memberUid} {
+        allow read: if isAuthed() && (isBoardOwner(boardId) || request.auth.uid == memberUid);
+        allow create: if isAuthed() && (
+          (isBoardOwner(boardId)
+            && request.auth.uid != memberUid
+            && request.resource.data.role in ["editor", "viewer"])
+          || (request.auth.uid == memberUid
+            && request.resource.data.role == "editor"
+            && request.resource.data.keys().hasAll(["inviteId"])
+            && inviteJoinOk(boardId, request.resource.data.inviteId))
+        );
+        allow update: if isBoardOwner(boardId);
+        allow delete: if isBoardOwner(boardId) || request.auth.uid == memberUid;
       }
+
+      match /objects/{objectId} {
+        allow read: if isAuthed() && canReadBoardData(boardId);
+        allow write: if isAuthed() && canWriteBoardData(boardId);
+      }
+
+      match /cursors/{cursorId} {
+        allow read: if isAuthed() && canReadBoardData(boardId);
+        allow write: if isAuthed() && canWriteBoardData(boardId);
+      }
+
+      match /presence/{presenceId} {
+        allow read: if isAuthed() && canReadBoardData(boardId);
+        allow write: if isAuthed() && canWriteBoardData(boardId);
+      }
+
+      match /_pr05_smoke/{docId} {
+        allow read, write: if isAuthed() && canWriteBoardData(boardId);
+      }
+    }
+
+    match /users/{uid}/boards/{boardId} {
+      allow read, write: if isAuthed() && request.auth.uid == uid;
     }
 
     match /{document=**} {

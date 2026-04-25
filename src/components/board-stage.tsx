@@ -10,6 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { User } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import Konva from "konva";
 import { useTheme } from "next-themes";
 import type { KonvaEventObject } from "konva/lib/Node";
@@ -17,10 +18,12 @@ import type { Stage as KonvaStage } from "konva/lib/Stage";
 import { Circle, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
 import { BoardInlineTextEditor } from "@/components/board-inline-text-editor";
 import { BoardObjectShape } from "@/components/board-object-shapes";
+import { CommentPinShape } from "@/components/comment-pin-shape";
 import { ConnectorShape } from "@/components/connector-shape";
 import { FrameShape } from "@/components/frame-shape";
 import { StickyNoteShape } from "@/components/sticky-note-shape";
 import { TextObjectShape } from "@/components/text-object-shape";
+import { LinkHotspotShape } from "@/components/link-hotspot-shape";
 import type { BoardObjectWrites } from "@/hooks/use-board-object-writes";
 import type { RemoteCursor } from "@/hooks/use-board-cursors";
 import { useLocalCursorWriter } from "@/hooks/use-board-cursors";
@@ -30,12 +33,19 @@ import {
   normalizeMarqueeRect,
 } from "@/lib/board-geometry";
 import {
+  closeLassoRing,
+  objectIdsWithAnchorInPolygon,
+} from "@/lib/board-lasso-geometry";
+import {
   isShapeLayerObject,
   type BoardObject,
   type BoardObjectSticky,
   type BoardObjectConnector,
   type BoardObjectText,
+  type BoardObjectComment,
+  type BoardObjectLink,
 } from "@/lib/board-object";
+import { getFirebaseDb } from "@/lib/firebase";
 
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
@@ -58,7 +68,11 @@ type BoardStageProps = {
   objects: BoardObject[];
   writes: BoardObjectWrites;
   selectedObjectIds: string[];
-  onSelectObject: (objectId: string, shiftKey: boolean) => void;
+  onSelectObject: (
+    objectId: string,
+    shiftKey: boolean,
+    nativeEvent?: globalThis.MouseEvent,
+  ) => void;
   onClearSelection: () => void;
   onMarqueeSelect: (objectIds: string[]) => void;
   linePreviewSegment?: LinePreviewSegment | null;
@@ -67,6 +81,18 @@ type BoardStageProps = {
   /** PR 16: client substring search on sticky + text — dim non-matches, amber ring on matches */
   textSearchActive?: boolean;
   textSearchMatchIds?: ReadonlySet<string>;
+  /** PR 28: left-rail pen / highlighter / eraser (eraser handled in canvas selection). */
+  railDrawMode?: "none" | "pen" | "highlighter" | "eraser";
+  /** PR 29: freehand closed polygon → `onMarqueeSelect`. */
+  lassoActive?: boolean;
+  /** PR 29: click empty canvas to drop a comment pin. */
+  commentPlaceActive?: boolean;
+  /** After a comment pin is created from the rail tool (for selection UX). */
+  onCommentPlaced?: (objectId: string) => void;
+  /** PR 30: click empty board to drop a link hotspot. */
+  linkPlaceActive?: boolean;
+  onLinkPlaced?: (objectId: string) => void;
+  onHistoryCheckpoint?: () => void;
 };
 
 function pointerToWorld(
@@ -128,13 +154,14 @@ function commitTransformNode(
     return;
   }
 
-  if (o.type === "sticky" || o.type === "frame" || o.type === "text") {
+  if (o.type === "sticky" || o.type === "frame" || o.type === "text" || o.type === "link") {
     const g = node as Konva.Group;
     const sx = g.scaleX();
     const sy = g.scaleY();
     const rect = g.findOne<Konva.Rect>("Rect");
     if (!rect) return;
-    const minBox = o.type === "text" ? 24 : 40;
+    const minBox =
+      o.type === "text" ? 24 : o.type === "link" ? 48 : 40;
     const nw = Math.max(minBox, rect.width() * sx);
     const nh = Math.max(minBox, rect.height() * sy);
     g.scaleX(1);
@@ -169,6 +196,13 @@ export function BoardStage({
   onLineStagePointerMoveWorld,
   textSearchActive = false,
   textSearchMatchIds,
+  railDrawMode = "none",
+  lassoActive = false,
+  commentPlaceActive = false,
+  onCommentPlaced,
+  linkPlaceActive = false,
+  onLinkPlaced,
+  onHistoryCheckpoint,
 }: BoardStageProps) {
   const searchOn = textSearchActive;
   const searchHits = textSearchMatchIds ?? new Set<string>();
@@ -183,7 +217,7 @@ export function BoardStage({
   const transformerRef = useRef<Konva.Transformer>(null);
   const transformTargets = useRef<Map<string, Konva.Node>>(new Map());
 
-  type OverlayEdit = { kind: "sticky" | "text"; id: string };
+  type OverlayEdit = { kind: "sticky" | "text" | "comment"; id: string };
   const [overlayEdit, setOverlayEdit] = useState<OverlayEdit | null>(null);
   const [overlayDraft, setOverlayDraft] = useState("");
   const overlayDraftRef = useRef(overlayDraft);
@@ -200,6 +234,12 @@ export function BoardStage({
     y2: number;
   } | null>(null);
 
+  type DrawingDraft = { mode: "pen" | "highlighter"; points: number[] };
+  const [drawingDraft, setDrawingDraft] = useState<DrawingDraft | null>(null);
+  const [lassoDraftPoints, setLassoDraftPoints] = useState<number[] | null>(
+    null,
+  );
+
   const spaceDown = useRef(false);
   const panning = useRef(false);
   const lastPtr = useRef({ x: 0, y: 0 });
@@ -209,6 +249,9 @@ export function BoardStage({
     x2: number;
     y2: number;
   } | null>(null);
+
+  const cleanupDrawingListeners = useRef<(() => void) | null>(null);
+  const cleanupLassoListeners = useRef<(() => void) | null>(null);
 
   const setWrapRef = useCallback((el: HTMLDivElement | null) => {
     wrapRef.current = el;
@@ -373,6 +416,20 @@ export function BoardStage({
     [objects, onSelectObject],
   );
 
+  const openCommentEditor = useCallback(
+    (id: string) => {
+      const o = objects.find(
+        (x): x is BoardObjectComment => x.id === id && x.type === "comment",
+      );
+      if (o) {
+        setOverlayEdit({ kind: "comment", id });
+        setOverlayDraft(o.body);
+        onSelectObject(id, false);
+      }
+    },
+    [objects, onSelectObject],
+  );
+
   const overlayTarget =
     overlayEdit === null
       ? null
@@ -395,9 +452,20 @@ export function BoardStage({
             y: overlayTarget.y,
             width: overlayTarget.width,
             height: overlayTarget.height,
-            fill: "#27272a",
+            // Editor background is handled in `BoardInlineTextEditor` for variant `text`
+            // (`fill` on text objects is Konva text color, not box fill).
+            fill: "rgba(255,255,255,0.96)",
           }
-        : null;
+        : overlayTarget?.type === "comment"
+          ? {
+              id: overlayTarget.id,
+              x: overlayTarget.x + 18,
+              y: overlayTarget.y - 52,
+              width: 240,
+              height: 140,
+              fill: "rgba(255,255,255,0.96)",
+            }
+          : null;
 
   useEffect(() => {
     overlayDraftRef.current = overlayDraft;
@@ -419,7 +487,14 @@ export function BoardStage({
       const id = node.id();
       if (!id) continue;
       const o = objects.find((x) => x.id === id);
-      if (!o || o.type === "line" || o.type === "connector") continue;
+      if (
+        !o ||
+        o.type === "line" ||
+        o.type === "freehand" ||
+        o.type === "comment" ||
+        o.type === "connector"
+      )
+        continue;
       commitTransformNode(node, o, writes.queueObjectPatch);
     }
     tr.getLayer()?.batchDraw();
@@ -429,7 +504,13 @@ export function BoardStage({
     return selectedObjectIds
       .filter((id) => {
         const o = objects.find((x) => x.id === id);
-        return o && o.type !== "line" && o.type !== "connector";
+        return (
+          o &&
+          o.type !== "line" &&
+          o.type !== "freehand" &&
+          o.type !== "comment" &&
+          o.type !== "connector"
+        );
       })
       .join("|");
   }, [selectedObjectIds, objects]);
@@ -460,6 +541,198 @@ export function BoardStage({
           setOverlayEdit(null);
           onLineStageBackgroundDown(w);
         }
+        return;
+      }
+
+      if (railDrawMode === "pen" || railDrawMode === "highlighter") {
+        if (spaceDown.current || e.evt.button !== 0) return;
+        const wDraw = pointerToWorld(st, scale, stagePos);
+        if (!wDraw) return;
+
+        cleanupMarqueeListeners.current?.();
+        cleanupMarqueeListeners.current = null;
+        cleanupDrawingListeners.current?.();
+        cleanupDrawingListeners.current = null;
+
+        const mode = railDrawMode;
+        let pts: number[] = [wDraw.x, wDraw.y];
+        setOverlayEdit(null);
+        setDrawingDraft({ mode, points: [...pts] });
+
+        const onDrawMove = (me: MouseEvent) => {
+          const ww = screenToWorld(me.clientX, me.clientY);
+          if (!ww) return;
+          const lx = pts[pts.length - 2]!;
+          const ly = pts[pts.length - 1]!;
+          if (Math.hypot(ww.x - lx, ww.y - ly) >= 2) {
+            pts = pts.concat([ww.x, ww.y]);
+            setDrawingDraft({ mode, points: pts });
+          }
+        };
+
+        const onDrawUp = () => {
+          window.removeEventListener("mousemove", onDrawMove);
+          window.removeEventListener("mouseup", onDrawUp);
+          cleanupDrawingListeners.current = null;
+          setDrawingDraft(null);
+          const committed = pts;
+          if (committed.length < 4) return;
+
+          void (async () => {
+            try {
+              onHistoryCheckpoint?.();
+              await user.getIdToken();
+              const db = getFirebaseDb();
+              const id = crypto.randomUUID();
+              const stroke = mode === "pen" ? "#18181b" : "#fef08a";
+              const strokeWidth = mode === "pen" ? 3 : 16;
+              const opacity = mode === "pen" ? 1 : 0.45;
+              await setDoc(doc(db, "boards", boardId, "objects", id), {
+                type: "freehand",
+                points: committed,
+                stroke,
+                strokeWidth,
+                opacity,
+                zIndex: Date.now(),
+                updatedAt: serverTimestamp(),
+              });
+            } catch (err) {
+              console.error("[objects] freehand commit failed", err);
+            }
+          })();
+        };
+
+        cleanupDrawingListeners.current = () => {
+          window.removeEventListener("mousemove", onDrawMove);
+          window.removeEventListener("mouseup", onDrawUp);
+        };
+
+        window.addEventListener("mousemove", onDrawMove);
+        window.addEventListener("mouseup", onDrawUp);
+        return;
+      }
+
+      if (lassoActive) {
+        if (spaceDown.current || e.evt.button !== 0) return;
+        const wL = pointerToWorld(st, scale, stagePos);
+        if (!wL) return;
+
+        cleanupMarqueeListeners.current?.();
+        cleanupMarqueeListeners.current = null;
+        cleanupDrawingListeners.current?.();
+        cleanupDrawingListeners.current = null;
+        cleanupLassoListeners.current?.();
+        cleanupLassoListeners.current = null;
+
+        let pts: number[] = [wL.x, wL.y];
+        setOverlayEdit(null);
+        setLassoDraftPoints([...pts]);
+
+        const onLassoMove = (me: MouseEvent) => {
+          const ww = screenToWorld(me.clientX, me.clientY);
+          if (!ww) return;
+          const lx = pts[pts.length - 2]!;
+          const ly = pts[pts.length - 1]!;
+          if (Math.hypot(ww.x - lx, ww.y - ly) >= 3) {
+            pts = pts.concat([ww.x, ww.y]);
+            setLassoDraftPoints([...pts]);
+          }
+        };
+
+        const onLassoUp = () => {
+          window.removeEventListener("mousemove", onLassoMove);
+          window.removeEventListener("mouseup", onLassoUp);
+          cleanupLassoListeners.current = null;
+          setLassoDraftPoints(null);
+          const ring = closeLassoRing(pts);
+          if (ring.length < 6) return;
+          const hits = objectIdsWithAnchorInPolygon(objects, ring);
+          onMarqueeSelect(hits);
+        };
+
+        cleanupLassoListeners.current = () => {
+          window.removeEventListener("mousemove", onLassoMove);
+          window.removeEventListener("mouseup", onLassoUp);
+        };
+
+        window.addEventListener("mousemove", onLassoMove);
+        window.addEventListener("mouseup", onLassoUp);
+        return;
+      }
+
+      if (commentPlaceActive) {
+        if (spaceDown.current || e.evt.button !== 0) return;
+        const wp = pointerToWorld(st, scale, stagePos);
+        if (!wp) return;
+
+        cleanupMarqueeListeners.current?.();
+        cleanupMarqueeListeners.current = null;
+        cleanupDrawingListeners.current?.();
+        cleanupDrawingListeners.current = null;
+        cleanupLassoListeners.current?.();
+        cleanupLassoListeners.current = null;
+        setOverlayEdit(null);
+
+        const newId = crypto.randomUUID();
+        void (async () => {
+          try {
+            onHistoryCheckpoint?.();
+            await user.getIdToken();
+            const db = getFirebaseDb();
+            await setDoc(doc(db, "boards", boardId, "objects", newId), {
+              type: "comment",
+              x: wp.x,
+              y: wp.y,
+              body: "",
+              zIndex: Date.now(),
+              updatedAt: serverTimestamp(),
+            });
+            onCommentPlaced?.(newId);
+          } catch (err) {
+            console.error("[objects] add comment failed", err);
+          }
+        })();
+        return;
+      }
+
+      if (linkPlaceActive) {
+        if (spaceDown.current || e.evt.button !== 0) return;
+        const wLink = pointerToWorld(st, scale, stagePos);
+        if (!wLink) return;
+
+        cleanupMarqueeListeners.current?.();
+        cleanupMarqueeListeners.current = null;
+        cleanupDrawingListeners.current?.();
+        cleanupDrawingListeners.current = null;
+        cleanupLassoListeners.current?.();
+        cleanupLassoListeners.current = null;
+        setOverlayEdit(null);
+
+        const newId = crypto.randomUUID();
+        const lw = 160;
+        const lh = 44;
+        void (async () => {
+          try {
+            onHistoryCheckpoint?.();
+            await user.getIdToken();
+            const db = getFirebaseDb();
+            await setDoc(doc(db, "boards", boardId, "objects", newId), {
+              type: "link",
+              x: wLink.x - lw / 2,
+              y: wLink.y - lh / 2,
+              width: lw,
+              height: lh,
+              rotation: 0,
+              href: "https://example.com",
+              label: "Link",
+              zIndex: Date.now(),
+              updatedAt: serverTimestamp(),
+            });
+            onLinkPlaced?.(newId);
+          } catch (err) {
+            console.error("[objects] add link failed", err);
+          }
+        })();
         return;
       }
 
@@ -530,12 +803,23 @@ export function BoardStage({
       scale,
       stagePos,
       screenToWorld,
+      railDrawMode,
+      lassoActive,
+      commentPlaceActive,
+      onCommentPlaced,
+      linkPlaceActive,
+      onLinkPlaced,
+      onHistoryCheckpoint,
+      user,
+      boardId,
     ],
   );
 
   useEffect(() => {
     return () => {
       cleanupMarqueeListeners.current?.();
+      cleanupDrawingListeners.current?.();
+      cleanupLassoListeners.current?.();
     };
   }, []);
 
@@ -585,13 +869,17 @@ export function BoardStage({
                       key={o.id}
                       object={o}
                       isSelected={selectedObjectIds.includes(o.id)}
-                      innerRef={(n) => registerTransformTarget(o.id, n)}
+                      innerRef={
+                        o.type === "freehand"
+                          ? () => {}
+                          : (n) => registerTransformTarget(o.id, n)
+                      }
                       onPointerDown={(ev) =>
-                        onSelectObject(o.id, ev.evt.shiftKey)
+                        onSelectObject(o.id, ev.evt.shiftKey, ev.evt)
                       }
                       onDragEnd={(ev) => {
                         const t = ev.target;
-                        if (o.type === "line") return;
+                        if (o.type === "line" || o.type === "freehand") return;
                         writes.queueObjectPatch(o.id, {
                           x: t.x(),
                           y: t.y(),
@@ -609,7 +897,7 @@ export function BoardStage({
                       textSearchVisual={textSearchVisualFor(o.id)}
                       innerRef={(n) => registerTransformTarget(o.id, n)}
                       onObjectTap={(ev) =>
-                        onSelectObject(o.id, ev.evt.shiftKey)
+                        onSelectObject(o.id, ev.evt.shiftKey, ev.evt)
                       }
                       onRequestEdit={() => openStickyEditor(o.id)}
                       onDragEnd={(x, y) => writes.queuePosition(o.id, x, y)}
@@ -624,7 +912,7 @@ export function BoardStage({
                       isSelected={selectedObjectIds.includes(o.id)}
                       innerRef={(n) => registerTransformTarget(o.id, n)}
                       onObjectTap={(ev) =>
-                        onSelectObject(o.id, ev.evt.shiftKey)
+                        onSelectObject(o.id, ev.evt.shiftKey, ev.evt)
                       }
                       onDragEnd={(x, y) =>
                         writes.queueObjectPatch(o.id, { x, y })
@@ -641,7 +929,7 @@ export function BoardStage({
                       textSearchVisual={textSearchVisualFor(o.id)}
                       innerRef={(n) => registerTransformTarget(o.id, n)}
                       onObjectTap={(ev) =>
-                        onSelectObject(o.id, ev.evt.shiftKey)
+                        onSelectObject(o.id, ev.evt.shiftKey, ev.evt)
                       }
                       onRequestEdit={() => openTextObjectEditor(o.id)}
                       onDragEnd={(x, y) =>
@@ -650,8 +938,66 @@ export function BoardStage({
                     />
                   );
                 }
+                if (o.type === "link") {
+                  const l = o as BoardObjectLink;
+                  return (
+                    <LinkHotspotShape
+                      key={l.id}
+                      object={l}
+                      isSelected={selectedObjectIds.includes(l.id)}
+                      innerRef={(n) => registerTransformTarget(l.id, n)}
+                      onObjectTap={(ev) =>
+                        onSelectObject(l.id, ev.evt.shiftKey, ev.evt)
+                      }
+                      onDragEnd={(x, y) =>
+                        writes.queueObjectPatch(l.id, { x, y })
+                      }
+                    />
+                  );
+                }
+                if (o.type === "comment") {
+                  return (
+                    <CommentPinShape
+                      key={o.id}
+                      object={o}
+                      isSelected={selectedObjectIds.includes(o.id)}
+                      innerRef={() => {}}
+                      onObjectTap={(ev) =>
+                        onSelectObject(o.id, ev.evt.shiftKey, ev.evt)
+                      }
+                      onRequestEdit={() => openCommentEditor(o.id)}
+                      onDragEnd={(x, y) =>
+                        writes.queueObjectPatch(o.id, { x, y })
+                      }
+                    />
+                  );
+                }
                 return null;
               })}
+            {drawingDraft ? (
+              <Line
+                points={drawingDraft.points}
+                stroke={drawingDraft.mode === "pen" ? "#18181b" : "#fef08a"}
+                strokeWidth={drawingDraft.mode === "pen" ? 3 : 16}
+                opacity={drawingDraft.mode === "highlighter" ? 0.45 : 1}
+                lineCap="round"
+                lineJoin="round"
+                perfectDrawEnabled={false}
+                listening={false}
+              />
+            ) : null}
+            {lassoDraftPoints && lassoDraftPoints.length >= 4 ? (
+              <Line
+                points={lassoDraftPoints}
+                stroke="#38bdf8"
+                strokeWidth={2}
+                dash={[6, 4]}
+                lineCap="round"
+                lineJoin="round"
+                closed={false}
+                listening={false}
+              />
+            ) : null}
             {linePreviewSegment ? (
               <Line
                 points={[
@@ -679,7 +1025,7 @@ export function BoardStage({
                   isSelected={selectedObjectIds.includes(c.id)}
                   innerRef={(n) => registerTransformTarget(c.id, n)}
                   onObjectTap={(ev) =>
-                    onSelectObject(c.id, ev.evt.shiftKey)
+                    onSelectObject(c.id, ev.evt.shiftKey, ev.evt)
                   }
                 />
               ))}
@@ -727,17 +1073,34 @@ export function BoardStage({
           open
           box={overlayBox}
           draft={overlayDraft}
-          variant={overlayEdit.kind === "sticky" ? "sticky" : "text"}
+          variant={
+            overlayEdit.kind === "sticky"
+              ? "sticky"
+              : overlayEdit.kind === "comment"
+                ? "comment"
+                : "text"
+          }
           onDraftChange={(v) => {
             setOverlayDraft(v);
-            writes.queueText(overlayEdit.id, v);
+            if (overlayEdit.kind === "comment") {
+              writes.queueObjectPatch(overlayEdit.id, { body: v });
+            } else {
+              writes.queueText(overlayEdit.id, v);
+            }
           }}
           onClose={() => setOverlayEdit(null)}
           flushOnClose={() => {
-            void writes.flushTextNow(
-              overlayEdit.id,
-              overlayDraftRef.current,
-            );
+            if (overlayEdit.kind === "comment") {
+              void writes.flushCommentBodyNow(
+                overlayEdit.id,
+                overlayDraftRef.current,
+              );
+            } else {
+              void writes.flushTextNow(
+                overlayEdit.id,
+                overlayDraftRef.current,
+              );
+            }
           }}
           stageContainer={
             // Konva `container()` is only read when the text editor is open; Stage is mounted.

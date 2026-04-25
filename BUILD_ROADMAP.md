@@ -302,56 +302,56 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Per-user boards in Firestore; real `boardId` instead of only `demo`.*
 
-- [ ] Add **`boards/{boardId}`** metadata docs: `title`, `ownerUid`, `createdAt`, `updatedAt` (and indexes as needed).
-- [ ] Add **user → board** index (e.g. `users/{uid}/boards/{boardId}` **or** query `boards` where `ownerUid == uid`).
-- [ ] Introduce **`/board/[boardId]`** route; move canvas from fixed demo id to **dynamic** `boardId` from the URL.
-- [ ] Centralize **`boardId`** in hooks/context (replace stray `DEMO_BOARD_ID` usages for runtime paths).
-- [ ] Tighten **`firestore.rules`**: authenticated users may read/write only **boards they own** (document membership rule); keep deny-default elsewhere.
-- [ ] Update **`POST /api/ai`**: allow `boardId` when the **token uid owns** that board (same rule as Firestore), not only demo.
-- [ ] Smoke: create board doc → open `/board/{id}` → object sync + AI still work.
+- [x] Add **`boards/{boardId}`** metadata docs: `title`, `ownerUid`, `createdAt`, `updatedAt` (and indexes as needed).
+- [x] Add **user → board** index (e.g. `users/{uid}/boards/{boardId}` **or** query `boards` where `ownerUid == uid`).
+- [x] Introduce **`/board/[boardId]`** route; move canvas from fixed demo id to **dynamic** `boardId` from the URL.
+- [x] Centralize **`boardId`** in hooks/context (replace stray `DEMO_BOARD_ID` usages for runtime paths).
+- [x] Tighten **`firestore.rules`**: authenticated users may read/write only **boards they own** (document membership rule); keep deny-default elsewhere.
+- [x] Update **`POST /api/ai`**: allow `boardId` when the **token uid owns** that board (same rule as Firestore), not only demo.
+- [x] Smoke: create board doc → open `/board/{id}` → object sync + AI still work.
 
 ### PR 26 — `feat/dashboard-your-boards`
 
 *Dashboard / home: list, create, open — “Your boards” like the reference.*
 
-- [ ] Add **`/`** or **`/dashboard`** (choose one as canonical) **after login**: list user’s boards (title, last opened optional).
-- [ ] **Create board** → new `boardId` + metadata + navigate to **`/board/[boardId]`**.
-- [ ] **Open** existing board from list; optional **rename** / **delete** with confirm.
-- [ ] **Auth redirect**: logged-out users → `/login`; logged-in root → dashboard (adjust current `/` marketing vs dashboard split).
-- [ ] Document new paths in **`docs/ARCHITECTURE.md`** (short delta).
+- [x] Add **`/`** or **`/dashboard`** (choose one as canonical) **after login**: list user’s boards (title, last opened optional).
+- [x] **Create board** → new `boardId` + metadata + navigate to **`/board/[boardId]`**.
+- [x] **Open** existing board from list; optional **rename** / **delete** with confirm.
+- [x] **Auth redirect**: logged-out users → `/login`; logged-in root → dashboard (adjust current `/` marketing vs dashboard split).
+- [x] Document new paths in **`docs/ARCHITECTURE.md`** (short delta).
 
 ### PR 27 — `feat/toolbar-sidebar-shell`
 
 *Left vertical tool rail — structure first; wire tools in later PRs.*
 
-- [ ] Add **collapsible left sidebar** on the board page with icon buttons: **Templates**, **Draw**, **Pen**, **Highlighter**, **Eraser**, **Lasso**, **Comments**, **Hyperlinks**, **Undo**, **Redo** (labels + `aria-label`s).
-- [ ] **Tool state** in React (active tool enum); **no-op or toast** for tools not implemented yet — avoid silent failures.
-- [ ] Reserve space so the **Konva stage** reflows when sidebar opens/closes (desktop); prep for **drawer** on small screens (see PR 32).
-- [ ] **Undo / Redo** buttons wired to a **history stub** (stack in later PR) so UI is stable.
+- [x] Add **collapsible left sidebar** on the board page with icon buttons: **Templates**, **Draw**, **Pen**, **Highlighter**, **Eraser**, **Lasso**, **Comments**, **Hyperlinks**, **Undo**, **Redo** (labels + `aria-label`s).
+- [x] **Tool state** in React (`BoardToolProvider` + active tool); **notice** for tools not implemented yet — avoid silent failures.
+- [x] Reserve space so the **Konva stage** reflows when sidebar opens/closes (desktop); **mobile drawer** toggle for tools (PR 32 can refine).
+- [x] **Undo / Redo** buttons wired to a **history stub** (stack in later PR) so UI is stable.
 
 ### PR 28 — `feat/drawing-tools-pen-eraser`
 
 *Freehand drawing: pen, highlighter, eraser (Konva line or custom layer).*
 
-- [ ] **Drawing layer** above/below object layer; persist strokes as **`line`** or new `freehand` type (decide in `board-object.ts`).
-- [ ] **Pen** + **Highlighter** (width + opacity + stroke color); **Eraser** removes intersecting strokes (or mask — document tradeoff).
-- [ ] Integrate with **`useBoardObjectWrites`** (debounced / batched) per existing perf patterns.
-- [ ] Manual QA: two browsers see drawing sync.
+- [x] **Drawing layer** above/below object layer; persist strokes as **`line`** or new `freehand` type (decide in `board-object.ts`).
+- [x] **Pen** + **Highlighter** (width + opacity + stroke color); **Eraser** removes intersecting strokes (or mask — document tradeoff).
+- [x] Integrate with **`useBoardObjectWrites`** (debounced / batched) per existing perf patterns.
+- [x] Manual QA: two browsers see drawing sync.
 
 ### PR 29 — `feat/lasso-comments`
 
-- [ ] **Lasso**: freehand closed path → select contained objects (intersection test); integrate with existing selection model.
-- [ ] **Comments** MVP: pin to canvas (e.g. small marker + thread or linked sticky) — smallest shippable; document in **CONFLICTS** if LWW on text.
+- [x] **Lasso**: freehand closed path → select contained objects (intersection test); integrate with existing selection model.
+- [x] **Comments** MVP: pin to canvas (e.g. small marker + thread or linked sticky) — smallest shippable; document in **CONFLICTS** if LWW on text.
 
 ### PR 30 — `feat/hyperlinks`
 
-- [ ] **Hyperlinks**: attach **URL** to shape/sticky/text or standalone link hotspot; open in new tab; validate URL client-side.
-- [ ] Firestore fields + render hit-target on canvas.
+- [x] **Hyperlinks**: attach **URL** to shape/sticky/text or standalone link hotspot; open in new tab; validate URL client-side.
+- [x] Firestore fields + render hit-target on canvas.
 
 ### PR 31 — `feat/undo-redo-history`
 
-- [ ] **Undo / Redo** for board edits (objects + drawing): command stack or snapshot strategy; cap depth for memory.
-- [ ] Keyboard shortcuts **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z**; sync with sidebar buttons.
+- [x] **Undo / Redo** for board edits (objects + drawing): command stack or snapshot strategy; cap depth for memory.
+- [x] Keyboard shortcuts **Ctrl/Cmd+Z**, **Ctrl/Cmd+Shift+Z**; sync with sidebar buttons.
 
 ### PR 32 — `feat/templates-gallery`
 
@@ -380,6 +380,21 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 ---
 
+## PR 35 — `feat/board-sharing-collab` *(post-epic: multi-user same board)*
+
+*Placed after PR 34 so core v2 UI stays ordered; deploy **Firestore rules** after this PR.*
+
+- [x] **Data model**: `boards/{boardId}/members/{uid}` with `role: "editor" | "viewer"` (MVP uses **editor** only in UI); optional `boardInvites/{inviteId}` with `boardId`, `ownerUid`, `createdAt`.
+- [x] **`firestore.rules`**: owner full control on board metadata; **members + editors** read/write **objects / cursors / presence**; **viewers** read-only on board content (viewer role supported in rules; UI can add later); **invite** create by owner; **self-join** via invite token field on member doc.
+- [x] **`ensureBoardAccess`**: open board as **owner** (create metadata) or **member** (sync `users/{uid}/boards/{boardId}` index on first open).
+- [x] **Share UI** on board: owner adds collaborator by **Firebase UID**; generate **invite link**; list/remove collaborators; collaborator **Leave board**.
+- [x] **Join route** `**/join/[inviteId]`**: signed-in user accepts invite → member doc + dashboard index → redirect to **`/board/[boardId]`**.
+- [x] **`POST /api/ai`**: allow **owner** or **editor** member (not viewer).
+- [ ] **Deploy rules** to production (`npm run deploy:rules`) after merging.
+- [ ] **Manual QA**: two accounts — invite link + UID add; both see cursors/objects; viewer role (optional) from console/Firestore.
+
+---
+
 ## Progress snapshot (optional)
 
 | PR range | Theme |
@@ -391,6 +406,7 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | 19–21 | AI agent |
 | 22–24 | Deploy + submission + demo |
 | **25+** | **Multi-board save, dashboard, tool rail, drawing, templates, AI templates, mobile** |
+| **35** | **Board sharing — members, invites, join route, AI for editors** |
 
 ---
 

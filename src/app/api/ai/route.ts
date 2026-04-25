@@ -1,10 +1,78 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { AiApiErrorBody, AiApiSuccessBody } from "@/lib/ai-api-types";
-import { DEMO_BOARD_ID } from "@/lib/board";
+import { assertBoardId } from "@/lib/board";
 import { runBoardGemini } from "@/lib/run-board-gemini";
 import { verifyFirebaseIdToken } from "@/lib/verify-firebase-id-token";
 
 export const runtime = "nodejs";
+
+function getFirestoreDocumentUrl(path: string): string {
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim();
+  if (!projectId) {
+    throw new Error("NEXT_PUBLIC_FIREBASE_PROJECT_ID is not set");
+  }
+  const escapedPath = path
+    .split("/")
+    .map((p) => encodeURIComponent(p))
+    .join("/");
+  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${escapedPath}`;
+}
+
+function readStringField(
+  fields: Record<string, { stringValue?: string }> | undefined,
+  key: string,
+): string | null {
+  if (!fields) return null;
+  const value = fields[key];
+  if (!value) return null;
+  return typeof value.stringValue === "string" ? value.stringValue : null;
+}
+
+async function requesterCanUseAiOnBoard(
+  idToken: string,
+  uid: string,
+  boardId: string,
+): Promise<boolean> {
+  const boardUrl = getFirestoreDocumentUrl(`boards/${boardId}`);
+  const boardRes = await fetch(boardUrl, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!boardRes.ok) {
+    return false;
+  }
+
+  const boardJson = (await boardRes.json()) as {
+    fields?: Record<string, { stringValue?: string }>;
+  };
+  const ownerUid = readStringField(boardJson.fields, "ownerUid");
+  if (ownerUid === uid) {
+    return true;
+  }
+
+  const memberUrl = getFirestoreDocumentUrl(
+    `boards/${boardId}/members/${uid}`,
+  );
+  const memberRes = await fetch(memberUrl, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+    },
+    cache: "no-store",
+  });
+  if (!memberRes.ok) {
+    return false;
+  }
+  const memberJson = (await memberRes.json()) as {
+    fields?: Record<string, { stringValue?: string }>;
+  };
+  const role = readStringField(memberJson.fields, "role");
+  return role === "editor";
+}
 
 function jsonError(
   code: AiApiErrorBody["error"]["code"],
@@ -65,12 +133,8 @@ export async function POST(req: NextRequest) {
   }
 
   const rec = body as Record<string, unknown>;
-  const prompt =
-    typeof rec.prompt === "string" ? rec.prompt.trim() : "";
-  const boardIdRaw =
-    typeof rec.boardId === "string" && rec.boardId.trim()
-      ? rec.boardId.trim()
-      : DEMO_BOARD_ID;
+  const prompt = typeof rec.prompt === "string" ? rec.prompt.trim() : "";
+  const boardIdRaw = typeof rec.boardId === "string" ? rec.boardId : "";
 
   const boardContextRaw =
     typeof rec.boardContext === "string" ? rec.boardContext : undefined;
@@ -83,18 +147,25 @@ export async function POST(req: NextRequest) {
     return jsonError("BAD_REQUEST", "Field `prompt` (non-empty string) is required.", 400);
   }
 
-  if (boardIdRaw !== DEMO_BOARD_ID) {
+  let boardId: string;
+  try {
+    boardId = assertBoardId(boardIdRaw);
+  } catch (e) {
     return jsonError(
-      "FORBIDDEN",
-      `Only the shared demo board "${DEMO_BOARD_ID}" is allowed for this MVP.`,
-      403,
+      "BAD_REQUEST",
+      e instanceof Error ? e.message : "Invalid board id.",
+      400,
     );
+  }
+
+  if (!(await requesterCanUseAiOnBoard(token, uid, boardId))) {
+    return jsonError("FORBIDDEN", "You do not have access to this board.", 403);
   }
 
   try {
     const { model, replyText, toolCalls } = await runBoardGemini({
       prompt,
-      boardId: boardIdRaw,
+      boardId,
       uid,
       boardContext,
     });
@@ -105,7 +176,7 @@ export async function POST(req: NextRequest) {
         model,
         replyText,
         toolCalls,
-        boardId: boardIdRaw,
+        boardId,
         uid,
       },
     };
@@ -127,7 +198,7 @@ export async function GET() {
       auth: "Authorization: Bearer <Firebase ID token>",
       body: {
         prompt: "string",
-        boardId: "optional — defaults to demo board id",
+        boardId: "required — board owner or editor member may call AI (viewers cannot)",
         boardContext: "optional — compact object list from buildBoardContextForAi()",
       },
     },

@@ -69,7 +69,42 @@ export function useBoardObjectWrites(boardId: string, user: User) {
             updatedAt: serverTimestamp(),
           });
         }
-        await batch.commit();
+        try {
+          await batch.commit();
+        } catch (batchErr) {
+          // If any doc was deleted just before flush (e.g. undo/redo snapshot apply),
+          // retry each update individually and ignore missing-doc failures.
+          for (const [objectId, payload] of chunk) {
+            try {
+              await updateDoc(doc(db, "boards", boardId, "objects", objectId), {
+                ...payload,
+                updatedAt: serverTimestamp(),
+              });
+            } catch (singleErr) {
+              const code =
+                typeof singleErr === "object" &&
+                singleErr !== null &&
+                "code" in singleErr
+                  ? String((singleErr as { code?: unknown }).code ?? "")
+                  : "";
+              if (!code.includes("not-found")) {
+                console.error("[objects] patch update failed", singleErr);
+              }
+            }
+          }
+          if (
+            !(
+              typeof batchErr === "object" &&
+              batchErr !== null &&
+              "code" in batchErr &&
+              String((batchErr as { code?: unknown }).code ?? "").includes(
+                "not-found",
+              )
+            )
+          ) {
+            console.warn("[objects] batch patch fallback used", batchErr);
+          }
+        }
       }
     } catch (e) {
       console.error("[objects] batch patch update failed", e);
@@ -132,6 +167,28 @@ export function useBoardObjectWrites(boardId: string, user: User) {
     [boardId, user],
   );
 
+  const flushCommentBodyNow = useCallback(
+    async (objectId: string, body: string) => {
+      const cur = pendingObjectPatches.current.get(objectId) ?? {};
+      pendingObjectPatches.current.delete(objectId);
+
+      const payload = { ...cur, body };
+      if (Object.keys(payload).length === 0) return;
+
+      try {
+        await user.getIdToken();
+        const db = getFirebaseDb();
+        await updateDoc(doc(db, "boards", boardId, "objects", objectId), {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.error("[objects] flush comment body failed", e);
+      }
+    },
+    [boardId, user],
+  );
+
   const setStickyColors = useCallback(
     async (objectId: string, fill: string, stroke: string) => {
       try {
@@ -154,6 +211,7 @@ export function useBoardObjectWrites(boardId: string, user: User) {
     queuePosition,
     queueText,
     flushTextNow,
+    flushCommentBodyNow,
     setStickyColors,
   };
 }

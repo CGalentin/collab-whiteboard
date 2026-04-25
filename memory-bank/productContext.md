@@ -8,8 +8,8 @@
 
 - **Workshops / collaboration** — short-lived boards.
 - **PRD target:** 5+ concurrent users on a **board**; realtime cursors + presence.
-- **MVP shipped:** shared **demo** board id for all users (simplest security story).
-- **Next (PR 25+):** **multiple saved boards per user**, dashboard, tool rail, templates, mobile — see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md).
+- **MVP shipped:** shared demo era (single board id) — superseded by **per-user boards** (**PR 25–26**).
+- **Now (v2):** **multiple saved boards**, **dashboard**, **tool rail**, **drawing**, **lasso + comments**, **hyperlinks (PR 30)**, **undo/redo (PR 31)**, **board sharing (PR 35)** per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md). Next epic slices: **PR 32+** (templates, mobile).
 
 ## Constraints (original MVP)
 

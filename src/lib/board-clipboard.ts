@@ -58,7 +58,8 @@ function applyOffsetToFields(
     t === "rect" ||
     t === "sticky" ||
     t === "frame" ||
-    t === "text"
+    t === "text" ||
+    t === "link"
   ) {
     fields.x = (fields.x as number) + ox;
     fields.y = (fields.y as number) + oy;
@@ -70,6 +71,12 @@ function applyOffsetToFields(
     fields.y1 = (fields.y1 as number) + oy;
     fields.x2 = (fields.x2 as number) + ox;
     fields.y2 = (fields.y2 as number) + oy;
+  } else if (t === "freehand") {
+    const pts = fields.points as number[];
+    fields.points = pts.map((v, i) => (i % 2 === 0 ? v + ox : v + oy));
+  } else if (t === "comment") {
+    fields.x = (fields.x as number) + ox;
+    fields.y = (fields.y as number) + oy;
   }
 }
 

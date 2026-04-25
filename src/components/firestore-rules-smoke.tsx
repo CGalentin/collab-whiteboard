@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase";
-import { DEMO_BOARD_ID } from "@/lib/board";
 
 type SmokeState =
   | { kind: "running" }
@@ -11,11 +10,17 @@ type SmokeState =
   | { kind: "err"; message: string };
 
 /**
- * One write + read under `boards/{DEMO_BOARD_ID}/**` to confirm published rules
+ * One write + read under `boards/{boardId}/**` to confirm published rules
  * allow authenticated access (see PR 05 / BUILD_ROADMAP).
  * Remount with `key={userId}` when the signed-in user changes.
  */
-export function FirestoreRulesSmoke({ userId }: { userId: string }) {
+export function FirestoreRulesSmoke({
+  userId,
+  boardId,
+}: {
+  userId: string;
+  boardId: string;
+}) {
   const [state, setState] = useState<SmokeState>({ kind: "running" });
 
   useEffect(() => {
@@ -49,7 +54,7 @@ export function FirestoreRulesSmoke({ userId }: { userId: string }) {
       const ref = doc(
         db,
         "boards",
-        DEMO_BOARD_ID,
+        boardId,
         "_pr05_smoke",
         userId,
       );
@@ -84,7 +89,7 @@ export function FirestoreRulesSmoke({ userId }: { userId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [boardId, userId]);
 
   if (state.kind === "running") {
     return (
@@ -105,7 +110,7 @@ export function FirestoreRulesSmoke({ userId }: { userId: string }) {
       >
         Firestore: authenticated read/write OK (
         <span className="font-mono text-emerald-800 dark:text-emerald-500/90">
-          boards/{DEMO_BOARD_ID}/…
+          boards/{boardId}/…
         </span>
         )
       </p>

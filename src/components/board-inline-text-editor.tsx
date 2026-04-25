@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type CSSProperties } from "react";
 
 /** World-space box for an HTML textarea overlay on the Konva stage. */
 export type BoardInlineTextBox = {
@@ -22,8 +22,8 @@ type BoardInlineTextEditorProps = {
   stageContainer: HTMLElement | null;
   scale: number;
   stagePos: { x: number; y: number };
-  /** Sticky uses emerald chrome; standalone text uses zinc. */
-  variant?: "sticky" | "text";
+  /** Sticky uses emerald chrome; standalone text uses zinc; comment uses sky. */
+  variant?: "sticky" | "text" | "comment";
 };
 
 /**
@@ -61,18 +61,28 @@ export function BoardInlineTextEditor({
   const borderClass =
     variant === "sticky"
       ? "border-emerald-500/90"
-      : "border-violet-500/90";
+      : variant === "comment"
+        ? "border-sky-500/90"
+        : "border-violet-500/90";
+
+  // `BoardObjectText.fill` is **text** color in Konva, not box background — do not use it as textarea bg.
+  const surfaceStyle: CSSProperties =
+    variant === "text" || variant === "comment"
+      ? { backgroundColor: "rgba(255,255,255,0.96)", color: "#18181b" }
+      : { backgroundColor: box.fill };
 
   return (
     <textarea
       ref={taRef}
-      className={`fixed z-[60] box-border resize-none rounded border-2 ${borderClass} p-2 text-sm leading-snug text-zinc-900 shadow-xl outline-none`}
+      className={`fixed z-[60] box-border resize-none rounded border-2 ${borderClass} p-2 text-sm leading-snug shadow-xl outline-none ${
+        variant === "text" || variant === "comment" ? "" : "text-zinc-900"
+      }`}
       style={{
         left,
         top,
         width,
         height,
-        backgroundColor: box.fill,
+        ...surfaceStyle,
       }}
       value={draft}
       onChange={(e) => onDraftChange(e.target.value)}

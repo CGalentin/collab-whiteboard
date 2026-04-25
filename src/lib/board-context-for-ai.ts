@@ -63,6 +63,13 @@ function summarizeObject(o: BoardObject): string {
         x2: o.x2,
         y2: o.y2,
       });
+    case "freehand":
+      return JSON.stringify({
+        id: o.id,
+        type: "freehand",
+        nPoints: o.points.length / 2,
+        stroke: o.stroke,
+      });
     case "frame":
       return JSON.stringify({
         id: o.id,
@@ -85,6 +92,25 @@ function summarizeObject(o: BoardObject): string {
         type: "connector",
         fromId: o.fromId,
         toId: o.toId,
+      });
+    case "comment":
+      return JSON.stringify({
+        id: o.id,
+        type: "comment",
+        x: o.x,
+        y: o.y,
+        body: clip(o.body, 120),
+      });
+    case "link":
+      return JSON.stringify({
+        id: o.id,
+        type: "link",
+        x: o.x,
+        y: o.y,
+        w: o.width,
+        h: o.height,
+        href: clip(o.href, 200),
+        label: clip(o.label, 40),
       });
   }
 }

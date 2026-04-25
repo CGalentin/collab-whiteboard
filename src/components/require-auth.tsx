@@ -11,7 +11,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (loading || user) return;
-    const from = pathname && pathname !== "/login" ? pathname : "/board";
+    const from = pathname && pathname !== "/login" ? pathname : "/dashboard";
     router.replace(`/login?from=${encodeURIComponent(from)}`);
   }, [loading, user, router, pathname]);
 

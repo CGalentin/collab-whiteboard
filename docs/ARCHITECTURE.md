@@ -1,11 +1,11 @@
-# Architecture — CollabBoard (MVP)
+# Architecture — CollabBoard (PR 25)
 
 ## One-page diagram (FE ↔ API ↔ Firestore)
 
 ```mermaid
 flowchart LR
   subgraph Client["Browser"]
-    UI["Next.js pages /board, /login"]
+    UI["Next.js pages /dashboard, /board/[boardId], /join/[inviteId], /login"]
     Auth["Firebase Auth"]
     FS["Firestore listeners + writes"]
     Exec["executeAiToolCallsClient"]
@@ -32,25 +32,39 @@ flowchart LR
 |------|--------|
 | Endpoint | `POST /api/ai` (`src/app/api/ai/route.ts`), Node runtime |
 | Auth | `Authorization: Bearer <Firebase ID token>` — verified in `verify-firebase-id-token.ts` (JWT signature + `aud` / `iss` vs `NEXT_PUBLIC_FIREBASE_PROJECT_ID`) |
-| Body | `{ "prompt": string, "boardId"?: string, "boardContext"?: string }` — MVP allows only the shared **demo** `boardId`; optional **boardContext** from `buildBoardContextForAi()` |
+| Body | `{ "prompt": string, "boardId": string, "boardContext"?: string }` — `boardId` is required; caller must be **board owner** or **editor** member (see PR 35); optional **boardContext** from `buildBoardContextForAi()` |
 | Secrets | `GEMINI_API_KEY`, optional `GEMINI_MODEL` (see `run-board-gemini.ts` fallbacks) |
 | Response | `{ ok: true, data: { model, replyText, toolCalls, boardId, uid } }` or `{ ok: false, error: { code, message } }` — see `src/lib/ai-api-types.ts` |
 | Tools | Declarations in `src/lib/ai-board-tools.ts`; **client execution** in `src/lib/ai-execute-tools-client.ts` after `/api/ai` returns (PR 20) |
 | Board context | `buildBoardContextForAi()` in `src/lib/board-context-for-ai.ts` — sent as `boardContext` in POST body for Gemini |
-| UI | `AiBoardPanel` on `/board` — loading, errors, reply + tool execution summary |
+| UI | `AiBoardPanel` on `/board/[boardId]` — loading, errors, reply + tool execution summary |
 
-## Firestore path sketch (shared demo board)
+### Routing (PR 26)
 
-Single demo board for MVP; one constant board id (e.g. `demo`).
+- Canonical signed-in landing: **`/dashboard`**.
+- Root **`/`** now redirects authenticated users to `/dashboard`, and keeps a public landing view for signed-out sessions.
+- Dashboard lists boards from `users/{uid}/boards`, creates board ids client-side, then navigates to `/board/[boardId]`.
+
+### Board sharing (PR 35)
+
+- **Members:** `boards/{boardId}/members/{uid}` with `role: "editor"` or `"viewer"`. Editors (and owners) read/write canvas subcollections; viewers are read-only on objects/cursors/presence (writes denied).
+- **Invites:** `boardInvites/{inviteId}` holds `boardId`, `ownerUid`, `createdAt`. Owner creates invite; invitee opens **`/join/[inviteId]`** (signed in) to create their member doc and `users/{uid}/boards/{boardId}` index, then redirects to the board.
+- **Owner add by UID:** owner writes `members/{otherUid}` from the in-app share panel (collaborator must open the board once if index was not pre-created).
+- **Client entry:** `ensureBoardAccess()` in `src/lib/boards-client.ts` resolves **owner vs member** before loading the canvas.
+
+## Firestore path sketch (per-user boards)
+
+PR 25 moves from a single demo board to dynamic board ids with owner scoping.
 
 | Path | Purpose |
 |------|--------|
-| `boards/{boardId}` | Board metadata doc: `title`, `createdAt`, optional `updatedAt`. |
+| `boards/{boardId}` | Board metadata doc: `title`, `ownerUid`, `createdAt`, `updatedAt`. |
+| `users/{uid}/boards/{boardId}` | User-owned board index for dashboard queries and ownership bootstrap. |
 | `boards/{boardId}/objects/{objectId}` | Canvas entities — **PR 09:** one **subcollection doc per object** (not a single map doc): `type` discriminator + geometry/style fields; see `src/lib/board-object.ts`. |
 | `boards/{boardId}/cursors/{userId}` | Live cursor: **`x`**, **`y`** in **Konva world** space (pan/zoom; PR 08), **`name`**, **`updatedAt`** — ~50ms trailing debounce + world epsilon; doc removed on leave board. |
 | `boards/{boardId}/presence/{userId}` | Presence: `displayName`, `online`, `lastSeen` — **PR 06:** ~12s heartbeat, `online: false` on unmount / `pagehide`; UI treats users as online if `lastSeen` is within ~30s and `online !== false`. |
-
-**MVP constant:** `boardId = "demo"` (or set `NEXT_PUBLIC_APP_DEMO_BOARD_ID` in env).
+| `boards/{boardId}/members/{uid}` | **PR 35:** collaborator `role` (`editor` / `viewer`); owner-managed or self-created via invite. |
+| `boardInvites/{inviteId}` | **PR 35:** invite token doc for join URL (`boardId`, `ownerUid`, `createdAt`). |
 
 ## Object storage (PR 09)
 
@@ -61,17 +75,20 @@ Single demo board for MVP; one constant board id (e.g. `demo`).
 
 Unified `type` discriminator; adjust to match Konva + PRD.
 
-- `type`: `"sticky"` \| `"rect"` \| `"circle"` \| `"line"` \| `"frame"` \| `"text"` \| `"connector"` \| … — **PR 10:** `sticky` uses `text` (string), `fill` / `stroke`, `width` / `height` ~220×160; debounced `updateDoc` for `x`,`y` and `text`. **PR 11:** `circle` uses center `x`,`y` + `radius`; `line` uses `x1`,`y1`,`x2`,`y2` and `stroke` (no fill). **PR 12:** client-only **selection** (click, Shift+toggle, marquee); **Konva `Transformer`** on rect/circle/sticky/frame/text; geometry patches debounced via `queueObjectPatch` (~400ms merge per object). **Lines** and **connectors** are selectable but not transformable. Selection is **not** synced—remote deletes prune stale ids locally. **PR 14:** **`frame`** — `title`, semi-transparent `fill`, new frames get `zIndex` below existing objects so later objects paint on top (no `childIds` list yet). **`text`** — `fontSize`, `fill` (text color), double-click HTML editor like stickies. **`connector`** — `fromId` / `toId`; **Konva `Arrow`** between object **centers**; layer draws after other objects; if an endpoint is missing the connector is not rendered.
+- `type`: `"sticky"` \| `"rect"` \| `"circle"` \| `"line"` \| `"freehand"` \| `"frame"` \| `"text"` \| `"comment"` \| `"connector"` \| … — **PR 10:** `sticky` uses `text` (string), `fill` / `stroke`, `width` / `height` ~220×160; debounced `updateDoc` for `x`,`y` and `text`. **PR 11:** `circle` uses center `x`,`y` + `radius`; `line` uses `x1`,`y1`,`x2`,`y2` and `stroke` (no fill). **PR 28:** `freehand` — flat `points` `[x0,y0,…]`, `stroke`, `strokeWidth`, `opacity`; client commits new strokes with `setDoc` (same objects collection); selectable, not transform-resized. **PR 29:** `comment` — pin at `x`,`y` with single `body` string (MVP thread); `setDoc` on place; **lasso** selection uses anchor point-in-polygon. **PR 12:** client-only **selection** (click, Shift+toggle, marquee); **Konva `Transformer`** on rect/circle/sticky/frame/text; geometry patches debounced via `queueObjectPatch` (~400ms merge per object). **Lines**, **freehand**, and **connectors** are selectable but not transform-resized. Selection is **not** synced—remote deletes prune stale ids locally. **PR 14:** **`frame`** — `title`, semi-transparent `fill`, new frames get `zIndex` below existing objects so later objects paint on top (no `childIds` list yet). **`text`** — `fontSize`, `fill` (text color), double-click HTML editor like stickies. **`connector`** — `fromId` / `toId`; **Konva `Arrow`** between object **centers**; layer draws after other objects; if an endpoint is missing the connector is not rendered.
 - `x`, `y`, `width`, `height`, `rotation`
 - `fill`, `stroke`, `text`, `zIndex` (or `order`)
 - `updatedAt` — **server** timestamp on each `updateDoc` from the client; narrative for LWW / debugging, not used for merge logic yet. See **[CONFLICTS.md](./CONFLICTS.md)** (per-field merge, same-field LWW).
 - Connector: `fromObjectId`, `toObjectId` (or anchor points)
 
-## Security rules (PR 03)
+## Security rules (PR 25 + PR 35)
 
-- Implemented in repo root [`firestore.rules`](../firestore.rules): `request.auth != null` for `boards/{boardId}/**`; default deny elsewhere.
+- Implemented in repo root [`firestore.rules`](../firestore.rules): board **metadata** updates remain **owner-only**; **objects / cursors / presence** allow **owner + editor** members (read-only for **viewer** members). Explicit subcollection paths replace a single wildcard so `members` and `objects` can differ.
+- **`boardInvites`**: owner creates invite for a board they own; any signed-in user may **read** a doc by id (join uses secret id); invite delete by owner.
+- **`members`**: owner adds/removes collaborators; invitee may create **their own** member doc with validated `inviteId`; member may delete self (leave).
+- User index path `users/{uid}/boards/{boardId}` allows only that authenticated `uid`.
 - **Publish** via Console or `firebase deploy --only firestore:rules` (see README).
-- Optionally restrict `boardId` to `demo` until multi-board ships.
+- Default deny for everything else.
 
 ## Clipboard (PR 15)
 

@@ -30,6 +30,10 @@ Both debounce `text` into `updateDoc`. The **last flushed `text` value overwrite
 
 `queueObjectPatch` / `queuePosition` may carry `{ x, y }` while `setStickyColors` sends `{ fill, stroke }` immediately. Those are **different fields**, so both usually survive. A pending debounced patch that **only** contains position will not wipe color.
 
+### Comment pins (`body`, PR 29)
+
+Comment threads are a **single `body` string** per pin. Two users editing the **same** comment’s `body` through debounced `updateDoc` patches behave like **two users typing in the same sticky**: **last write wins** on `body`; expect lost text if both edit simultaneously.
+
 ### New objects (`setDoc`)
 
 Creating an object writes the **full** initial document. That does not race with `updateDoc` on **other** docs. Do not `setDoc` over an existing id (the app uses random UUIDs).
