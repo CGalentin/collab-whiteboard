@@ -357,26 +357,26 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Predefined layouts + Templates entry point (deterministic first).*
 
-- [ ] **Templates** button opens **modal / panel** with gallery cards (e.g. Kanban, SWOT, Retro, blank).
-- [ ] **Apply template**: seed objects via shared **`applyTemplate(boardId, templateId)`** (batch writes; no Gemini required for v1).
+- [x] **Templates** button opens **modal / panel** with gallery cards (e.g. Kanban, SWOT, Retro, blank).
+- [x] **Apply template**: seed objects via shared **`applyTemplate(boardId, templateId)`** (batch writes; no Gemini required for v1).
 - [ ] Optional thumbnails (static SVG/PNG or simplified preview).
 
 ### PR 33 — `feat/ai-template-assistant-dashboard`
 
 *Top-of-dashboard AI block (reference: “Generate template”) — optional after templates work without AI.*
 
-- [ ] Large prompt + **quick chips** (Sprint, Retro, SWOT, Journey map) prefilling prompt.
-- [ ] **Generate** calls **`/api/ai`** for **new or empty** board; enforce **max tool calls** / board bounds.
-- [ ] Loading / error UX consistent with **`AiBoardPanel`**.
+- [x] Large prompt + **quick chips** (Sprint, Retro, SWOT, Journey map) prefilling prompt.
+- [x] **Generate** calls **`/api/ai`** for **new** board (empty canvas); enforce **`maxToolCalls`** (1–64) server-side; bounds hint in prompt prefix.
+- [x] Loading / error UX consistent with **`AiBoardPanel`**.
 
 ### PR 34 — `feat/mobile-responsive-board`
 
 *Mobile-friendly UI — last in epic so layout doesn’t fight new toolbars.*
 
-- [ ] **Responsive** dashboard: stack cards; touch-friendly tap targets (min ~44px).
-- [ ] **Board page**: bottom **toolbar** or **drawer** for tools on narrow viewports; pinch/zoom/pan tested on iOS/Android browsers.
-- [ ] **Viewport meta** + reduce overflow-x; smoke on real devices or DevTools device mode.
-- [ ] Note limitations in **README** (e.g. drawing precision on small screens).
+- [x] **Responsive** dashboard: stack cards; touch-friendly tap targets (min ~44px).
+- [x] **Board page**: bottom **toolbar** or **drawer** for tools on narrow viewports; pinch/zoom/pan tested on iOS/Android browsers.
+- [x] **Viewport meta** + reduce overflow-x; smoke on real devices or DevTools device mode.
+- [x] Note limitations in **README** (e.g. drawing precision on small screens).
 
 ---
 

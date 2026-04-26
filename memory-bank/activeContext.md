@@ -16,8 +16,8 @@
 |------|--------|
 | **MVP** | Shipped through **PR 23**; production deploy **PR 22** done |
 | **PR 24** | **Optional** (demo video, social) unless submitting |
-| **Latest done (v2)** | **PR 25–31** + **PR 35** (sharing). **PR 31** adds snapshot-based undo/redo, rail buttons wired to board history, and Ctrl/Cmd+Z shortcuts. |
-| **Next** | **PR 32** — templates gallery — **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** |
+| **Latest done (v2)** | **PR 25–33** (core) + **PR 35** (sharing). **PR 33:** **`DashboardAiTemplateSection`** on **`/dashboard`**, chips + new-board **`/api/ai`** + client **`executeAiToolCallsClient`**, **`maxToolCalls`** in API + **`runBoardGemini`**. |
+| **Next** | **PR 24** (optional) or follow-up polish — **PR 34** (mobile) is implemented in repo |
 
 **PR 35** remains in the roadmap: implementation is in repo; see roadmap for **deploy rules** + **manual QA** checkboxes (ongoing as needed).
 
@@ -45,6 +45,8 @@
 | Comments (PR 29) | **`src/components/comment-pin-shape.tsx`**, **`type: "comment"`** in **`board-object.ts`**, inline edit / **`flushCommentBodyNow`** in writes hook |
 | Hyperlinks (PR 30) | **`src/lib/board-href.ts`**, optional **`href`** on supported types + **`link`** in **`board-object.ts`**, **`link-hotspot-shape.tsx`**, rail **Hyperlinks** = place hotspot on empty board, toolbar **Link** when one object selected |
 | Undo/Redo (PR 31) | **`src/context/board-tool-context.tsx`** (history control tokens + canUndo/canRedo), **`src/components/board-tool-rail.tsx`**, **`src/components/board-canvas.tsx`** (snapshot history + shortcuts; `lastHandled*TokenRef` so undo/redo is not re-triggered on context churn), **`src/components/board-stage.tsx`** (checkpoint hooks for drawing/comment/link create), **`src/hooks/use-board-object-writes.ts`** (per-doc update fallback; ignore not-found for stale debounced patches after delete) |
+| Templates (PR 32) | **`src/lib/board-templates.ts`** (catalog + batch `applyTemplate`), **`src/components/board-templates-modal.tsx`**, context **`templatesModalOpen`** / **`openTemplatesModal`** / **`closeTemplatesModal`** in **`board-tool-context.tsx`**, rail **Templates** opens modal |
+| AI dashboard template (PR 33) | **`src/components/dashboard-ai-template-section.tsx`**, **`/dashboard`**; **`/api/ai`** accepts **`maxToolCalls`**; shared **`parseAiResponse`** in **`src/lib/ai-parse-api-response.ts`** |
 | Geometry / AI / clipboard | **`src/lib/board-geometry.ts`**, **`src/lib/clone-board-object.ts`**, **`src/lib/board-clipboard.ts`**, **`src/lib/board-context-for-ai.ts`**, **`src/lib/ai-execute-tools-client.ts`** (`moveObject` for freehand) |
 
 ---

@@ -3,8 +3,12 @@
 import { memo } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type Konva from "konva";
-import { Circle, Line, Rect } from "react-konva";
+import { Circle, Group, Line, Rect, Star } from "react-konva";
 import type { BoardObjectShapeLayer } from "@/lib/board-object";
+import {
+  defaultStarRadii,
+  getPolygonLinePointsFlat,
+} from "@/lib/board-polygon-kinds";
 
 const SELECT_STROKE = "#34d399";
 
@@ -80,6 +84,84 @@ function BoardObjectShapeInner({
           onPointerDown(e);
         }}
       />
+    );
+  }
+
+  if (object.type === "polygon") {
+    const o = object;
+    const w = o.width;
+    const h = o.height;
+    const commonStrokeP = isSelected ? SELECT_STROKE : o.stroke;
+    const strokeP = o.strokeWidth + (isSelected ? 1 : 0);
+    const groupProps = {
+      id: o.id,
+      ref: innerRef,
+      x: o.x,
+      y: o.y,
+      rotation: o.rotation,
+      draggable: true,
+      onDragStart: (e: KonvaEventObject<DragEvent>) => {
+        e.cancelBubble = true;
+      },
+      onDragEnd: (e: KonvaEventObject<DragEvent>) => {
+        e.cancelBubble = true;
+        onDragEnd(e);
+      },
+      onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
+        e.cancelBubble = true;
+      },
+      onClick: (e: KonvaEventObject<MouseEvent>) => {
+        e.cancelBubble = true;
+        onPointerDown(e);
+      },
+    };
+    if (o.kind === "roundRect") {
+      return (
+        <Group {...groupProps}>
+          <Rect
+            name="round-rect-poly"
+            x={0}
+            y={0}
+            width={w}
+            height={h}
+            fill={o.fill}
+            stroke={commonStrokeP}
+            strokeWidth={strokeP}
+            cornerRadius={Math.min(w, h) * 0.15}
+          />
+        </Group>
+      );
+    }
+    if (o.kind === "star") {
+      const { outer, inner, cx, cy } = defaultStarRadii(w, h);
+      return (
+        <Group {...groupProps}>
+          <Star
+            name="star-poly"
+            x={cx}
+            y={cy}
+            numPoints={5}
+            innerRadius={inner}
+            outerRadius={outer}
+            fill={o.fill}
+            stroke={commonStrokeP}
+            strokeWidth={strokeP}
+          />
+        </Group>
+      );
+    }
+    const pts = getPolygonLinePointsFlat(o.kind, w, h);
+    return (
+      <Group {...groupProps}>
+        <Line
+          name="line-poly"
+          points={pts}
+          closed
+          fill={o.fill}
+          stroke={commonStrokeP}
+          strokeWidth={strokeP}
+        />
+      </Group>
     );
   }
 
@@ -187,6 +269,19 @@ function boardObjectShapeEqual(
       o.stroke === p.stroke &&
       o.strokeWidth === p.strokeWidth &&
       o.opacity === p.opacity
+    );
+  }
+  if (o.type === "polygon" && p.type === "polygon") {
+    return (
+      o.x === p.x &&
+      o.y === p.y &&
+      o.width === p.width &&
+      o.height === p.height &&
+      o.rotation === p.rotation &&
+      o.kind === p.kind &&
+      o.fill === p.fill &&
+      o.stroke === p.stroke &&
+      o.strokeWidth === p.strokeWidth
     );
   }
   return false;

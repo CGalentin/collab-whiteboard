@@ -66,11 +66,17 @@ Copy [`.env.example`](./.env.example) → `.env.local` locally. On **Vercel**, s
 - [Concurrent edits / LWW](./docs/CONFLICTS.md)
 - [Firebase console checklist (PR 02)](./docs/FIREBASE_CONSOLE_CHECKLIST.md)
 
+## Mobile and small screens (PR 34)
+
+- The **board** is usable on narrow viewports: a **bottom tools bar** opens the same tool set as the desktop left rail, with safe-area padding for notched devices.
+- On the **canvas**, use a **trackpad** or **mouse wheel** to zoom; on touch devices use a **two-finger pinch** to zoom the board (space + drag still pans on desktop).
+- **Drawing precision** and tiny UI targets can be limited on very small screens; a tablet or larger is best for long sessions.
+
 ## Known issues (MVP)
 
 - **Orphan connectors** if an endpoint object is deleted — cleanup TBD ([CONFLICTS.md](./docs/CONFLICTS.md)).
 - **Clipboard**: system clipboard may require permission; same-tab fallback for copy/paste.
-- **AI**: single shared demo `boardId` on the API; tool set is sticky / rect / move ([AI development log](./docs/AI_DEVELOPMENT_LOG.md)).
+- **AI** uses your saved board id from the client; see [AI development log](./docs/AI_DEVELOPMENT_LOG.md) for tool coverage.
 - **Local dev:** if every route returns **404**, delete the `.next` folder and restart `npm run dev` (corrupted Next cache).
 
 ## Firestore security rules

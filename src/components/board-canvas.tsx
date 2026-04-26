@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import type { User } from "firebase/auth";
 import {
   collection,
@@ -25,6 +26,7 @@ import {
   tryDecodeClipboardPayload,
 } from "@/lib/board-clipboard";
 import { cloneBoardObjectFields } from "@/lib/clone-board-object";
+import { BoardCanvasTemplatesModalPortal } from "@/components/board-templates-modal";
 import { BoardStage } from "@/components/board-stage";
 import { useBoardToolOptional } from "@/context/board-tool-context";
 import { useBoardObjectWrites } from "@/hooks/use-board-object-writes";
@@ -45,7 +47,9 @@ import {
 } from "@/lib/board-object";
 import { normalizeBoardHref, openBoardHrefInNewTab } from "@/lib/board-href";
 import { BoardPaletteStrip } from "@/components/board-palette-strip";
+import { BoardShapesMenu } from "@/components/board-shapes-menu";
 import type { BoardObjectWrites } from "@/hooks/use-board-object-writes";
+import type { PolygonKind } from "@/lib/board-polygon-kinds";
 
 type LineToolState =
   | { kind: "off" }
@@ -62,6 +66,8 @@ type BoardCanvasProps = {
   user: User;
   boardId: string;
   children?: ReactNode;
+  /** Scroll to / focus the board AI panel (wired from the board page). */
+  onRequestAiAssistant?: () => void;
 };
 
 const HISTORY_LIMIT = 80;
@@ -73,7 +79,12 @@ function snapshotFields(o: BoardObject): Record<string, unknown> {
 /**
  * Shared board: CSS grid underlay + Konva stage (objects, cursors, pan/zoom).
  */
-export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
+export function BoardCanvas({
+  user,
+  boardId,
+  children,
+  onRequestAiAssistant,
+}: BoardCanvasProps) {
   const boardTool = useBoardToolOptional();
   const activeRailTool = boardTool?.activeTool ?? null;
   const undoRequestToken = boardTool?.undoRequestToken ?? 0;
@@ -111,9 +122,12 @@ export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
   /** Default yellow — readable new stickies; palette UI lists clear → black first. */
   const [boardPaletteChoice, setBoardPaletteChoice] =
     useState<BoardPaletteChoice>({ kind: "swatch", index: 3 });
-  const [addingShape, setAddingShape] = useState<"rect" | "circle" | null>(
-    null,
-  );
+  const [boardHelpOpen, setBoardHelpOpen] = useState(false);
+
+  const [shapesMenuOpen, setShapesMenuOpen] = useState(false);
+  const [shapeAddBusy, setShapeAddBusy] = useState<
+    null | "rect" | "circle" | PolygonKind
+  >(null);
   const [addingSticky, setAddingSticky] = useState(false);
   const [clearingBoard, setClearingBoard] = useState(false);
   const [addingFrame, setAddingFrame] = useState(false);
@@ -792,7 +806,7 @@ export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
   const addRectangle = useCallback(async () => {
     cancelLineTool();
     captureHistoryCheckpoint();
-    setAddingShape("rect");
+    setShapeAddBusy("rect");
     try {
       await user.getIdToken();
       const db = getFirebaseDb();
@@ -814,14 +828,14 @@ export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
     } catch (e) {
       console.error("[objects] add rect failed", e);
     } finally {
-      setAddingShape(null);
+      setShapeAddBusy(null);
     }
   }, [boardId, user, cancelLineTool, captureHistoryCheckpoint]);
 
   const addCircle = useCallback(async () => {
     cancelLineTool();
     captureHistoryCheckpoint();
-    setAddingShape("circle");
+    setShapeAddBusy("circle");
     try {
       await user.getIdToken();
       const db = getFirebaseDb();
@@ -842,9 +856,43 @@ export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
     } catch (e) {
       console.error("[objects] add circle failed", e);
     } finally {
-      setAddingShape(null);
+      setShapeAddBusy(null);
     }
   }, [boardId, user, cancelLineTool, captureHistoryCheckpoint]);
+
+  const addPolygon = useCallback(
+    async (kind: PolygonKind) => {
+      cancelLineTool();
+      captureHistoryCheckpoint();
+      setShapeAddBusy(kind);
+      try {
+        await user.getIdToken();
+        const db = getFirebaseDb();
+        const id = crypto.randomUUID();
+        const { fill, stroke } = shapePaletteRef.current;
+        await setDoc(doc(db, "boards", boardId, "objects", id), {
+          type: "polygon",
+          kind,
+          x: 40 + Math.random() * 70,
+          y: 40 + Math.random() * 70,
+          width: 200,
+          height: 120,
+          rotation: 0,
+          fill,
+          stroke,
+          strokeWidth: 2,
+          zIndex: Date.now(),
+          updatedAt: serverTimestamp(),
+        });
+        setShapesMenuOpen(false);
+      } catch (e) {
+        console.error("[objects] add polygon failed", e);
+      } finally {
+        setShapeAddBusy(null);
+      }
+    },
+    [boardId, user, cancelLineTool, captureHistoryCheckpoint],
+  );
 
   const addSticky = useCallback(async () => {
     cancelLineTool();
@@ -963,6 +1011,19 @@ export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
     writes.queueObjectPatch(linkSelection.id, { href: deleteField() });
   }, [linkSelection, writes, boardTool]);
 
+  useEffect(() => {
+    if (!boardHelpOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        setBoardHelpOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [boardHelpOpen]);
+
   return (
     <div
       className="relative flex min-h-[min(50vh,420px)] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white/80 shadow-inner touch-none dark:border-zinc-800 dark:bg-zinc-900/40 lg:min-h-[min(70vh,560px)]"
@@ -1006,6 +1067,26 @@ export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
             </span>
           ) : null}
         </div>
+        {onRequestAiAssistant ? (
+          <button
+            type="button"
+            onClick={() => onRequestAiAssistant()}
+            className="shrink-0 rounded-lg border border-violet-500/90 bg-violet-600 px-2.5 py-1.5 text-xs font-medium text-white shadow hover:bg-violet-500 dark:border-violet-800/90 dark:bg-violet-900 dark:hover:bg-violet-800"
+            aria-label="Open AI assistant for this board"
+            title="AI assistant"
+          >
+            AI
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setBoardHelpOpen(true)}
+          className="shrink-0 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          aria-label="Board help and shortcuts"
+          title="Board help"
+        >
+          Help
+        </button>
         {linkSelection ? (
           <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50/95 px-2 py-1.5 text-xs shadow dark:border-sky-900/50 dark:bg-sky-950/40 sm:min-w-[18rem] sm:max-w-[28rem]">
             <label htmlFor="board-link-url" className="shrink-0 text-zinc-600 dark:text-sky-200/90">
@@ -1051,22 +1132,33 @@ export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
           className="rounded-lg border border-zinc-200 bg-white/95 p-1.5 shadow dark:border-zinc-700 dark:bg-zinc-900/95"
           aria-label="New shape and sticky colors"
         />
-        <button
-          type="button"
-          onClick={() => void addRectangle()}
-          disabled={addingShape === "rect"}
-          className="rounded-lg border border-emerald-600/90 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-emerald-500 disabled:opacity-50 dark:border-emerald-800/80 dark:bg-emerald-950/90 dark:text-emerald-100 dark:hover:bg-emerald-900/90"
-        >
-          {addingShape === "rect" ? "Adding…" : "Rectangle"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void addCircle()}
-          disabled={addingShape === "circle"}
-          className="rounded-lg border border-teal-600/90 bg-teal-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-teal-500 disabled:opacity-50 dark:border-teal-800/80 dark:bg-teal-950/90 dark:text-teal-100 dark:hover:bg-teal-900/90"
-        >
-          {addingShape === "circle" ? "Adding…" : "Circle"}
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShapesMenuOpen((o) => !o)}
+            disabled={shapeAddBusy !== null}
+            className="rounded-lg border border-emerald-600/90 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-emerald-500 disabled:opacity-50 dark:border-emerald-800/80 dark:bg-emerald-950/90 dark:text-emerald-100 dark:hover:bg-emerald-900/90"
+            aria-expanded={shapesMenuOpen}
+            aria-haspopup="dialog"
+            title="Rectangle, ellipse, and more preset shapes"
+          >
+            {shapeAddBusy ? "Adding…" : "Shapes"}
+          </button>
+          <BoardShapesMenu
+            open={shapesMenuOpen}
+            onClose={() => setShapesMenuOpen(false)}
+            busy={shapeAddBusy !== null}
+            onPickRect={() => {
+              setShapesMenuOpen(false);
+              void addRectangle();
+            }}
+            onPickCircle={() => {
+              setShapesMenuOpen(false);
+              void addCircle();
+            }}
+            onPickPolygon={(k) => void addPolygon(k)}
+          />
+        </div>
         <button
           type="button"
           onClick={toggleLineTool}
@@ -1208,37 +1300,122 @@ export function BoardCanvas({ user, boardId, children }: BoardCanvasProps) {
         onHistoryCheckpoint={captureHistoryCheckpoint}
       />
 
-      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center p-8">
-        {children ?? (
-          <div className="max-w-sm text-center">
-            <p className="text-xs font-medium uppercase tracking-widest text-zinc-500 dark:text-zinc-600">
-              Konva stage
-            </p>
-            <p className="mt-2 text-lg font-medium text-zinc-800 dark:text-zinc-300">
-              Board objects (PR 10–16)
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-500">
-              <strong className="text-zinc-800 dark:text-zinc-400">Search</strong> (toolbar) filters
-              stickies/text on the canvas (client-side).{" "}
-              <strong className="text-zinc-800 dark:text-zinc-400">Frame</strong> (sent back),{" "}
-              <strong className="text-zinc-800 dark:text-zinc-400">Text</strong> (double-click edit),{" "}
-              <strong className="text-zinc-800 dark:text-zinc-400">Connect</strong> with two selected.{" "}
-              <strong className="text-zinc-800 dark:text-zinc-400">Copy / Paste</strong>{" "}
-              (<strong className="font-medium text-zinc-800 dark:text-zinc-400">Ctrl/Cmd+C · V</strong> when
-              not in an input), <strong className="text-zinc-800 dark:text-zinc-400">Duplicate</strong>,{" "}
-              <strong className="text-zinc-800 dark:text-zinc-400">Delete</strong>;{" "}
-              <strong className="text-zinc-800 dark:text-zinc-400">Del</strong> key when not typing.{" "}
-              <strong className="text-zinc-800 dark:text-zinc-400">Marquee</strong>,{" "}
-              <strong className="text-zinc-800 dark:text-zinc-400">Transformer</strong>, stickies, shapes
-              as before.{" "}
-              <span className="font-mono text-zinc-700 dark:text-zinc-400">
-                {boardFirestorePath(boardId)}/objects
-              </span>
-              .
-            </p>
-          </div>
-        )}
-      </div>
+      {children ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center p-8">
+          {children}
+        </div>
+      ) : null}
+
+      {boardHelpOpen && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[95] flex items-center justify-center bg-zinc-950/50 p-4 backdrop-blur-[1px]"
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setBoardHelpOpen(false);
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="board-help-title"
+                className="max-h-[min(85vh,560px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h2
+                    id="board-help-title"
+                    className="text-lg font-semibold text-zinc-900 dark:text-zinc-50"
+                  >
+                    Board help
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setBoardHelpOpen(false)}
+                    className="shrink-0 rounded-lg border border-zinc-300 px-2 py-1 text-sm text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  >
+                    Close
+                  </button>
+                </div>
+                <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+                  <strong className="text-zinc-800 dark:text-zinc-200">Canvas:</strong> wheel to zoom
+                  toward the cursor; Space or middle-mouse drag to pan; your pointer is shared as a
+                  remote cursor for collaborators.
+                </p>
+                <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+                  <li>
+                    <strong className="text-zinc-900 dark:text-zinc-100">AI assistant</strong> for this board
+                    lives in the side panel (right on large screens, above the canvas on phones). Use{" "}
+                    <strong className="text-zinc-900 dark:text-zinc-100">Hide</strong> on that panel to collapse
+                    it; when collapsed, use the narrow <strong className="text-zinc-900 dark:text-zinc-100">AI · People</strong> strip or the toolbar{" "}
+                    <strong className="text-zinc-900 dark:text-zinc-100">AI</strong> button to open it again and focus the prompt.
+                  </li>
+                  <li>
+                    <strong className="text-zinc-900 dark:text-zinc-100">Search</strong> (toolbar) filters
+                    stickies and text boxes on the canvas (client-side).
+                  </li>
+                  <li>
+                    <strong className="text-zinc-900 dark:text-zinc-100">Frame</strong> is sent behind
+                    newer objects; <strong className="text-zinc-900 dark:text-zinc-100">Text</strong> boxes
+                    open for edit on double-click.
+                  </li>
+                  <li>
+                    <strong className="text-zinc-900 dark:text-zinc-100">Connect</strong> with exactly two
+                    objects selected (Shift+click). <strong className="text-zinc-900 dark:text-zinc-100">Links:</strong>{" "}
+                    set a URL in the toolbar when one link-capable object is selected; open with Cmd/Ctrl+click on the
+                    board.
+                  </li>
+                  <li>
+                    <strong className="text-zinc-900 dark:text-zinc-100">Copy / Paste</strong> (
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      Ctrl/Cmd+C
+                    </kbd>{" "}
+                    ·{" "}
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      V
+                    </kbd>{" "}
+                    when focus is not in an input). <strong className="text-zinc-900 dark:text-zinc-100">Duplicate</strong>,{" "}
+                    <strong className="text-zinc-900 dark:text-zinc-100">Delete</strong>, and{" "}
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      Del
+                    </kbd>{" "}
+                    / Backspace when not typing.
+                  </li>
+                  <li>
+                    <strong className="text-zinc-900 dark:text-zinc-100">Marquee</strong> and the transformer
+                    work with stickies, shapes, and other objects as usual. Drawing, lasso, comments, and
+                    hyperlinks are on the <strong className="text-zinc-900 dark:text-zinc-100">left tool rail</strong>
+                    ; templates open from <strong className="text-zinc-900 dark:text-zinc-100">Templates</strong>.
+                  </li>
+                  <li>
+                    <strong className="text-zinc-900 dark:text-zinc-100">Undo / Redo</strong> in the rail and{" "}
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      Ctrl/Cmd+Z
+                    </kbd>{" "}
+                    /{" "}
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      Ctrl/Cmd+Shift+Z
+                    </kbd>{" "}
+                    on the board (when not typing in an input).
+                  </li>
+                </ul>
+                <p className="mt-4 break-all font-mono text-[11px] text-zinc-600 dark:text-zinc-400">
+                  Objects path: {boardFirestorePath(boardId)}/objects
+                </p>
+                <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-500">
+                  Press Esc to close this dialog.
+                </p>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
+      <BoardCanvasTemplatesModalPortal
+        user={user}
+        boardId={boardId}
+        onBeforeApply={captureHistoryCheckpoint}
+      />
     </div>
   );
 }

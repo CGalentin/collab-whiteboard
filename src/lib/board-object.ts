@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase/firestore";
+import { isPolygonKind, type PolygonKind } from "@/lib/board-polygon-kinds";
 
 /**
  * Discriminated canvas entities in Firestore `boards/{boardId}/objects/{objectId}`.
@@ -14,7 +15,8 @@ export type BoardObjectType =
   | "frame"
   | "comment"
   | "connector"
-  | "link";
+  | "link"
+  | "polygon";
 
 export type BoardObjectRect = {
   id: string;
@@ -163,6 +165,25 @@ export type BoardObjectLink = {
   updatedAt?: Timestamp;
 };
 
+/** Closed preset shape in a bounding box (triangles, hex, star, etc.). */
+export type BoardObjectPolygon = {
+  id: string;
+  type: "polygon";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  kind: PolygonKind;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  zIndex: number;
+  /** PR 30 */
+  href?: string;
+  updatedAt?: Timestamp;
+};
+
 /** Arrow between two object ids; endpoints follow object centers (PR 14). */
 export type BoardObjectConnector = {
   id: string;
@@ -179,7 +200,8 @@ export type BoardObjectShapeLayer =
   | BoardObjectRect
   | BoardObjectCircle
   | BoardObjectLine
-  | BoardObjectFreehand;
+  | BoardObjectFreehand
+  | BoardObjectPolygon;
 
 export type BoardObject =
   | BoardObjectRect
@@ -191,14 +213,16 @@ export type BoardObject =
   | BoardObjectText
   | BoardObjectComment
   | BoardObjectLink
-  | BoardObjectConnector;
+  | BoardObjectConnector
+  | BoardObjectPolygon;
 
 export function isShapeLayerObject(o: BoardObject): o is BoardObjectShapeLayer {
   return (
     o.type === "rect" ||
     o.type === "circle" ||
     o.type === "line" ||
-    o.type === "freehand"
+    o.type === "freehand" ||
+    o.type === "polygon"
   );
 }
 
@@ -228,6 +252,7 @@ export function boardObjectAnchor(o: BoardObject): { x: number; y: number } {
     case "comment":
       return { x: o.x, y: o.y };
     case "link":
+    case "polygon":
       return { x: o.x + o.width / 2, y: o.y + o.height / 2 };
     case "connector":
       return { x: 0, y: 0 };
@@ -270,6 +295,7 @@ export function getBoardObjectHref(o: BoardObject): string | undefined {
     case "text":
     case "frame":
     case "comment":
+    case "polygon":
       return o.href;
     default:
       return undefined;
@@ -285,7 +311,8 @@ export function boardObjectSupportsUserHref(o: BoardObject): boolean {
     o.type === "text" ||
     o.type === "frame" ||
     o.type === "comment" ||
-    o.type === "link"
+    o.type === "link" ||
+    o.type === "polygon"
   );
 }
 
@@ -532,6 +559,37 @@ export function parseBoardObject(
       stroke: str(raw.stroke, "#a1a1aa"),
       strokeWidth,
       zIndex,
+      updatedAt: raw.updatedAt instanceof Timestamp ? raw.updatedAt : undefined,
+    };
+  }
+
+  if (type === "polygon") {
+    const x = num(raw.x);
+    const y = num(raw.y);
+    const width = num(raw.width);
+    const height = num(raw.height);
+    if (x === null || y === null || width === null || height === null) return null;
+    if (width <= 0 || height <= 0) return null;
+    if (!isPolygonKind(raw.kind)) return null;
+
+    const rotation = num(raw.rotation) ?? 0;
+    const zIndex = num(raw.zIndex) ?? 0;
+    const strokeWidth = num(raw.strokeWidth) ?? 2;
+    const phref = optionalStr(raw.href);
+    return {
+      id,
+      type: "polygon",
+      x,
+      y,
+      width,
+      height,
+      rotation,
+      kind: raw.kind,
+      fill: str(raw.fill, "#bfdbfe"),
+      stroke: str(raw.stroke, "#1e40af"),
+      strokeWidth,
+      zIndex,
+      ...(phref ? { href: phref } : {}),
       updatedAt: raw.updatedAt instanceof Timestamp ? raw.updatedAt : undefined,
     };
   }

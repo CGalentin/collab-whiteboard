@@ -14,6 +14,7 @@ import { RequireAuth } from "@/components/require-auth";
 import { useAuth, useSignOut } from "@/components/auth-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getFirebaseDb } from "@/lib/firebase";
+import { DashboardAiTemplateSection } from "@/components/dashboard-ai-template-section";
 import { ensureOwnedBoard } from "@/lib/boards-client";
 
 type UserBoardRow = {
@@ -154,45 +155,49 @@ function DashboardContent() {
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-4 py-6 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:px-6">
-      <header className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3">
-        <div>
+    <main className="min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-zinc-50 px-4 py-5 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:px-6 sm:py-6">
+      <header className="mx-auto flex w-full max-w-5xl flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center sm:gap-3">
+        <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-widest text-emerald-600 dark:text-emerald-400/90">
             CollabBoard
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Your boards</h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 break-words text-sm text-zinc-600 dark:text-zinc-400">
             Signed in as {user.email ?? user.displayName ?? user.uid}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto sm:shrink-0 sm:justify-start">
           <ThemeToggle />
           <Link
             href="/"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-800 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center touch-manipulation rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-800 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             Landing
           </Link>
           <button
             type="button"
             onClick={() => signOut()}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+            className="inline-flex min-h-11 touch-manipulation items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
           >
             Sign out
           </button>
         </div>
       </header>
 
-      <section className="mx-auto mt-5 w-full max-w-5xl">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <div className="mx-auto mt-5 w-full max-w-5xl">
+        <DashboardAiTemplateSection user={user} />
+      </div>
+
+      <section className="mx-auto mt-5 w-full min-w-0 max-w-5xl">
+        <div className="mb-4 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-3">
+          <p className="min-w-0 text-sm text-zinc-600 dark:text-zinc-400">
             Create a board or reopen an existing one.
           </p>
           <button
             type="button"
             onClick={() => void handleCreateBoard()}
             disabled={creating}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50"
+            className="min-h-11 w-full touch-manipulation rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50 sm:w-auto"
           >
             {creating ? "Creating…" : "Create board"}
           </button>
@@ -213,12 +218,12 @@ function DashboardContent() {
             No boards yet. Click <span className="font-medium">Create board</span> to start.
           </div>
         ) : (
-          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((row) => (
               <li key={row.boardId}>
                 <Link
                   href={`/board/${row.boardId}`}
-                  className="flex h-full flex-col justify-between rounded-xl border border-zinc-200 bg-white p-4 transition hover:border-emerald-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:border-emerald-900/60"
+                  className="flex min-h-[4.5rem] touch-manipulation flex-col justify-between rounded-xl border border-zinc-200 bg-white p-4 active:bg-zinc-50/80 transition hover:border-emerald-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50 active:dark:bg-zinc-900/80 dark:hover:border-emerald-900/60"
                 >
                   <div>
                     <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">

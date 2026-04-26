@@ -45,6 +45,10 @@ import {
   type BoardObjectComment,
   type BoardObjectLink,
 } from "@/lib/board-object";
+import {
+  defaultStarRadii,
+  getPolygonLinePointsFlat,
+} from "@/lib/board-polygon-kinds";
 import { getFirebaseDb } from "@/lib/firebase";
 
 const MIN_SCALE = 0.15;
@@ -154,6 +158,46 @@ function commitTransformNode(
     return;
   }
 
+  if (o.type === "polygon") {
+    const g = node as Konva.Group;
+    const sx = g.scaleX();
+    const sy = g.scaleY();
+    const w = Math.max(8, o.width * sx);
+    const h = Math.max(8, o.height * sy);
+    g.scaleX(1);
+    g.scaleY(1);
+    if (o.kind === "roundRect") {
+      const r = g.findOne<Konva.Rect>("Rect");
+      if (r) {
+        r.width(w);
+        r.height(h);
+        r.cornerRadius(Math.min(w, h) * 0.15);
+      }
+    } else if (o.kind === "star") {
+      const s = g.findOne<Konva.Star>("Star");
+      if (s) {
+        const { outer, inner, cx, cy } = defaultStarRadii(w, h);
+        s.x(cx);
+        s.y(cy);
+        s.outerRadius(outer);
+        s.innerRadius(inner);
+      }
+    } else {
+      const line = g.findOne<Konva.Line>("Line");
+      if (line) {
+        line.points(getPolygonLinePointsFlat(o.kind, w, h));
+      }
+    }
+    queueObjectPatch(id, {
+      x: g.x(),
+      y: g.y(),
+      width: w,
+      height: h,
+      rotation: g.rotation(),
+    });
+    return;
+  }
+
   if (o.type === "sticky" || o.type === "frame" || o.type === "text" || o.type === "link") {
     const g = node as Konva.Group;
     const sx = g.scaleX();
@@ -225,6 +269,14 @@ export function BoardStage({
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const scaleRef = useRef(scale);
+  const stagePosRef = useRef(stagePos);
+  const activePointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchRef = useRef<{
+    d0: number;
+    s0: number;
+    worldPt: { x: number; y: number };
+  } | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [isPanningUi, setIsPanningUi] = useState(false);
   const [marqueeWorld, setMarqueeWorld] = useState<{
@@ -257,6 +309,13 @@ export function BoardStage({
     wrapRef.current = el;
     setContainerEl(el);
   }, []);
+
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+  useEffect(() => {
+    stagePosRef.current = stagePos;
+  }, [stagePos]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -322,6 +381,17 @@ export function BoardStage({
     [screenToWorld],
   );
 
+  /** Center of pinch in stage-local (Konva) coordinates for world anchor math. */
+  const clientToStageLocal = useCallback(
+    (clientX: number, clientY: number) => {
+      const stage = stageRef.current;
+      if (!stage || size.w < 1) return null;
+      const rect = stage.container().getBoundingClientRect();
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    },
+    [size.w],
+  );
+
   useLocalCursorWriter(boardId, user, containerEl, clientToWorld);
 
   const handleWheel = useCallback(
@@ -367,8 +437,82 @@ export function BoardStage({
     }
   };
 
+  const initPinchIfTwoFingers = useCallback(() => {
+    const m = activePointers.current;
+    if (m.size < 2) {
+      pinchRef.current = null;
+      return;
+    }
+    const [a, b] = [...m.values()].slice(0, 2) as [
+      { x: number; y: number },
+      { x: number; y: number },
+    ];
+    const d0 = Math.hypot(b.x - a.x, b.y - a.y);
+    const cx = (a.x + b.x) / 2;
+    const cy = (a.y + b.y) / 2;
+    if (d0 < 0.1) {
+      pinchRef.current = null;
+      return;
+    }
+    const cLoc = clientToStageLocal(cx, cy);
+    if (!cLoc) {
+      pinchRef.current = null;
+      return;
+    }
+    const s0 = scaleRef.current;
+    const sp = stagePosRef.current;
+    pinchRef.current = {
+      d0,
+      s0,
+      worldPt: {
+        x: (cLoc.x - sp.x) / s0,
+        y: (cLoc.y - sp.y) / s0,
+      },
+    };
+    panning.current = false;
+    setIsPanningUi(false);
+  }, [clientToStageLocal]);
+
+  const onPointerDownWrap = (evt: ReactPointerEvent<HTMLDivElement>) => {
+    const e = evt.nativeEvent;
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activePointers.current.size === 2) {
+      initPinchIfTwoFingers();
+    } else {
+      pinchRef.current = null;
+    }
+    startPanIfAllowed(evt);
+  };
+
   const onPointerMoveWrap = (evt: ReactPointerEvent<HTMLDivElement>) => {
     const e = evt.nativeEvent;
+    if (activePointers.current.has(e.pointerId)) {
+      activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (activePointers.current.size >= 2 && pinchRef.current) {
+      e.preventDefault();
+      const p = pinchRef.current;
+      const [a, b] = [...activePointers.current.values()].slice(0, 2) as [
+        { x: number; y: number },
+        { x: number; y: number },
+      ];
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      if (d < 0.1) return;
+      const cx = (a.x + b.x) / 2;
+      const cy = (a.y + b.y) / 2;
+      const cLoc = clientToStageLocal(cx, cy);
+      if (!cLoc) return;
+      const newS = Math.min(
+        MAX_SCALE,
+        Math.max(MIN_SCALE, p.s0 * (d / p.d0)),
+      );
+      setScale(newS);
+      setStagePos({
+        x: cLoc.x - p.worldPt.x * newS,
+        y: cLoc.y - p.worldPt.y * newS,
+      });
+      return;
+    }
     if (!panning.current) return;
     const dx = e.clientX - lastPtr.current.x;
     const dy = e.clientY - lastPtr.current.y;
@@ -379,6 +523,13 @@ export function BoardStage({
   const endPan = () => {
     panning.current = false;
     setIsPanningUi(false);
+  };
+
+  const onPointerUpWrap = (evt: ReactPointerEvent<HTMLDivElement>) => {
+    const e = evt.nativeEvent;
+    activePointers.current.delete(e.pointerId);
+    if (activePointers.current.size < 2) pinchRef.current = null;
+    endPan();
   };
 
   const cursorClass =
@@ -838,11 +989,11 @@ export function BoardStage({
     <div
       ref={setWrapRef}
       className={`absolute inset-0 min-h-0 touch-none ${cursorClass}`}
-      onPointerDown={startPanIfAllowed}
+      onPointerDown={onPointerDownWrap}
       onPointerMove={onPointerMoveWrap}
-      onPointerUp={endPan}
-      onPointerCancel={endPan}
-      onPointerLeave={endPan}
+      onPointerUp={onPointerUpWrap}
+      onPointerCancel={onPointerUpWrap}
+      onPointerLeave={onPointerUpWrap}
       role="presentation"
     >
       {ready ? (

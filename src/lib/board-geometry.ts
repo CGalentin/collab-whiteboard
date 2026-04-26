@@ -48,6 +48,7 @@ export function boardObjectWorldAabb(
     case "frame":
     case "text":
     case "link":
+    case "polygon":
       return rotatedRectAabb(o.x, o.y, o.width, o.height, o.rotation);
     case "circle": {
       const r = o.radius;

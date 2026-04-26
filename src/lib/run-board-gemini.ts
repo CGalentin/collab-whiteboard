@@ -81,6 +81,10 @@ type RunBoardGeminiInput = {
   uid: string;
   /** Optional compact object list from the client (`buildBoardContextForAi`). */
   boardContext?: string;
+  /**
+   * Cap how many function calls are returned (dashboard / template generation). Default 32, max 64.
+   */
+  maxToolCalls?: number;
 };
 
 /**
@@ -200,7 +204,12 @@ ${input.boardContext.trim()}`
   }
 
   const parts = first.content?.parts;
-  const toolCalls = collectToolCalls(parts);
+  const rawToolCalls = collectToolCalls(parts);
+  const cap = Math.min(
+    64,
+    Math.max(1, Math.floor(input.maxToolCalls ?? 32)),
+  );
+  const toolCalls = rawToolCalls.slice(0, cap);
 
   if (!replyText?.trim() && toolCalls.length === 0) {
     throw new Error(

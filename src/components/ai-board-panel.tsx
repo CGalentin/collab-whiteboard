@@ -2,7 +2,7 @@
 
 import type { User } from "firebase/auth";
 import { useState } from "react";
-import type { AiApiResponseBody } from "@/lib/ai-api-types";
+import { parseAiResponse } from "@/lib/ai-parse-api-response";
 import { executeAiToolCallsClient } from "@/lib/ai-execute-tools-client";
 import { buildBoardContextForAi } from "@/lib/board-context-for-ai";
 import { useBoardObjects } from "@/hooks/use-board-objects";
@@ -11,17 +11,6 @@ type AiBoardPanelProps = {
   user: User;
   boardId: string;
 };
-
-async function parseAiResponse(res: Response): Promise<AiApiResponseBody> {
-  const text = await res.text();
-  try {
-    return JSON.parse(text) as AiApiResponseBody;
-  } catch {
-    throw new Error(
-      `Server did not return JSON (HTTP ${res.status}). ${text.slice(0, 200)}`,
-    );
-  }
-}
 
 /**
  * Prompt → `POST /api/ai` (Gemini + tools) → client executes tool calls on Firestore (PR 20).
@@ -110,7 +99,7 @@ export function AiBoardPanel({ user, boardId }: AiBoardPanelProps) {
     >
       <div className="border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
-          AI assistant
+          AI assistant · this board
         </h2>
         <p className="text-[11px] text-zinc-500 dark:text-zinc-500">
           Needs <span className="font-mono">GEMINI_API_KEY</span> in{" "}

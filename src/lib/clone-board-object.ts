@@ -55,6 +55,21 @@ export function cloneBoardObjectFields(
         zIndex,
         ...(o.href ? { href: o.href } : {}),
       };
+    case "polygon":
+      return {
+        type: "polygon",
+        x: o.x + dx,
+        y: o.y + dy,
+        width: o.width,
+        height: o.height,
+        rotation: o.rotation,
+        kind: o.kind,
+        fill: o.fill,
+        stroke: o.stroke,
+        strokeWidth: o.strokeWidth,
+        zIndex,
+        ...(o.href ? { href: o.href } : {}),
+      };
     case "line":
       return {
         type: "line",

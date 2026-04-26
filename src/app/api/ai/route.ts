@@ -143,6 +143,17 @@ export async function POST(req: NextRequest) {
       ? boardContextRaw.slice(0, 28_000)
       : undefined;
 
+  let maxToolCalls: number | undefined;
+  if (rec.maxToolCalls !== undefined) {
+    const n =
+      typeof rec.maxToolCalls === "number"
+        ? rec.maxToolCalls
+        : Number(rec.maxToolCalls);
+    if (Number.isFinite(n)) {
+      maxToolCalls = Math.min(64, Math.max(1, Math.floor(n)));
+    }
+  }
+
   if (!prompt) {
     return jsonError("BAD_REQUEST", "Field `prompt` (non-empty string) is required.", 400);
   }
@@ -168,6 +179,7 @@ export async function POST(req: NextRequest) {
       boardId,
       uid,
       boardContext,
+      maxToolCalls,
     });
 
     const payload: AiApiSuccessBody = {
@@ -200,6 +212,7 @@ export async function GET() {
         prompt: "string",
         boardId: "required — board owner or editor member may call AI (viewers cannot)",
         boardContext: "optional — compact object list from buildBoardContextForAi()",
+        maxToolCalls: "optional 1–64; caps returned tool calls (dashboard template flow)",
       },
     },
   });

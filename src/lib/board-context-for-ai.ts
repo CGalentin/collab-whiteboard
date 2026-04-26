@@ -101,6 +101,16 @@ function summarizeObject(o: BoardObject): string {
         y: o.y,
         body: clip(o.body, 120),
       });
+    case "polygon":
+      return JSON.stringify({
+        id: o.id,
+        type: "polygon",
+        kind: o.kind,
+        x: o.x,
+        y: o.y,
+        w: o.width,
+        h: o.height,
+      });
     case "link":
       return JSON.stringify({
         id: o.id,
