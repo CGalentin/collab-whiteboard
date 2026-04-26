@@ -16,7 +16,8 @@ export type BoardRailToolId =
   | "eraser"
   | "lasso"
   | "comments"
-  | "hyperlinks";
+  | "hyperlinks"
+  | "hand";
 
 type BoardToolContextValue = {
   activeTool: BoardRailToolId | null;

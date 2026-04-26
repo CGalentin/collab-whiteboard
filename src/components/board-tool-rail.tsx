@@ -14,6 +14,7 @@ type ToolButton = {
 };
 
 const OTHER_RAIL_TOOLS: ToolButton[] = [
+  { id: "hand", label: "Hand (pan)", icon: "Hd", implemented: true },
   { id: "draw", label: "Draw", icon: "Dr", implemented: false },
   { id: "pen", label: "Pen", icon: "Pn", implemented: true },
   { id: "highlighter", label: "Highlighter", icon: "Hi", implemented: true },

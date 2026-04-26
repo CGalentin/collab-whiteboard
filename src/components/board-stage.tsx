@@ -97,6 +97,8 @@ type BoardStageProps = {
   linkPlaceActive?: boolean;
   onLinkPlaced?: (objectId: string) => void;
   onHistoryCheckpoint?: () => void;
+  /** Left-rail / mobile tools: pan the viewport with a hand (blocks object interaction while active). */
+  handToolActive?: boolean;
 };
 
 function pointerToWorld(
@@ -247,6 +249,7 @@ export function BoardStage({
   linkPlaceActive = false,
   onLinkPlaced,
   onHistoryCheckpoint,
+  handToolActive = false,
 }: BoardStageProps) {
   const searchOn = textSearchActive;
   const searchHits = textSearchMatchIds ?? new Set<string>();
@@ -422,21 +425,6 @@ export function BoardStage({
     [scale, stagePos.x, stagePos.y, size.w],
   );
 
-  const startPanIfAllowed = (evt: ReactPointerEvent<HTMLDivElement>) => {
-    const e = evt.nativeEvent;
-    if (e.button === 1) {
-      e.preventDefault();
-      panning.current = true;
-      setIsPanningUi(true);
-      lastPtr.current = { x: e.clientX, y: e.clientY };
-    } else if (e.button === 0 && spaceDown.current) {
-      e.preventDefault();
-      panning.current = true;
-      setIsPanningUi(true);
-      lastPtr.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-
   const initPinchIfTwoFingers = useCallback(() => {
     const m = activePointers.current;
     if (m.size < 2) {
@@ -473,7 +461,7 @@ export function BoardStage({
     setIsPanningUi(false);
   }, [clientToStageLocal]);
 
-  const onPointerDownWrap = (evt: ReactPointerEvent<HTMLDivElement>) => {
+  const onPointerDownCapture = (evt: ReactPointerEvent<HTMLDivElement>) => {
     const e = evt.nativeEvent;
     activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (activePointers.current.size === 2) {
@@ -481,7 +469,31 @@ export function BoardStage({
     } else {
       pinchRef.current = null;
     }
-    startPanIfAllowed(evt);
+
+    if (handToolActive) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.button === 0) {
+        if (activePointers.current.size === 1) {
+          panning.current = true;
+          setIsPanningUi(true);
+          lastPtr.current = { x: e.clientX, y: e.clientY };
+        }
+      }
+      return;
+    }
+
+    if (e.button === 1) {
+      e.preventDefault();
+      panning.current = true;
+      setIsPanningUi(true);
+      lastPtr.current = { x: e.clientX, y: e.clientY };
+    } else if (e.button === 0 && spaceDown.current) {
+      e.preventDefault();
+      panning.current = true;
+      setIsPanningUi(true);
+      lastPtr.current = { x: e.clientX, y: e.clientY };
+    }
   };
 
   const onPointerMoveWrap = (evt: ReactPointerEvent<HTMLDivElement>) => {
@@ -533,7 +545,7 @@ export function BoardStage({
   };
 
   const cursorClass =
-    spaceHeld || isPanningUi
+    handToolActive || spaceHeld || isPanningUi
       ? "cursor-grab active:cursor-grabbing"
       : "cursor-crosshair";
 
@@ -683,6 +695,7 @@ export function BoardStage({
 
   const handleStageMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      if (handToolActive) return;
       const st = e.target.getStage();
       if (!st || e.target !== st) return;
 
@@ -947,6 +960,7 @@ export function BoardStage({
       window.addEventListener("mouseup", onUp);
     },
     [
+      handToolActive,
       onLineStageBackgroundDown,
       onClearSelection,
       onMarqueeSelect,
@@ -989,7 +1003,7 @@ export function BoardStage({
     <div
       ref={setWrapRef}
       className={`absolute inset-0 min-h-0 touch-none ${cursorClass}`}
-      onPointerDown={onPointerDownWrap}
+      onPointerDownCapture={onPointerDownCapture}
       onPointerMove={onPointerMoveWrap}
       onPointerUp={onPointerUpWrap}
       onPointerCancel={onPointerUpWrap}

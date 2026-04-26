@@ -2,7 +2,7 @@
 
 ## Start here next session
 
-Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. Next: **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** **PR 32+** (templates, AI template assistant, mobile). **PR 24** (demo/social) is optional. **PR 35** (sharing) — use roadmap for any remaining **rules deploy** and **QA**.
+Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. Roadmap: optional **PR 24**; **PR 35** **rules deploy** + **QA** if not done; **PR 32** optional template thumbnails. Features such as **mobile (PR 34)**, **auth flows** on **`/login`**, and **Hand / Shapes** on the board are in the codebase — see **activeContext** “Recent product updates.”
 
 ---
 

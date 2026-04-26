@@ -3,11 +3,13 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { userNeedsEmailVerification } from "@/lib/auth-client";
+import { VerifyEmailGate } from "@/components/verify-email-gate";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = usePathname() || "/dashboard";
 
   useEffect(() => {
     if (loading || user) return;
@@ -25,6 +27,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (!user) {
     return null;
+  }
+
+  if (userNeedsEmailVerification(user)) {
+    return <VerifyEmailGate user={user} continuePath={pathname} />;
   }
 
   return <>{children}</>;

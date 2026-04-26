@@ -37,4 +37,4 @@ Browser (Next.js React)
 ## Conventions
 
 - TypeScript strict; `@/*` → `src/*`.
-- Small PRs; order per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) — epic **PR 25+**; shipped through **31** (undo/redo) and **35** (sharing) per repo; next **32+**. See roadmap for **PR 35** deploy/QA.
+- Small PRs; order per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md). Epic **PR 25+** is implemented in repo (see **progress.md** for post-roadmap auth/tool notes). Ongoing: **PR 24** optional, **PR 35** rules/QA in each environment, **PR 32** optional thumbnails.

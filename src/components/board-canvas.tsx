@@ -979,6 +979,7 @@ export function BoardCanvas({
   const lassoActive = activeRailTool === "lasso";
   const commentPlaceActive = activeRailTool === "comments";
   const linkPlaceActive = activeRailTool === "hyperlinks";
+  const handToolActive = activeRailTool === "hand";
 
   const applySelectionLink = useCallback(() => {
     if (!linkSelection) return;
@@ -1027,7 +1028,7 @@ export function BoardCanvas({
   return (
     <div
       className="relative flex min-h-[min(50vh,420px)] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white/80 shadow-inner touch-none dark:border-zinc-800 dark:bg-zinc-900/40 lg:min-h-[min(70vh,560px)]"
-      aria-label="Board canvas — wheel zoom, Space or middle-drag pan, pointer broadcasts cursor"
+      aria-label="Board canvas — wheel zoom, optional Hand tool, Space or middle-drag pan, pointer broadcasts cursor"
     >
       <div className="board-canvas-grid pointer-events-none absolute inset-0 z-0 opacity-45 dark:opacity-[0.35]" />
 
@@ -1298,6 +1299,7 @@ export function BoardCanvas({
         linkPlaceActive={linkPlaceActive}
         onLinkPlaced={(id) => setSelectedObjectIds([id])}
         onHistoryCheckpoint={captureHistoryCheckpoint}
+        handToolActive={handToolActive}
       />
 
       {children ? (
@@ -1339,8 +1341,9 @@ export function BoardCanvas({
                 </div>
                 <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
                   <strong className="text-zinc-800 dark:text-zinc-200">Canvas:</strong> wheel to zoom
-                  toward the cursor; Space or middle-mouse drag to pan; your pointer is shared as a
-                  remote cursor for collaborators.
+                  toward the cursor; <strong className="text-zinc-900 dark:text-zinc-100">Hand (pan)</strong> on
+                  the left tool bar (or bottom bar on a phone) lets you drag the board with a hand cursor; Space
+                  or middle-mouse drag to pan; your pointer is shared as a remote cursor for collaborators.
                 </p>
                 <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
                   <li>

@@ -16,10 +16,18 @@
 |------|--------|
 | **MVP** | Shipped through **PR 23**; production deploy **PR 22** done |
 | **PR 24** | **Optional** (demo video, social) unless submitting |
-| **Latest done (v2)** | **PR 25–33** (core) + **PR 35** (sharing). **PR 33:** **`DashboardAiTemplateSection`** on **`/dashboard`**, chips + new-board **`/api/ai`** + client **`executeAiToolCallsClient`**, **`maxToolCalls`** in API + **`runBoardGemini`**. |
-| **Next** | **PR 24** (optional) or follow-up polish — **PR 34** (mobile) is implemented in repo |
+| **v2 + epic** | **PR 25–35** in code: multi-board, dashboard, tool rail, drawing, lasso, comments, links, undo, templates, AI on dashboard, **mobile (PR 34)**, **sharing (PR 35)** |
+| **Next** | **PR 24** (optional deliverables) · **PR 35** if **Firestore rules** not yet deployed in prod, do **`npm run deploy:rules`** + two-account **QA** ([BUILD_ROADMAP.md](../BUILD_ROADMAP.md)) · PR 32 optional **template thumbnails** still open |
 
-**PR 35** remains in the roadmap: implementation is in repo; see roadmap for **deploy rules** + **manual QA** checkboxes (ongoing as needed).
+**PR 35** — sharing is implemented; see roadmap for **Deploy rules** + **Manual QA** if not done on your environment.
+
+### Recent product updates (not every item is a roadmap PR)
+
+| Topic | Where |
+|--------|--------|
+| **Auth** | **`/login`**: forgot password, reset in-app, email verification after signup, **`applyActionCode`** for verify links; **`RequireAuth`** + **`verify-email-gate`**. Helpers: **`src/lib/auth-client.ts`**. **Firebase console:** email/password on, **authorized domains** for action links. |
+| **Board tools** | **Hand (pan)** rail + **`board-stage`** `handToolActive` (capture) · **Shapes** popover in **`board-canvas`** + **`type: "polygon"`** in **`board-object`**. |
+| **Mobile** | Bottom tool drawer, pinch zoom, see README “Mobile and small screens” |
 
 
 ---
@@ -39,7 +47,7 @@
 
 | Area | Paths |
 |------|--------|
-| Tool state | **`src/context/board-tool-context.tsx`**, **`src/components/board-tool-rail.tsx`**, provider on **`src/app/board/[boardId]/page.tsx`** |
+| Tool state | **`src/context/board-tool-context.tsx`** (includes **hand**), **`src/components/board-tool-rail.tsx`**, provider on **`src/app/board/[boardId]/page.tsx`** |
 | Drawing (PR 28) | **`src/lib/board-object.ts`** (`type: "freehand"`), **`src/components/board-stage.tsx`**, **`src/components/board-canvas.tsx`** (`railDrawMode`, eraser + line), **`src/components/board-object-shapes.tsx`** |
 | Lasso (PR 29) | **`src/lib/board-lasso-geometry.ts`**, lasso state + draft in **`board-stage`**, **`board-canvas`** (`lassoActive`) |
 | Comments (PR 29) | **`src/components/comment-pin-shape.tsx`**, **`type: "comment"`** in **`board-object.ts`**, inline edit / **`flushCommentBodyNow`** in writes hook |
@@ -80,8 +88,9 @@
 
 ## Open decisions
 
-- **PR 32+:** Templates drawer, mobile toolbar (PR 34) — refine over current mobile “Show tools” toggle.
-- **PR 35:** Invite/join polish after functional sharing; **deploy rules** + two-account QA per roadmap.
+- **PR 32+:** Optional template **thumbnails**; minor polish on **mobile** tool bar UX.
+- **PR 35:** **Deploy rules** + two-account **QA** when you ship sharing to a new environment.
+- **Auth:** “Authorized domains” and **email templates** in Firebase must match your deployed URL for password reset and verification links.
 - **Clipboard:** same-tab fallback; see [docs/CONFLICTS.md](../docs/CONFLICTS.md).
 
 ## Blockers

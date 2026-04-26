@@ -8,9 +8,9 @@
 
 Pan/zoom, stickies, shapes, sync, cursors, presence, auth, deploy, AI panel — see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) PR 01–23.
 
-## Post-MVP epic (in roadmap)
+## Post-MVP epic (roadmap)
 
-**PR 25–34 (roadmap order):** Multi-board **save**, **dashboard**, left **tool rail**, **drawing (PR 28)**, **lasso / comments (PR 29)**, **hyperlinks (PR 30)**, **undo/redo (PR 31)**, **template gallery (PR 32+)**, **AI template** assistant, **mobile**. **PR 35** (board sharing, invites, editor AI) stays on the roadmap; finish **deploy** and **QA** when shipping.
+**PR 25–35** (multi-board, dashboard, tools, **mobile 34**, **sharing 35**, etc.): **implemented in repo**; see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) for optional or environment-specific follow-ups (**PR 24** demo, **PR 32** template thumbnails, **PR 35** **rules deploy** + **QA** per project).
 
 ## Non-goals (still)
 
