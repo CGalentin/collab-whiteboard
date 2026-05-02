@@ -2,7 +2,10 @@
 
 import type { User } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { defaultBoardTitle } from "@/lib/board";
 import { getFirebaseDb } from "@/lib/firebase";
+
+const BOARD_TITLE_MAX_LEN = 120;
 
 /**
  * Opens a board the user may access as **owner** or **member** (editor/viewer).
@@ -35,7 +38,7 @@ export async function ensureBoardAccess(user: User, boardId: string) {
     const title =
       typeof titleRaw === "string" && titleRaw.trim()
         ? titleRaw.trim()
-        : `Board ${boardId.slice(0, 8)}`;
+        : defaultBoardTitle(boardId);
     const boardIndexRef = doc(db, "users", user.uid, "boards", boardId);
     const now = serverTimestamp();
     await setDoc(
@@ -56,7 +59,7 @@ export async function ensureBoardAccess(user: User, boardId: string) {
   const boardRef = doc(db, "boards", boardId);
   const boardIndexRef = doc(db, "users", user.uid, "boards", boardId);
   const now = serverTimestamp();
-  const titleFallback = `Board ${boardId.slice(0, 8)}`;
+  const titleFallback = defaultBoardTitle(boardId);
   const boardTitleForIndex = titleFallback;
 
   try {
@@ -110,4 +113,41 @@ export async function ensureBoardAccess(user: User, boardId: string) {
  */
 export async function ensureOwnedBoard(user: User, boardId: string) {
   return ensureBoardAccess(user, boardId);
+}
+
+/**
+ * Sets canonical `boards/{boardId}.title` and syncs the owner row in `users/{uid}/boards/{boardId}`.
+ * Firestore rules allow only the **owner** to update the board document.
+ */
+export async function updateBoardTitleAsOwner(
+  user: User,
+  boardId: string,
+  nextTitle: string,
+): Promise<void> {
+  const trimmed = nextTitle.trim();
+  if (!trimmed) {
+    throw new Error("Title cannot be empty.");
+  }
+  if (trimmed.length > BOARD_TITLE_MAX_LEN) {
+    throw new Error(`Title must be at most ${BOARD_TITLE_MAX_LEN} characters.`);
+  }
+
+  await user.getIdToken();
+  const db = getFirebaseDb();
+  const boardRef = doc(db, "boards", boardId);
+  const snap = await getDoc(boardRef);
+  if (!snap.exists()) {
+    throw new Error("Board not found.");
+  }
+  const ownerUid = snap.data()?.ownerUid;
+  if (typeof ownerUid !== "string" || ownerUid !== user.uid) {
+    throw new Error("Only the board owner can change the title.");
+  }
+
+  const now = serverTimestamp();
+  await updateDoc(boardRef, { title: trimmed, updatedAt: now });
+  await updateDoc(doc(db, "users", user.uid, "boards", boardId), {
+    title: trimmed,
+    updatedAt: now,
+  });
 }

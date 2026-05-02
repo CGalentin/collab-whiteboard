@@ -5,7 +5,7 @@
 ## Session handoff (new chat)
 
 1. **`memory-bank/progress.md`** + **this file**
-2. **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** — epic **PR 25+** (scroll past PR 24)
+2. **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** — epic **PR 25+** (**PR 24** demo/social skipped) + **Board UI vs roadmap** (live layout at bottom of file)
 3. Code under **`src/`** as needed
 
 ---
@@ -15,20 +15,20 @@
 | Area | State |
 |------|--------|
 | **MVP** | Shipped through **PR 23**; production deploy **PR 22** done |
-| **PR 24** | **Optional** (demo video, social) unless submitting |
-| **v2 + epic** | **PR 25–35** in code: multi-board, dashboard, tool rail, drawing, lasso, comments, links, undo, templates, AI on dashboard, **mobile (PR 34)**, **sharing (PR 35)** |
-| **Next** | **PR 24** (optional deliverables) · **PR 35** if **Firestore rules** not yet deployed in prod, do **`npm run deploy:rules`** + two-account **QA** ([BUILD_ROADMAP.md](../BUILD_ROADMAP.md)) · PR 32 optional **template thumbnails** still open |
+| **PR 24** | **Skipped** (demo script, video, social, Gauntlet delivery checklist) — intentional; **PR 23** submission docs remain the written deliverable |
+| **v2 + epic** | **PR 25–35** in code: multi-board, dashboard, tool rail, drawing, lasso, links, undo, templates, AI on dashboard, **mobile (PR 34)**, **sharing (PR 35)** |
+| **Next** | **PR 35** two-account **manual QA** if you rely on sharing · **PR 32** optional template thumbnails · **`npm run deploy:rules`** when `firestore.rules` changes (prod may already match) |
 
-**PR 35** — sharing is implemented; see roadmap for **Deploy rules** + **Manual QA** if not done on your environment.
+**PR 35** — sharing code + rules file in repo; validate **invite + collaborator** flows in your environment.
 
 ### Recent product updates (not every item is a roadmap PR)
 
 | Topic | Where |
 |--------|--------|
 | **Auth** | **`/login`**: forgot password, reset in-app, email verification after signup, **`applyActionCode`** for verify links; **`RequireAuth`** + **`verify-email-gate`**. Helpers: **`src/lib/auth-client.ts`**. **Firebase console:** email/password on, **authorized domains** for action links. |
-| **Board tools** | **Hand (pan)** rail + **`board-stage`** `handToolActive` (capture) · **Shapes** popover in **`board-canvas`** + **`type: "polygon"`** in **`board-object`**. |
-| **Mobile** | Bottom tool drawer, pinch zoom, see README “Mobile and small screens” |
-
+| **Board chrome** | **`board-canvas.tsx`**: top toolbar — Search, AI, Help, **Color** + **Shapes** dropdowns, **Sticky** (add), **Comments** (toggle mode), link row, **Copy / Paste / Delete / Clear**; line hint. **`board-tool-rail.tsx`** + **`board-canvas-rail-mid.tsx`** inside **`BoardCanvas`**: Templates, drawing tools, Hand, Lasso, Links; mid — Line, Text, Connect, Duplicate. Shared SVGs: **`board-tool-glyphs.tsx`**. **Draw** removed from rail; **Add frame** removed from UI (frames via templates / AI). |
+| **Shapes** | **`board-shapes-menu.tsx`**, **`type: "polygon"`**, **`board-polygon-kinds`** |
+| **Mobile** | Bottom tool drawer, pinch zoom; README “Mobile and small screens” |
 
 ---
 
@@ -38,24 +38,23 @@
 |------|---------------|
 | Board id | **`src/lib/board.ts`** — board id validation + Firestore path helpers |
 | Board bootstrap | **`src/lib/boards-client.ts`** — ensure `boards/{boardId}` + `users/{uid}/boards/{boardId}` docs |
-| Routes | **`src/app/board/page.tsx`** redirect to `/board/{uid}` + **`src/app/board/[boardId]/page.tsx`** dynamic board |
-| Board surfaces | **`board-canvas`**, **`presence-sidebar`**, **`ai-board-panel`**, **`firestore-rules-smoke`** now take runtime `boardId` |
+| Routes | **`src/app/board/page.tsx`** redirect + **`src/app/board/[boardId]/page.tsx`** dynamic board |
+| Board surfaces | **`board-canvas`** (includes **`BoardToolRail`**), **`presence-sidebar`**, **`ai-board-panel`** |
 | API | **`src/app/api/ai/route.ts`** — **owner or editor** member may run tools (not viewer) |
-| Rules | **`firestore.rules`** — owner on board metadata; **owner + editor** on `objects` / cursors / presence; viewers read-only; invites + members — see **`firestore.rules`** |
+| Rules | **`firestore.rules`** — see file; deploy with **`npm run deploy:rules`** |
 
 ### PR 27–31 — key paths
 
 | Area | Paths |
 |------|--------|
-| Tool state | **`src/context/board-tool-context.tsx`** (includes **hand**), **`src/components/board-tool-rail.tsx`**, provider on **`src/app/board/[boardId]/page.tsx`** |
-| Drawing (PR 28) | **`src/lib/board-object.ts`** (`type: "freehand"`), **`src/components/board-stage.tsx`**, **`src/components/board-canvas.tsx`** (`railDrawMode`, eraser + line), **`src/components/board-object-shapes.tsx`** |
-| Lasso (PR 29) | **`src/lib/board-lasso-geometry.ts`**, lasso state + draft in **`board-stage`**, **`board-canvas`** (`lassoActive`) |
-| Comments (PR 29) | **`src/components/comment-pin-shape.tsx`**, **`type: "comment"`** in **`board-object.ts`**, inline edit / **`flushCommentBodyNow`** in writes hook |
-| Hyperlinks (PR 30) | **`src/lib/board-href.ts`**, optional **`href`** on supported types + **`link`** in **`board-object.ts`**, **`link-hotspot-shape.tsx`**, rail **Hyperlinks** = place hotspot on empty board, toolbar **Link** when one object selected |
-| Undo/Redo (PR 31) | **`src/context/board-tool-context.tsx`** (history control tokens + canUndo/canRedo), **`src/components/board-tool-rail.tsx`**, **`src/components/board-canvas.tsx`** (snapshot history + shortcuts; `lastHandled*TokenRef` so undo/redo is not re-triggered on context churn), **`src/components/board-stage.tsx`** (checkpoint hooks for drawing/comment/link create), **`src/hooks/use-board-object-writes.ts`** (per-doc update fallback; ignore not-found for stale debounced patches after delete) |
-| Templates (PR 32) | **`src/lib/board-templates.ts`** (catalog + batch `applyTemplate`), **`src/components/board-templates-modal.tsx`**, context **`templatesModalOpen`** / **`openTemplatesModal`** / **`closeTemplatesModal`** in **`board-tool-context.tsx`**, rail **Templates** opens modal |
-| AI dashboard template (PR 33) | **`src/components/dashboard-ai-template-section.tsx`**, **`/dashboard`**; **`/api/ai`** accepts **`maxToolCalls`**; shared **`parseAiResponse`** in **`src/lib/ai-parse-api-response.ts`** |
-| Geometry / AI / clipboard | **`src/lib/board-geometry.ts`**, **`src/lib/clone-board-object.ts`**, **`src/lib/board-clipboard.ts`**, **`src/lib/board-context-for-ai.ts`**, **`src/lib/ai-execute-tools-client.ts`** (`moveObject` for freehand) |
+| Tool state | **`src/context/board-tool-context.tsx`**, **`src/components/board-tool-rail.tsx`**, **`src/components/board-tool-glyphs.tsx`**, provider on **`src/app/board/[boardId]/page.tsx`** |
+| Drawing (PR 28) | **`board-object.ts`** (`freehand`), **`board-stage.tsx`**, **`board-canvas.tsx`** |
+| Lasso (PR 29) | **`board-lasso-geometry.ts`**, **`board-stage`**, **`board-canvas`** |
+| Comments (PR 29) | **`comment-pin-shape.tsx`**, **`type: "comment"`**; placement mode from **top toolbar** (context `activeTool === "comments"`) |
+| Hyperlinks (PR 30) | **`board-href.ts`**, **`link-hotspot-shape.tsx`**, rail **Hyperlinks**, toolbar link row |
+| Undo/Redo (PR 31) | **`board-tool-context.tsx`**, **`board-tool-rail.tsx`**, **`board-canvas.tsx`**, **`board-stage.tsx`**, **`use-board-object-writes.ts`** |
+| Templates (PR 32) | **`board-templates.ts`**, **`board-templates-modal.tsx`**, **`board-tool-context.tsx`** |
+| AI dashboard (PR 33) | **`dashboard-ai-template-section.tsx`**, **`ai-parse-api-response.ts`** |
 
 ---
 
@@ -88,10 +87,10 @@
 
 ## Open decisions
 
-- **PR 32+:** Optional template **thumbnails**; minor polish on **mobile** tool bar UX.
-- **PR 35:** **Deploy rules** + two-account **QA** when you ship sharing to a new environment.
-- **Auth:** “Authorized domains” and **email templates** in Firebase must match your deployed URL for password reset and verification links.
-- **Clipboard:** same-tab fallback; see [docs/CONFLICTS.md](../docs/CONFLICTS.md).
+- **PR 32+:** Optional template **thumbnails**; mobile toolbar polish.
+- **PR 35:** Two-account **QA** when using sharing; **rules deploy** only when `firestore.rules` changes.
+- **Auth:** Firebase **authorized domains** + **email templates** must match deployed URL.
+- **Clipboard:** same-tab fallback; [docs/CONFLICTS.md](../docs/CONFLICTS.md).
 
 ## Blockers
 

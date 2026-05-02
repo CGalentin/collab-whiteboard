@@ -9,7 +9,7 @@
 - **Workshops / collaboration** — short-lived boards.
 - **PRD target:** 5+ concurrent users on a **board**; realtime cursors + presence.
 - **MVP shipped:** shared demo era (single board id) — superseded by **per-user boards** (**PR 25–26**).
-- **Now (v2):** **multiple saved boards**, **dashboard**, **tool rail** (incl. **Hand** pan, **Shapes** popover, templates, drawing, etc.), **mobile-friendly board** (PR 34), **board sharing (PR 35)**, and **email auth** (verify + reset) on top of **Google** sign-in. Roadmap: optional **PR 24** / **PR 32** thumbnails; see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) and **memory-bank/progress.md**.
+- **Now (v2):** **multiple saved boards**, **dashboard**, **split board chrome** — **top canvas toolbar** (search, AI, help, color/shapes dropdowns, sticky add, comments mode, copy/paste/delete/clear) plus **left rail** (templates, hand, pen, highlighter, eraser, lasso, hyperlinks; mid: line, text, connect, duplicate). **Mobile** drawer (PR 34). **Sharing** (PR 35). **Email auth** + **Google**. **PR 24** skipped. Optional **PR 32** thumbnails. Canonical layout: [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) **Board UI vs roadmap**.
 
 ## Constraints (original MVP)
 

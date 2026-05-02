@@ -10,6 +10,8 @@ type BoardShapesMenuProps = {
   onPickRect: () => void;
   onPickCircle: () => void;
   onPickPolygon: (kind: PolygonKind) => void;
+  /** `right` opens beside the rail (narrow rail + wide menu). Default stacks under trigger. */
+  placement?: "below" | "right";
 };
 
 /**
@@ -22,6 +24,7 @@ export function BoardShapesMenu({
   onPickRect,
   onPickCircle,
   onPickPolygon,
+  placement = "below",
 }: BoardShapesMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -47,10 +50,15 @@ export function BoardShapesMenu({
 
   if (!open) return null;
 
+  const positionClass =
+    placement === "right"
+      ? "left-full top-0 z-[60] ml-1.5 mt-0 w-[min(18rem,calc(100vw-4rem))]"
+      : "left-0 top-full z-[60] mt-1.5 w-[min(18rem,calc(100vw-1.5rem))]";
+
   return (
     <div
       ref={ref}
-      className="absolute left-0 top-full z-[60] mt-1.5 w-[min(18rem,calc(100vw-1.5rem))] max-h-[min(70vh,24rem)] overflow-y-auto rounded-xl border border-zinc-200 bg-white/98 p-2.5 text-left shadow-lg dark:border-zinc-600 dark:bg-zinc-900/98"
+      className={`absolute ${positionClass} max-h-[min(70vh,24rem)] overflow-y-auto rounded-xl border border-zinc-200 bg-white/98 p-2.5 text-left shadow-lg dark:border-zinc-600 dark:bg-zinc-900/98`}
       role="dialog"
       aria-label="Choose a shape"
     >

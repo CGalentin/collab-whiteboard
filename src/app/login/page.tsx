@@ -38,11 +38,15 @@ function LoginForm() {
   const modeParam = searchParams.get("mode");
 
   const { user, loading } = useAuth();
-  const [formMode, setFormMode] = useState<FormMode>(() =>
-    searchParams.get("mode") === "resetPassword" && searchParams.get("oobCode")
-      ? "resetConfirm"
-      : "signin",
-  );
+  const [formMode, setFormMode] = useState<FormMode>(() => {
+    if (searchParams.get("mode") === "resetPassword" && searchParams.get("oobCode")) {
+      return "resetConfirm";
+    }
+    if (searchParams.get("view") === "signup") {
+      return "signup";
+    }
+    return "signin";
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

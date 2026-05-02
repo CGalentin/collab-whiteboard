@@ -324,7 +324,7 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 *Left vertical tool rail — structure first; wire tools in later PRs.*
 
-- [x] Add **collapsible left sidebar** on the board page with icon buttons: **Templates**, **Draw**, **Pen**, **Highlighter**, **Eraser**, **Lasso**, **Comments**, **Hyperlinks**, **Undo**, **Redo** (labels + `aria-label`s).
+- [x] Add **collapsible left tool rail** on the board with icon buttons: **Templates**, **Hand**, **Pen**, **Highlighter**, **Eraser**, **Lasso**, **Hyperlinks**, **Undo**, **Redo** (`title` / `aria-label`). *(Original PR text included **Draw** and **Comments** on the rail; Draw was removed, Comments moved to the **top canvas toolbar** — see **Board UI vs roadmap** below.)*
 - [x] **Tool state** in React (`BoardToolProvider` + active tool); **notice** for tools not implemented yet — avoid silent failures.
 - [x] Reserve space so the **Konva stage** reflows when sidebar opens/closes (desktop); **mobile drawer** toggle for tools (PR 32 can refine).
 - [x] **Undo / Redo** buttons wired to a **history stub** (stack in later PR) so UI is stable.
@@ -390,8 +390,21 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 - [x] **Share UI** on board: owner adds collaborator by **Firebase UID**; generate **invite link**; list/remove collaborators; collaborator **Leave board**.
 - [x] **Join route** `**/join/[inviteId]`**: signed-in user accepts invite → member doc + dashboard index → redirect to **`/board/[boardId]`**.
 - [x] **`POST /api/ai`**: allow **owner** or **editor** member (not viewer).
-- [ ] **Deploy rules** to production (`npm run deploy:rules`) after merging.
+- [ ] **Deploy rules** to production (`npm run deploy:rules`) after merging — *skip if prod already matches repo `firestore.rules`; re-run whenever rules change.*
 - [ ] **Manual QA**: two accounts — invite link + UID add; both see cursors/objects; viewer role (optional) from console/Firestore.
+
+---
+
+## Board UI vs roadmap *(live layout, May 2026)*
+
+*Numbered PRs above stay the historical checklist; this section describes the **current** board chrome.*
+
+| Area | Behavior / files |
+|------|-------------------|
+| **Left rail** | **`board-tool-rail.tsx`** — narrow desktop column; **`BoardToolGlyph`** in **`board-tool-glyphs.tsx`**. Tools: Templates, Hand, Pen, Highlighter, Eraser, Lasso, Hyperlinks; Undo/Redo. **`BoardCanvas`** passes **`midRailSlot`**: **`board-canvas-rail-mid.tsx`** — Line, Text, Connect, Duplicate (icon-only + titles). |
+| **Top canvas toolbar** | **`board-canvas.tsx`** (absolute strip): Search, AI, Help; **Color** + **Shapes** dropdowns; **Sticky** (add note); **Comments** (toggle place mode); link row when selection supports it; **Copy / Paste / Delete / Clear board**; line-tool hint. |
+| **Removed from manual UI** | **Draw** (rail type); **Add frame** button (frames still from **templates** / **AI** / existing docs; **`type: "frame"`** unchanged). |
+| **Stage shell** | Canvas card **`overflow-visible`** for toolbar menus; **`BoardStage`** wrapped in inner **`overflow-hidden`** so Konva still clips. |
 
 ---
 
@@ -407,6 +420,7 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | 22–24 | Deploy + submission + demo |
 | **25+** | **Multi-board save, dashboard, tool rail, drawing, templates, AI templates, mobile** |
 | **35** | **Board sharing — members, invites, join route, AI for editors** |
+| **UX** | **Board UI vs roadmap** — top toolbar + left rail split (May 2026) |
 
 ---
 

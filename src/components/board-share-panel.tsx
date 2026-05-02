@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "firebase/auth";
 import {
@@ -22,8 +22,13 @@ type BoardSharePanelProps = {
   ownerUid: string;
 };
 
+/**
+ * Share / collaborators: icon in the header opens a compact popover (owner + collaborator flows).
+ */
 export function BoardSharePanel({ user, boardId, ownerUid }: BoardSharePanelProps) {
   const router = useRouter();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [collabUid, setCollabUid] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,7 +38,7 @@ export function BoardSharePanel({ user, boardId, ownerUid }: BoardSharePanelProp
   const isOwner = ownerUid === user.uid;
 
   useEffect(() => {
-    if (!isOwner) return;
+    if (!menuOpen || !isOwner) return;
     const db = getFirebaseDb();
     const col = collection(db, "boards", boardId, "members");
     const unsub = onSnapshot(
@@ -54,7 +59,26 @@ export function BoardSharePanel({ user, boardId, ownerUid }: BoardSharePanelProp
       },
     );
     return () => unsub();
-  }, [boardId, isOwner]);
+  }, [boardId, isOwner, menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      const el = wrapRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   async function addCollaborator() {
     if (!isOwner) return;
@@ -143,136 +167,161 @@ export function BoardSharePanel({ user, boardId, ownerUid }: BoardSharePanelProp
     }
   }
 
-  if (!isOwner) {
-    return (
-      <section
-        className="rounded-xl border border-zinc-200 bg-white/90 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-400"
-        aria-label="Board sharing"
-      >
-        <p>
-          You are a <span className="font-medium">collaborator</span> on this board. Only the owner
-          can add people or create invite links.
-        </p>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={async () => {
-            if (!window.confirm("Leave this board? You will need a new invite to return.")) {
-              return;
-            }
-            setBusy(true);
-            try {
-              await user.getIdToken();
-              const db = getFirebaseDb();
-              await deleteDoc(doc(db, "boards", boardId, "members", user.uid));
-              await deleteDoc(doc(db, "users", user.uid, "boards", boardId));
-              router.replace("/dashboard");
-            } catch (e) {
-              setNotice(e instanceof Error ? e.message : "Could not leave board.");
-            } finally {
-              setBusy(false);
-            }
-          }}
-          className="mt-2 rounded-lg border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-800 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          Leave board
-        </button>
-        {notice ? <p className="mt-2 text-amber-700 dark:text-amber-400">{notice}</p> : null}
-      </section>
-    );
+  async function leaveBoard() {
+    if (!window.confirm("Leave this board? You will need a new invite to return.")) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await user.getIdToken();
+      const db = getFirebaseDb();
+      await deleteDoc(doc(db, "boards", boardId, "members", user.uid));
+      await deleteDoc(doc(db, "users", user.uid, "boards", boardId));
+      setMenuOpen(false);
+      router.replace("/dashboard");
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not leave board.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <section
-      className="rounded-xl border border-zinc-200 bg-white/90 px-3 py-2 text-xs shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60"
-      aria-label="Board sharing"
-    >
-      <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
-        Share board
-      </h2>
-      <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-400">
-        Add by Firebase UID, or create an invite link (signed-in users only).
-      </p>
-
-      <div className="mt-2 flex flex-wrap items-end gap-2">
-        <div className="min-w-[12rem] flex-1">
-          <label htmlFor="collab-uid" className="sr-only">
-            Collaborator UID
-          </label>
-          <input
-            id="collab-uid"
-            value={collabUid}
-            onChange={(e) => setCollabUid(e.target.value)}
-            placeholder="Other user’s UID"
-            className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 font-mono text-[11px] text-zinc-900 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setMenuOpen((o) => !o)}
+        aria-expanded={menuOpen}
+        aria-haspopup="dialog"
+        aria-controls="board-share-popover"
+        className="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg border border-brand-teal/25 text-brand-teal transition hover:border-accent-violet/40 hover:bg-white hover:text-accent-violet dark:border-teal-500/35 dark:text-teal-300 dark:hover:border-accent-lavender/45 dark:hover:bg-zinc-900 dark:hover:text-accent-lavender"
+        title="Share board"
+      >
+        <span className="sr-only">Share board</span>
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.935-2.186 2.25 2.25 0 00-3.935 2.186z"
           />
-        </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void addCollaborator()}
-          className="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+        </svg>
+      </button>
+
+      {menuOpen ? (
+        <div
+          id="board-share-popover"
+          role="dialog"
+          aria-label="Share board"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-[160] w-[min(calc(100vw-2rem),22rem)] max-h-[min(70vh,28rem)] overflow-y-auto rounded-xl border border-brand-teal/15 bg-white p-3 text-xs shadow-xl ring-1 ring-accent-lavender/20 dark:border-white/10 dark:bg-zinc-900 dark:ring-accent-violet/15"
         >
-          Add editor
-        </button>
-      </div>
-
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void generateInviteLink()}
-          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-800 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        >
-          New invite link
-        </button>
-        {lastInviteUrl ? (
-          <button
-            type="button"
-            onClick={() => void copyInvite()}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-[11px] text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
-          >
-            Copy link
-          </button>
-        ) : null}
-      </div>
-
-      {lastInviteUrl ? (
-        <p className="mt-1 break-all font-mono text-[10px] text-zinc-500 dark:text-zinc-500">
-          {lastInviteUrl}
-        </p>
-      ) : null}
-
-      {members.length > 0 ? (
-        <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto border-t border-zinc-200 pt-2 dark:border-zinc-800">
-          {members.map((m) => (
-            <li
-              key={m.uid}
-              className="flex items-center justify-between gap-2 font-mono text-[10px] text-zinc-700 dark:text-zinc-300"
-            >
-              <span className="min-w-0 truncate">
-                {m.uid.slice(0, 10)}… · {m.role}
-              </span>
+          {!isOwner ? (
+            <>
+              <p className="text-zinc-600 dark:text-zinc-400">
+                You are a <span className="font-medium">collaborator</span> on this board. Only the owner can add
+                people or create invite links.
+              </p>
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void removeMember(m.uid)}
-                className="shrink-0 text-red-600 hover:underline disabled:opacity-40 dark:text-red-400"
+                onClick={() => void leaveBoard()}
+                className="mt-3 w-full rounded-lg border border-red-300 bg-red-50 px-2 py-2 text-[11px] font-medium text-red-800 hover:bg-red-100 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200 dark:hover:bg-red-950/60"
               >
-                Remove
+                Leave board
               </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="mt-2 border-t border-zinc-200 pt-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
-          No collaborators yet.
-        </p>
-      )}
+              {notice ? <p className="mt-2 text-[11px] text-amber-700 dark:text-amber-400">{notice}</p> : null}
+            </>
+          ) : (
+            <>
+              <h2 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500">
+                Share board
+              </h2>
+              <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-400">
+                Add by Firebase UID, or create an invite link (signed-in users only).
+              </p>
 
-      {notice ? (
-        <p className="mt-2 text-[11px] text-amber-800 dark:text-amber-300">{notice}</p>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <div className="min-w-0 flex-1 basis-[12rem]">
+                  <label htmlFor="collab-uid" className="sr-only">
+                    Collaborator UID
+                  </label>
+                  <input
+                    id="collab-uid"
+                    value={collabUid}
+                    onChange={(e) => setCollabUid(e.target.value)}
+                    placeholder="Other user’s UID"
+                    className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1.5 font-mono text-[11px] text-zinc-900 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-100"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void addCollaborator()}
+                  className="shrink-0 rounded-md bg-brand-teal px-2 py-1.5 text-[11px] font-medium text-white hover:bg-brand-teal-hover disabled:opacity-50"
+                >
+                  Add editor
+                </button>
+              </div>
+
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void generateInviteLink()}
+                  className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-800 hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  New invite link
+                </button>
+                {lastInviteUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => void copyInvite()}
+                    className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-[11px] text-zinc-800 hover:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  >
+                    Copy link
+                  </button>
+                ) : null}
+              </div>
+
+              {lastInviteUrl ? (
+                <p className="mt-1 break-all font-mono text-[10px] text-zinc-500 dark:text-zinc-500">
+                  {lastInviteUrl}
+                </p>
+              ) : null}
+
+              {members.length > 0 ? (
+                <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto border-t border-zinc-200 pt-2 dark:border-zinc-800">
+                  {members.map((m) => (
+                    <li
+                      key={m.uid}
+                      className="flex items-center justify-between gap-2 font-mono text-[10px] text-zinc-700 dark:text-zinc-300"
+                    >
+                      <span className="min-w-0 truncate">
+                        {m.uid.slice(0, 10)}… · {m.role}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void removeMember(m.uid)}
+                        className="shrink-0 text-red-600 hover:underline disabled:opacity-40 dark:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 border-t border-zinc-200 pt-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
+                  No collaborators yet.
+                </p>
+              )}
+
+              {notice ? (
+                <p className="mt-2 text-[11px] text-amber-800 dark:text-amber-300">{notice}</p>
+              ) : null}
+            </>
+          )}
+        </div>
       ) : null}
-    </section>
+    </div>
   );
 }

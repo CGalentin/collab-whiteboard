@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo } from "react";
+import { BoardToolGlyph } from "@/components/board-tool-glyphs";
 import {
   type BoardRailToolId,
   useBoardTool,
@@ -9,33 +11,37 @@ import {
 type ToolButton = {
   id: BoardRailToolId;
   label: string;
-  icon: string;
   implemented: boolean;
 };
 
 const OTHER_RAIL_TOOLS: ToolButton[] = [
-  { id: "hand", label: "Hand (pan)", icon: "Hd", implemented: true },
-  { id: "draw", label: "Draw", icon: "Dr", implemented: false },
-  { id: "pen", label: "Pen", icon: "Pn", implemented: true },
-  { id: "highlighter", label: "Highlighter", icon: "Hi", implemented: true },
-  { id: "eraser", label: "Eraser", icon: "Er", implemented: true },
-  { id: "lasso", label: "Lasso", icon: "Ls", implemented: true },
-  { id: "comments", label: "Comments", icon: "Cm", implemented: true },
-  { id: "hyperlinks", label: "Hyperlinks", icon: "Ln", implemented: true },
+  { id: "hand", label: "Hand (pan)", implemented: true },
+  { id: "pen", label: "Pen", implemented: true },
+  { id: "highlighter", label: "Highlighter", implemented: true },
+  { id: "eraser", label: "Eraser", implemented: true },
+  { id: "lasso", label: "Lasso", implemented: true },
+  { id: "hyperlinks", label: "Hyperlinks", implemented: true },
 ];
 
 type BoardToolRailProps = {
   className?: string;
+  /** Creation tools (color, shapes, line, …) rendered under the main rail tools. */
+  midRailSlot?: ReactNode;
 };
 
-export function BoardToolRail({ className }: BoardToolRailProps) {
+const iconBtnBase =
+  "flex h-11 w-full touch-manipulation items-center justify-center rounded-lg border text-zinc-700 transition dark:text-zinc-200";
+const iconBtnIdle =
+  "border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800";
+const iconBtnOn =
+  "border-brand-teal bg-emerald-50 text-brand-teal shadow-sm dark:border-teal-600 dark:bg-teal-950/50 dark:text-teal-200";
+
+export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
   const {
     activeTool,
     setActiveTool,
     openTemplatesModal,
     templatesModalOpen,
-    railExpanded,
-    setRailExpanded,
     mobileOpen,
     setMobileOpen,
     notice,
@@ -49,9 +55,8 @@ export function BoardToolRail({ className }: BoardToolRailProps) {
   const canRedo = historyCanRedo;
 
   const desktopShellClass = useMemo(() => {
-    const width = railExpanded ? "lg:w-56" : "lg:w-16";
-    return `flex shrink-0 flex-col rounded-xl border border-zinc-200 bg-white/80 dark:border-zinc-800 dark:bg-zinc-900/50 ${width}`;
-  }, [railExpanded]);
+    return `flex w-14 shrink-0 flex-col rounded-xl border border-zinc-200 bg-white/90 dark:border-zinc-800 dark:bg-zinc-900/55`;
+  }, []);
 
   const mobileSheetShellClass =
     "flex w-full max-w-full flex-col rounded-t-2xl border border-b-0 border-t border-x border-zinc-200 bg-white/95 shadow-[0_-8px_28px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900/95";
@@ -98,46 +103,23 @@ export function BoardToolRail({ className }: BoardToolRailProps) {
     requestRedo();
   }
 
-  const toolButtonRow =
-    "flex w-full min-h-[44px] touch-manipulation items-center gap-2 rounded-lg border px-2 py-2.5 text-left text-sm transition";
-
   const content = (shell: string) => (
     <div className={`${shell} ${className ?? ""}`}>
-      <div className="flex min-h-[44px] items-center justify-between border-b border-zinc-200 px-2 py-1.5 dark:border-zinc-800">
-        <button
-          type="button"
-          onClick={() => setRailExpanded((v) => !v)}
-          className="hidden min-h-9 min-w-9 items-center justify-center rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 lg:inline-flex"
-          aria-label={railExpanded ? "Collapse sidebar" : "Expand sidebar"}
-          title={railExpanded ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {railExpanded ? "<<" : ">>"}
-        </button>
-        <p
-          className={`text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-500 ${
-            railExpanded ? "" : "lg:hidden"
-          }`}
-        >
-          Tools
-        </p>
+      <div className="flex min-h-10 items-center justify-center border-b border-zinc-200 px-1 py-1 dark:border-zinc-800">
+        <p className="sr-only">Board tools</p>
       </div>
 
-      <div className="min-h-0 max-h-[min(50dvh,22rem)] flex-1 space-y-1 overflow-y-auto p-2 lg:max-h-none">
+      <div className="min-h-0 max-h-[min(50dvh,26rem)] flex-1 space-y-1 overflow-y-auto overflow-x-visible p-1.5 lg:max-h-none">
         <button
           type="button"
           onClick={openTemplates}
-          className={`${toolButtonRow} ${
-            templatesModalOpen
-              ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
-              : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className={`${iconBtnBase} ${
+            templatesModalOpen ? iconBtnOn : iconBtnIdle
           }`}
           aria-label="Templates"
-          title="Open template gallery"
+          title="Templates — open gallery"
         >
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-300 text-[11px] font-medium dark:border-zinc-600">
-            Tp
-          </span>
-          <span className={`${railExpanded ? "" : "lg:hidden"}`}>Templates</span>
+          <BoardToolGlyph id="templates" />
         </button>
         {OTHER_RAIL_TOOLS.map((button) => {
           const selected = activeTool === button.id;
@@ -146,54 +128,52 @@ export function BoardToolRail({ className }: BoardToolRailProps) {
               key={button.id}
               type="button"
               onClick={() => chooseTool(button)}
-              className={`${toolButtonRow} ${
-                selected
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
-                  : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              }`}
+              className={`${iconBtnBase} ${selected ? iconBtnOn : iconBtnIdle}`}
               aria-label={button.label}
               title={button.label}
             >
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-zinc-300 text-[11px] font-medium dark:border-zinc-600">
-                {button.icon}
-              </span>
-              <span className={`${railExpanded ? "" : "lg:hidden"}`}>
-                {button.label}
-              </span>
+              <BoardToolGlyph id={button.id} />
             </button>
           );
         })}
+        {midRailSlot ? <div className="overflow-x-visible">{midRailSlot}</div> : null}
       </div>
 
-      <div className="space-y-2 border-t border-zinc-200 p-2 dark:border-zinc-800">
-        <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-1 border-t border-zinc-200 p-1.5 dark:border-zinc-800">
+        <div className="grid grid-cols-1 gap-1">
           <button
             type="button"
             onClick={undoToolSelection}
             disabled={!canUndo}
             aria-label="Undo"
-            className="min-h-11 min-w-0 touch-manipulation rounded-lg border border-zinc-300 bg-white px-2 py-2.5 text-xs text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            title="Undo"
+            className={`${iconBtnBase} ${iconBtnIdle} disabled:opacity-40`}
           >
-            Undo
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 10L5 6l4-4M5 6h11a4 4 0 014 4v1" />
+            </svg>
           </button>
           <button
             type="button"
             onClick={redoToolSelection}
             disabled={!canRedo}
             aria-label="Redo"
-            className="min-h-11 min-w-0 touch-manipulation rounded-lg border border-zinc-300 bg-white px-2 py-2.5 text-xs text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            title="Redo"
+            className={`${iconBtnBase} ${iconBtnIdle} disabled:opacity-40`}
           >
-            Redo
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4-4-4-4M19 6H8a4 4 0 00-4 4v1" />
+            </svg>
           </button>
         </div>
 
         {notice ? (
-          <p className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-300">
+          <p className="rounded-md border border-amber-300 bg-amber-50 px-1.5 py-1 text-[10px] leading-snug text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-300">
             {notice}
           </p>
         ) : (
-          <p className="text-[11px] text-zinc-500 dark:text-zinc-500">
-            Active tool: {activeTool ?? "none"}
+          <p className="truncate text-center text-[10px] text-zinc-500 dark:text-zinc-500" title={activeTool ?? "none"}>
+            {activeTool ? activeTool.replace(/-/g, " ") : "—"}
           </p>
         )}
       </div>
@@ -238,8 +218,12 @@ export function BoardToolRail({ className }: BoardToolRailProps) {
             className="flex min-h-11 min-w-11 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-zinc-300/90 bg-zinc-50/90 text-sm font-medium text-zinc-800 dark:border-zinc-600 dark:bg-zinc-900/80 dark:text-zinc-200"
             aria-expanded={mobileOpen}
             aria-controls="board-tool-drawer"
+            title="Tools"
           >
-            Tools
+            <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+              <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h10" />
+            </svg>
+            <span className="sr-only">Tools</span>
             <span className="text-sm text-zinc-400" aria-hidden>
               {mobileOpen ? "▾" : "▴"}
             </span>

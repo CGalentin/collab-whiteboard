@@ -6,6 +6,11 @@
 :root {
   --background: #fafafa;
   --foreground: #171717;
+  /* Product palette — sync hex with src/lib/design-colors.ts */
+  --brand-teal: #128c7e;
+  --brand-teal-hover: #0f7569;
+  --accent-lavender: #bfa9d3;
+  --accent-violet: #ba31d4;
 }
 
 .dark {
@@ -18,6 +23,10 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-teal-hover: var(--brand-teal-hover);
+  --color-accent-lavender: var(--accent-lavender);
+  --color-accent-violet: var(--accent-violet);
 }
 
 html {
@@ -44,4 +53,20 @@ body {
   background-image:
     linear-gradient(to right, rgb(39 39 42) 1px, transparent 1px),
     linear-gradient(to bottom, rgb(39 39 42) 1px, transparent 1px);
+}
+
+/* Home landing — mock board preview (teal-tinted grid) */
+.landing-preview-grid {
+  background-color: #fafafa;
+  background-image:
+    linear-gradient(to right, rgba(18, 140, 126, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(18, 140, 126, 0.06) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dark .landing-preview-grid {
+  background-color: rgb(24 24 27);
+  background-image:
+    linear-gradient(to right, rgba(45, 212, 191, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(45, 212, 191, 0.08) 1px, transparent 1px);
 }

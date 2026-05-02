@@ -2,24 +2,24 @@
 
 import Link from "next/link";
 import {
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
   useState,
 } from "react";
 import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { RequireAuth } from "@/components/require-auth";
 import { useAuth, useSignOut } from "@/components/auth-provider";
-import { FirestoreRulesSmoke } from "@/components/firestore-rules-smoke";
 import { BoardCanvas } from "@/components/board-canvas";
 import { AiBoardPanel } from "@/components/ai-board-panel";
 import { PresenceSidebar } from "@/components/presence-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BoardToolRail } from "@/components/board-tool-rail";
 import { BoardToolProvider } from "@/context/board-tool-context";
 import { BoardSharePanel } from "@/components/board-share-panel";
-import { assertBoardId, boardFirestorePath } from "@/lib/board";
+import { BoardTitleHeader } from "@/components/board-title-header";
+import { assertBoardId, defaultBoardTitle } from "@/lib/board";
 import { ensureBoardAccess } from "@/lib/boards-client";
 import { getFirebaseDb } from "@/lib/firebase";
 
@@ -32,6 +32,7 @@ function BoardContent() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [boardOwnerUid, setBoardOwnerUid] = useState<string | null>(null);
+  const [boardTitle, setBoardTitle] = useState("");
   const [asideExpanded, setAsideExpanded] = useState(true);
 
   useLayoutEffect(() => {
@@ -66,35 +67,55 @@ function BoardContent() {
   }
 
   useEffect(() => {
-    if (invalidBoardMessage) return;
+    if (invalidBoardMessage || !user) return;
     let cancelled = false;
+    let unsubBoard: (() => void) | null = null;
 
     void (async () => {
       try {
-        if (!cancelled) {
-          setReady(false);
-          setError(null);
-        }
-        if (!user) return;
+        setReady(false);
+        setError(null);
         await user.getIdToken();
         await ensureBoardAccess(user, boardId);
-        const boardSnap = await getDoc(doc(getFirebaseDb(), "boards", boardId));
-        if (!cancelled && boardSnap.exists()) {
-          const d = boardSnap.data() as Record<string, unknown>;
-          const ou =
-            typeof d.ownerUid === "string" ? d.ownerUid : null;
-          if (ou) setBoardOwnerUid(ou);
-        }
-        if (!cancelled) setReady(true);
+        if (cancelled) return;
+
+        const db = getFirebaseDb();
+        unsubBoard = onSnapshot(
+          doc(db, "boards", boardId),
+          (snap) => {
+            if (!snap.exists()) {
+              setError("Board not found.");
+              setReady(false);
+              return;
+            }
+            const d = snap.data() as Record<string, unknown>;
+            const ou = typeof d.ownerUid === "string" ? d.ownerUid : null;
+            const titleRaw = d.title;
+            const title =
+              typeof titleRaw === "string" && titleRaw.trim()
+                ? titleRaw.trim()
+                : defaultBoardTitle(boardId);
+            setBoardOwnerUid(ou);
+            setBoardTitle(title);
+            setReady(true);
+            setError(null);
+          },
+          (e) => {
+            setError(e instanceof Error ? e.message : "Failed to load board.");
+            setReady(false);
+          },
+        );
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Failed to open board.");
+          setReady(false);
         }
       }
     })();
 
     return () => {
       cancelled = true;
+      unsubBoard?.();
     };
   }, [boardId, invalidBoardMessage, user]);
 
@@ -126,24 +147,13 @@ function BoardContent() {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <header className="flex w-full min-w-0 max-w-full shrink-0 flex-col items-stretch justify-between gap-3 border-b border-zinc-200 px-4 py-3 sm:flex-row sm:items-center sm:px-6">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-widest text-emerald-600 dark:text-emerald-400/90">
-            CollabBoard
-          </p>
-          <p className="min-w-0 break-words text-sm text-zinc-600 dark:text-zinc-400">
-            <span className="text-zinc-500">Board</span>{" "}
-            <span
-              className="font-mono text-sm text-zinc-700 dark:text-zinc-300"
-              title={boardFirestorePath(boardId)}
-            >
-              {boardId}
-            </span>{" "}
-            <span className="text-zinc-500">·</span>{" "}
-            <span>
-              {user.email ?? user.displayName ?? user.uid}
-            </span>
-          </p>
-        </div>
+        <BoardTitleHeader
+          user={user}
+          boardId={boardId}
+          boardOwnerUid={boardOwnerUid}
+          boardTitle={boardTitle}
+          ready={ready}
+        />
         <div className="flex shrink-0 items-center justify-end gap-2 self-stretch sm:gap-3 sm:self-center">
           <ThemeToggle />
           <Link
@@ -159,32 +169,11 @@ function BoardContent() {
           >
             Sign out
           </button>
-        </div>
-      </header>
-
-      <div
-        className="flex shrink-0 flex-col gap-2 border-b border-zinc-200/80 bg-zinc-100/80 px-4 py-2 dark:border-zinc-800/80 dark:bg-zinc-900/30 sm:px-6"
-        aria-label="Firestore connectivity"
-      >
-        <div className="flex flex-wrap items-start gap-3">
           {ready && boardOwnerUid ? (
             <BoardSharePanel user={user} boardId={boardId} ownerUid={boardOwnerUid} />
           ) : null}
-          <div className="min-w-0 flex-1">
-            {ready ? (
-              <FirestoreRulesSmoke
-                key={`${user.uid}:${boardId}`}
-                userId={user.uid}
-                boardId={boardId}
-              />
-            ) : (
-              <p className="text-xs text-zinc-500 dark:text-zinc-500">
-                Preparing board access…
-              </p>
-            )}
-          </div>
         </div>
-      </div>
+      </header>
 
       {!ready ? (
         <main className="flex min-h-0 flex-1 items-center justify-center p-6">
@@ -195,8 +184,7 @@ function BoardContent() {
       ) : (
         <main className="flex min-h-0 flex-1 flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:gap-5">
           <BoardToolProvider>
-            <div className="order-2 flex min-h-0 min-w-0 flex-1 flex-col gap-3 max-lg:pb-[calc(3.5rem+max(0.75rem,env(safe-area-inset-bottom,0px)))] lg:order-1 lg:pb-0 lg:flex-row lg:gap-4">
-              <BoardToolRail />
+            <div className="order-2 flex min-h-0 min-w-0 flex-1 flex-col gap-3 max-lg:pb-[calc(3.5rem+max(0.75rem,env(safe-area-inset-bottom,0px)))] lg:order-1 lg:pb-0">
               <BoardCanvas
                 user={user}
                 boardId={boardId}
@@ -289,7 +277,15 @@ function BoardContent() {
 export default function BoardByIdPage() {
   return (
     <RequireAuth>
-      <BoardContent />
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-6 text-sm text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+            Loading board…
+          </div>
+        }
+      >
+        <BoardContent />
+      </Suspense>
     </RequireAuth>
   );
 }

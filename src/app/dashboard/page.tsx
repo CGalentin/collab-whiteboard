@@ -15,12 +15,15 @@ import { useAuth, useSignOut } from "@/components/auth-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getFirebaseDb } from "@/lib/firebase";
 import { DashboardAiTemplateSection } from "@/components/dashboard-ai-template-section";
+import { DashboardTemplatesGallery } from "@/components/dashboard-templates-gallery";
 import { ensureOwnedBoard } from "@/lib/boards-client";
 
 type UserBoardRow = {
   boardId: string;
   title: string;
   updatedAtMs: number | null;
+  /** From `users/{uid}/boards/*` — groundwork for future private vs shared folders */
+  access: "owned" | "shared";
 };
 
 function toMs(value: unknown): number | null {
@@ -34,6 +37,10 @@ function toMs(value: unknown): number | null {
     return (value as Timestamp).toMillis();
   }
   return null;
+}
+
+function parseAccess(raw: unknown): "owned" | "shared" {
+  return raw === "shared" ? "shared" : "owned";
 }
 
 function sortRowsByUpdatedDesc(rows: UserBoardRow[]): UserBoardRow[] {
@@ -69,6 +76,7 @@ function DashboardContent() {
                 ? data.title.trim()
                 : `Board ${d.id.slice(0, 8)}`,
             updatedAtMs: toMs(data.updatedAt),
+            access: parseAccess(data.access),
           };
         }),
       );
@@ -96,7 +104,6 @@ function DashboardContent() {
           return;
         }
 
-        // Fallback for environments where `users/{uid}/boards/*` rules are not deployed yet.
         const byOwnerQuery = query(
           collection(db, "boards"),
           where("ownerUid", "==", user.uid),
@@ -131,7 +138,7 @@ function DashboardContent() {
     const boardId = crypto.randomUUID();
     try {
       await ensureOwnedBoard(user, boardId);
-      router.push(`/board/${boardId}`);
+      router.push(`/board/${boardId}?nameBoard=1`);
     } catch (e) {
       const code =
         e && typeof e === "object" && "code" in e
@@ -155,93 +162,120 @@ function DashboardContent() {
   if (!user) return null;
 
   return (
-    <main className="min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-zinc-50 px-4 py-5 font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:px-6 sm:py-6">
-      <header className="mx-auto flex w-full max-w-5xl flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center sm:gap-3">
+    <main className="min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-gradient-to-b from-emerald-50/70 via-white to-zinc-50 px-4 py-5 font-sans text-zinc-900 dark:from-emerald-950/40 dark:via-zinc-950 dark:to-zinc-950 dark:text-zinc-100 sm:px-6 sm:py-6">
+      <header className="mx-auto flex w-full max-w-5xl flex-col items-stretch justify-between gap-4 border-b border-brand-teal/10 pb-5 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-widest text-emerald-600 dark:text-emerald-400/90">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-violet dark:text-accent-lavender">
             CollabBoard
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Your boards</h1>
-          <p className="mt-1 break-words text-sm text-zinc-600 dark:text-zinc-400">
-            Signed in as {user.email ?? user.displayName ?? user.uid}
-          </p>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Dashboard</p>
         </div>
-        <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto sm:shrink-0 sm:justify-start">
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto sm:shrink-0 sm:justify-start">
           <ThemeToggle />
           <Link
             href="/"
-            className="inline-flex min-h-11 min-w-11 items-center justify-center touch-manipulation rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-800 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center touch-manipulation rounded-lg border border-brand-teal/25 bg-white px-4 py-2.5 text-sm font-medium text-brand-teal transition hover:border-accent-violet/40 hover:text-accent-violet dark:border-teal-500/30 dark:bg-zinc-900 dark:text-teal-200 dark:hover:border-accent-lavender/40 dark:hover:text-accent-lavender"
           >
             Landing
           </Link>
           <button
             type="button"
             onClick={() => signOut()}
-            className="inline-flex min-h-11 touch-manipulation items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+            className="inline-flex min-h-11 touch-manipulation items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
           >
             Sign out
           </button>
         </div>
       </header>
 
-      <div className="mx-auto mt-5 w-full max-w-5xl">
-        <DashboardAiTemplateSection user={user} />
-      </div>
+      <div className="mx-auto mt-6 flex w-full max-w-5xl flex-col gap-10">
+        <DashboardTemplatesGallery user={user} />
 
-      <section className="mx-auto mt-5 w-full min-w-0 max-w-5xl">
-        <div className="mb-4 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-3">
-          <p className="min-w-0 text-sm text-zinc-600 dark:text-zinc-400">
-            Create a board or reopen an existing one.
-          </p>
-          <button
-            type="button"
-            onClick={() => void handleCreateBoard()}
-            disabled={creating}
-            className="min-h-11 w-full touch-manipulation rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50 sm:w-auto"
+        {/* Future: split list into folders (private vs shared) using row.access + richer titles */}
+        <section className="min-w-0" aria-labelledby="your-boards-heading">
+          <h1
+            id="your-boards-heading"
+            className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white"
           >
-            {creating ? "Creating…" : "Create board"}
-          </button>
-        </div>
-
-        {error ? (
-          <p className="mb-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-            {error}
+            Your boards
+          </h1>
+          <p className="mt-2 break-words text-sm text-zinc-600 dark:text-zinc-400">
+            Signed in as {user.email ?? user.displayName ?? user.uid}
           </p>
-        ) : null}
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+            Names and grouping will expand — for now, shared boards you join also appear in this list.
+          </p>
 
-        {loadingRows ? (
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
-            Loading boards…
+          <div className="mt-5 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-3">
+            <p className="min-w-0 text-sm text-zinc-600 dark:text-zinc-400">
+              Create an empty board or pick a template above.
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleCreateBoard()}
+              disabled={creating}
+              className="min-h-11 w-full touch-manipulation rounded-full bg-brand-teal px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-teal-hover disabled:opacity-50 sm:w-auto"
+            >
+              {creating ? "Creating…" : "Create empty board"}
+            </button>
           </div>
-        ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
-            No boards yet. Click <span className="font-medium">Create board</span> to start.
-          </div>
-        ) : (
-          <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((row) => (
-              <li key={row.boardId}>
-                <Link
-                  href={`/board/${row.boardId}`}
-                  className="flex min-h-[4.5rem] touch-manipulation flex-col justify-between rounded-xl border border-zinc-200 bg-white p-4 active:bg-zinc-50/80 transition hover:border-emerald-300 hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50 active:dark:bg-zinc-900/80 dark:hover:border-emerald-900/60"
-                >
-                  <div>
-                    <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                      {row.title}
+
+          {error ? (
+            <p className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+              {error}
+            </p>
+          ) : null}
+
+          {loadingRows ? (
+            <div className="mt-4 rounded-2xl border border-brand-teal/15 bg-white/90 p-5 text-sm text-zinc-600 shadow-sm ring-1 ring-accent-lavender/15 dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-400">
+              Loading boards…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-brand-teal/15 bg-white/90 p-5 text-sm text-zinc-600 shadow-sm ring-1 ring-accent-lavender/15 dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-400">
+              No boards yet. Use a <span className="font-medium text-brand-teal dark:text-teal-300">template</span>{" "}
+              above or click <span className="font-medium">Create empty board</span>.
+            </div>
+          ) : (
+            <ul className="mt-4 grid list-none grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {rows.map((row) => (
+                <li key={row.boardId}>
+                  <Link
+                    href={`/board/${row.boardId}`}
+                    className="flex min-h-[4.5rem] touch-manipulation flex-col justify-between rounded-2xl border border-zinc-200/90 bg-white/95 p-4 shadow-sm transition hover:border-brand-teal/45 hover:shadow-md hover:ring-1 hover:ring-accent-lavender/25 active:bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-900/70 active:dark:bg-zinc-900/80 dark:hover:border-accent-violet/35 dark:hover:ring-accent-violet/15"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                          {row.title}
+                        </p>
+                        <p className="mt-1 truncate font-mono text-xs text-zinc-500 dark:text-zinc-500">
+                          {row.boardId}
+                        </p>
+                      </div>
+                      {row.access === "shared" ? (
+                        <span className="shrink-0 rounded-full bg-accent-lavender/35 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-800 dark:bg-accent-violet/25 dark:text-zinc-100">
+                          Shared
+                        </span>
+                      ) : (
+                        <span className="shrink-0 rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-teal dark:bg-brand-teal/20 dark:text-teal-200">
+                          Yours
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
+                      Updated {formatWhen(row.updatedAtMs)}
                     </p>
-                    <p className="mt-1 truncate font-mono text-xs text-zinc-500 dark:text-zinc-500">
-                      {row.boardId}
-                    </p>
-                  </div>
-                  <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
-                    Updated {formatWhen(row.updatedAtMs)}
-                  </p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <div className="pb-6">
+          <DashboardAiTemplateSection user={user} />
+        </div>
+      </div>
     </main>
   );
 }

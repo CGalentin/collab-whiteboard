@@ -48,6 +48,9 @@ import {
 import { normalizeBoardHref, openBoardHrefInNewTab } from "@/lib/board-href";
 import { BoardPaletteStrip } from "@/components/board-palette-strip";
 import { BoardShapesMenu } from "@/components/board-shapes-menu";
+import { BoardToolGlyph } from "@/components/board-tool-glyphs";
+import { BoardToolRail } from "@/components/board-tool-rail";
+import { BoardCanvasRailMid } from "@/components/board-canvas-rail-mid";
 import type { BoardObjectWrites } from "@/hooks/use-board-object-writes";
 import type { PolygonKind } from "@/lib/board-polygon-kinds";
 
@@ -125,12 +128,15 @@ export function BoardCanvas({
   const [boardHelpOpen, setBoardHelpOpen] = useState(false);
 
   const [shapesMenuOpen, setShapesMenuOpen] = useState(false);
+  const [colorDropdownOpen, setColorDropdownOpen] = useState(false);
+  const toolbarColorRef = useRef<HTMLDivElement>(null);
+  const toolbarShapesRef = useRef<HTMLDivElement>(null);
+
   const [shapeAddBusy, setShapeAddBusy] = useState<
     null | "rect" | "circle" | PolygonKind
   >(null);
   const [addingSticky, setAddingSticky] = useState(false);
   const [clearingBoard, setClearingBoard] = useState(false);
-  const [addingFrame, setAddingFrame] = useState(false);
   const [addingTextObj, setAddingTextObj] = useState(false);
   const [deletingSelection, setDeletingSelection] = useState(false);
   const [duplicatingSelection, setDuplicatingSelection] = useState(false);
@@ -197,6 +203,39 @@ export function BoardCanvas({
       stroke: selectedSticky.stroke,
     };
   }, [selectedSticky]);
+
+  useEffect(() => {
+    if (!colorDropdownOpen && !shapesMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (
+        colorDropdownOpen &&
+        toolbarColorRef.current &&
+        !toolbarColorRef.current.contains(t)
+      ) {
+        setColorDropdownOpen(false);
+      }
+      if (
+        shapesMenuOpen &&
+        toolbarShapesRef.current &&
+        !toolbarShapesRef.current.contains(t)
+      ) {
+        setShapesMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setColorDropdownOpen(false);
+        setShapesMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [colorDropdownOpen, shapesMenuOpen]);
 
   useEffect(() => {
     setSelectedObjectIds((prev) =>
@@ -583,41 +622,6 @@ export function BoardCanvas({
       setPasting(false);
     }
   }, [boardId, user, cancelLineTool, captureHistoryCheckpoint]);
-
-  const addFrame = useCallback(async () => {
-    cancelLineTool();
-    captureHistoryCheckpoint();
-    setAddingFrame(true);
-    try {
-      await user.getIdToken();
-      const db = getFirebaseDb();
-      const id = crypto.randomUUID();
-      const minZ =
-        objects.length === 0
-          ? 0
-          : Math.min(...objects.map((o) => o.zIndex));
-      const { fill: frameStroke } = shapePaletteRef.current;
-      await setDoc(doc(db, "boards", boardId, "objects", id), {
-        type: "frame",
-        x: 60 + Math.random() * 40,
-        y: 60 + Math.random() * 40,
-        width: 320,
-        height: 200,
-        rotation: 0,
-        title: "Frame",
-        fill: "rgba(63, 63, 70, 0.35)",
-        stroke: frameStroke,
-        strokeWidth: 2,
-        zIndex: minZ - 1,
-        updatedAt: serverTimestamp(),
-      });
-      setSelectedObjectIds([id]);
-    } catch (e) {
-      console.error("[objects] add frame failed", e);
-    } finally {
-      setAddingFrame(false);
-    }
-  }, [boardId, user, objects, cancelLineTool, captureHistoryCheckpoint]);
 
   const addTextObject = useCallback(async () => {
     cancelLineTool();
@@ -1025,11 +1029,41 @@ export function BoardCanvas({
     return () => window.removeEventListener("keydown", onKey, true);
   }, [boardHelpOpen]);
 
+  const midRailSlot = useMemo(
+    () => (
+      <BoardCanvasRailMid
+        onAddText={() => void addTextObject()}
+        addingTextObj={addingTextObj}
+        onToggleLine={() => toggleLineTool()}
+        lineToolActive={lineToolActive}
+        onConnect={() => void connectTwoSelected()}
+        linkingConnector={linkingConnector}
+        canConnect={selectedObjectIds.length === 2}
+        onDuplicate={() => void duplicateSelection()}
+        duplicatingSelection={duplicatingSelection}
+        canActOnSelection={selectedObjectIds.length > 0}
+      />
+    ),
+    [
+      addingTextObj,
+      lineToolActive,
+      linkingConnector,
+      selectedObjectIds.length,
+      duplicatingSelection,
+      addTextObject,
+      toggleLineTool,
+      connectTwoSelected,
+      duplicateSelection,
+    ],
+  );
+
   return (
-    <div
-      className="relative flex min-h-[min(50vh,420px)] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white/80 shadow-inner touch-none dark:border-zinc-800 dark:bg-zinc-900/40 lg:min-h-[min(70vh,560px)]"
-      aria-label="Board canvas — wheel zoom, optional Hand tool, Space or middle-drag pan, pointer broadcasts cursor"
-    >
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:gap-4">
+      <BoardToolRail midRailSlot={midRailSlot} />
+      <div
+        className="relative flex min-h-[min(50vh,420px)] min-w-0 flex-1 flex-col overflow-visible rounded-xl border border-zinc-200 bg-white/80 shadow-inner touch-none dark:border-zinc-800 dark:bg-zinc-900/40 lg:min-h-[min(70vh,560px)]"
+        aria-label="Board canvas — wheel zoom, optional Hand tool, Space or middle-drag pan, pointer broadcasts cursor"
+      >
       <div className="board-canvas-grid pointer-events-none absolute inset-0 z-0 opacity-45 dark:opacity-[0.35]" />
 
       <div className="absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2 pointer-events-auto">
@@ -1088,6 +1122,159 @@ export function BoardCanvas({
         >
           Help
         </button>
+        <div ref={toolbarColorRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setColorDropdownOpen((o) => !o);
+              setShapesMenuOpen(false);
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow dark:bg-zinc-900 ${
+              colorDropdownOpen
+                ? "border-emerald-500 ring-2 ring-emerald-500/30 dark:border-emerald-500"
+                : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            }`}
+            aria-expanded={colorDropdownOpen}
+            aria-haspopup="listbox"
+            title={
+              selectedSticky
+                ? "Color for selected sticky"
+                : "Color for new shapes and stickies"
+            }
+          >
+            <span
+              className="h-4 w-4 shrink-0 rounded border border-zinc-300 dark:border-zinc-600"
+              style={{
+                backgroundColor: paletteChoiceToStyle(
+                  selectedSticky ? stickyStripChoice : boardPaletteChoice,
+                ).fill,
+              }}
+            />
+            <span>Color</span>
+            <svg
+              className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+          {colorDropdownOpen ? (
+            <div className="absolute left-0 top-[calc(100%+0.35rem)] z-[35] w-[min(17.5rem,calc(100vw-2rem))] rounded-xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-600 dark:bg-zinc-900">
+              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                {selectedSticky ? "Selection color" : "New objects color"}
+              </p>
+              <BoardPaletteStrip
+                choice={selectedSticky ? stickyStripChoice : boardPaletteChoice}
+                onChoiceChange={(next) => {
+                  if (selectedSticky) {
+                    const { fill, stroke } = paletteChoiceToStyle(next);
+                    void writes.setStickyColors(selectedSticky.id, fill, stroke);
+                  } else {
+                    setBoardPaletteChoice(next);
+                  }
+                }}
+                className="rounded-lg border border-zinc-100 bg-zinc-50/80 p-1.5 dark:border-zinc-700 dark:bg-zinc-950/60"
+                aria-label="Color palette"
+              />
+            </div>
+          ) : null}
+        </div>
+        <div ref={toolbarShapesRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setShapesMenuOpen((o) => !o);
+              setColorDropdownOpen(false);
+            }}
+            disabled={shapeAddBusy !== null}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow disabled:opacity-50 dark:bg-zinc-900 ${
+              shapesMenuOpen
+                ? "border-emerald-500 ring-2 ring-emerald-500/30 dark:border-emerald-500"
+                : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            }`}
+            aria-expanded={shapesMenuOpen}
+            aria-haspopup="dialog"
+            title="Shapes — rectangle, ellipse, polygons"
+          >
+            <BoardToolGlyph id="shapes" className="h-4 w-4 shrink-0" />
+            <span>Shapes</span>
+            <svg
+              className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+          <BoardShapesMenu
+            open={shapesMenuOpen}
+            onClose={() => setShapesMenuOpen(false)}
+            busy={shapeAddBusy !== null}
+            onPickRect={() => {
+              setShapesMenuOpen(false);
+              void addRectangle();
+            }}
+            onPickCircle={() => {
+              setShapesMenuOpen(false);
+              void addCircle();
+            }}
+            onPickPolygon={(k) => {
+              setShapesMenuOpen(false);
+              void addPolygon(k);
+            }}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setColorDropdownOpen(false);
+            setShapesMenuOpen(false);
+            boardTool?.setNotice(null);
+            boardTool?.setActiveTool(null);
+            void addSticky();
+          }}
+          disabled={addingSticky}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          title="Add sticky note"
+          aria-label="Add sticky note"
+        >
+          <BoardToolGlyph id="sticky-add" className="h-4 w-4 shrink-0" />
+          <span>Sticky</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setColorDropdownOpen(false);
+            setShapesMenuOpen(false);
+            if (!boardTool) return;
+            boardTool.setNotice(null);
+            boardTool.setActiveTool(
+              activeRailTool === "comments" ? null : "comments",
+            );
+          }}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow dark:bg-zinc-900 ${
+            activeRailTool === "comments"
+              ? "border-emerald-500 ring-2 ring-emerald-500/30 text-zinc-900 dark:border-emerald-500 dark:text-zinc-100"
+              : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          }`}
+          title="Place comment pins on the board (click again to stop)"
+          aria-label="Comments — place pins on the board"
+          aria-pressed={activeRailTool === "comments"}
+        >
+          <BoardToolGlyph id="comments" className="h-4 w-4 shrink-0" />
+          <span>Comments</span>
+        </button>
         {linkSelection ? (
           <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50/95 px-2 py-1.5 text-xs shadow dark:border-sky-900/50 dark:bg-sky-950/40 sm:min-w-[18rem] sm:max-w-[28rem]">
             <label htmlFor="board-link-url" className="shrink-0 text-zinc-600 dark:text-sky-200/90">
@@ -1127,95 +1314,6 @@ export function BoardCanvas({
             </span>
           </div>
         ) : null}
-        <BoardPaletteStrip
-          choice={boardPaletteChoice}
-          onChoiceChange={setBoardPaletteChoice}
-          className="rounded-lg border border-zinc-200 bg-white/95 p-1.5 shadow dark:border-zinc-700 dark:bg-zinc-900/95"
-          aria-label="New shape and sticky colors"
-        />
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShapesMenuOpen((o) => !o)}
-            disabled={shapeAddBusy !== null}
-            className="rounded-lg border border-emerald-600/90 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-emerald-500 disabled:opacity-50 dark:border-emerald-800/80 dark:bg-emerald-950/90 dark:text-emerald-100 dark:hover:bg-emerald-900/90"
-            aria-expanded={shapesMenuOpen}
-            aria-haspopup="dialog"
-            title="Rectangle, ellipse, and more preset shapes"
-          >
-            {shapeAddBusy ? "Adding…" : "Shapes"}
-          </button>
-          <BoardShapesMenu
-            open={shapesMenuOpen}
-            onClose={() => setShapesMenuOpen(false)}
-            busy={shapeAddBusy !== null}
-            onPickRect={() => {
-              setShapesMenuOpen(false);
-              void addRectangle();
-            }}
-            onPickCircle={() => {
-              setShapesMenuOpen(false);
-              void addCircle();
-            }}
-            onPickPolygon={(k) => void addPolygon(k)}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={toggleLineTool}
-          title="Click twice on the canvas for start and end. Esc cancels."
-          className={`rounded-lg border px-3 py-1.5 text-xs font-medium shadow disabled:opacity-50 ${
-            lineToolActive
-              ? "border-sky-500 bg-sky-600 text-white ring-2 ring-sky-500/50 dark:bg-sky-900/90 dark:text-sky-100"
-              : "border-sky-500/80 bg-sky-500 text-white hover:bg-sky-400 dark:border-sky-800/80 dark:bg-sky-950/90 dark:text-sky-100 dark:hover:bg-sky-900/90"
-          }`}
-        >
-          Line
-        </button>
-        <button
-          type="button"
-          onClick={() => void addSticky()}
-          disabled={addingSticky}
-          className="rounded-lg border border-amber-600/90 bg-amber-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-amber-500 disabled:opacity-50 dark:border-amber-800/80 dark:bg-amber-950/90 dark:text-amber-100 dark:hover:bg-amber-900/90"
-        >
-          {addingSticky ? "Adding…" : "Add sticky"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void addFrame()}
-          disabled={addingFrame}
-          title="Frame uses a low z-index so newer objects draw on top."
-          className="rounded-lg border border-zinc-300 bg-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-900 shadow hover:bg-zinc-300 disabled:opacity-50 dark:border-zinc-600/90 dark:bg-zinc-800/90 dark:text-zinc-100 dark:hover:bg-zinc-700/90"
-        >
-          {addingFrame ? "Adding…" : "Frame"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void addTextObject()}
-          disabled={addingTextObj}
-          className="rounded-lg border border-violet-600/90 bg-violet-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-violet-500 disabled:opacity-50 dark:border-violet-800/80 dark:bg-violet-950/90 dark:text-violet-100 dark:hover:bg-violet-900/90"
-        >
-          {addingTextObj ? "Adding…" : "Text"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void connectTwoSelected()}
-          disabled={
-            linkingConnector || selectedObjectIds.length !== 2
-          }
-          title="Select exactly two objects (Shift+click), then link."
-          className="rounded-lg border border-cyan-600/90 bg-cyan-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-cyan-500 disabled:opacity-40 dark:border-cyan-800/80 dark:bg-cyan-950/90 dark:text-cyan-100 dark:hover:bg-cyan-900/90"
-        >
-          {linkingConnector ? "Linking…" : "Connect"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void duplicateSelection()}
-          disabled={duplicatingSelection || selectedObjectIds.length === 0}
-          className="rounded-lg border border-lime-600/90 bg-lime-600 px-3 py-1.5 text-xs font-medium text-white shadow hover:bg-lime-500 disabled:opacity-40 dark:border-lime-800/80 dark:bg-lime-950/90 dark:text-lime-100 dark:hover:bg-lime-900/90"
-        >
-          {duplicatingSelection ? "Duplicating…" : "Duplicate"}
-        </button>
         <button
           type="button"
           onClick={() => void copySelection()}
@@ -1258,49 +1356,40 @@ export function BoardCanvas({
               : "Click again for the end point. Esc cancels."}
           </p>
         ) : null}
-        {selectedSticky ? (
-          <BoardPaletteStrip
-            choice={stickyStripChoice}
-            onChoiceChange={(next) => {
-              const { fill, stroke } = paletteChoiceToStyle(next);
-              void writes.setStickyColors(selectedSticky.id, fill, stroke);
-            }}
-            className="rounded-lg border border-zinc-200 bg-white/95 p-1.5 shadow dark:border-zinc-700 dark:bg-zinc-900/95"
-            aria-label="Selected sticky color"
-          />
-        ) : null}
       </div>
 
-      <BoardStage
-        user={user}
-        boardId={boardId}
-        remoteCursors={remoteCursors}
-        objects={objects}
-        writes={writes}
-        selectedObjectIds={selectedObjectIds}
-        onSelectObject={onSelectObject}
-        onClearSelection={onClearSelection}
-        onMarqueeSelect={onMarqueeSelect}
-        linePreviewSegment={linePreviewSegment}
-        onLineStageBackgroundDown={
-          lineToolActive ? onLineStageBackgroundDown : undefined
-        }
-        onLineStagePointerMoveWorld={
-          lineState.kind === "awaiting_second"
-            ? onLineStagePointerMoveWorld
-            : undefined
-        }
-        textSearchActive={textSearchActive}
-        textSearchMatchIds={textSearchMatchIds}
-        railDrawMode={railDrawMode}
-        lassoActive={lassoActive}
-        commentPlaceActive={commentPlaceActive}
-        onCommentPlaced={(id) => setSelectedObjectIds([id])}
-        linkPlaceActive={linkPlaceActive}
-        onLinkPlaced={(id) => setSelectedObjectIds([id])}
-        onHistoryCheckpoint={captureHistoryCheckpoint}
-        handToolActive={handToolActive}
-      />
+      <div className="relative z-[1] min-h-0 w-full min-w-0 flex-1 overflow-hidden">
+        <BoardStage
+          user={user}
+          boardId={boardId}
+          remoteCursors={remoteCursors}
+          objects={objects}
+          writes={writes}
+          selectedObjectIds={selectedObjectIds}
+          onSelectObject={onSelectObject}
+          onClearSelection={onClearSelection}
+          onMarqueeSelect={onMarqueeSelect}
+          linePreviewSegment={linePreviewSegment}
+          onLineStageBackgroundDown={
+            lineToolActive ? onLineStageBackgroundDown : undefined
+          }
+          onLineStagePointerMoveWorld={
+            lineState.kind === "awaiting_second"
+              ? onLineStagePointerMoveWorld
+              : undefined
+          }
+          textSearchActive={textSearchActive}
+          textSearchMatchIds={textSearchMatchIds}
+          railDrawMode={railDrawMode}
+          lassoActive={lassoActive}
+          commentPlaceActive={commentPlaceActive}
+          onCommentPlaced={(id) => setSelectedObjectIds([id])}
+          linkPlaceActive={linkPlaceActive}
+          onLinkPlaced={(id) => setSelectedObjectIds([id])}
+          onHistoryCheckpoint={captureHistoryCheckpoint}
+          handToolActive={handToolActive}
+        />
+      </div>
 
       {children ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center p-8">
@@ -1355,12 +1444,15 @@ export function BoardCanvas({
                   </li>
                   <li>
                     <strong className="text-zinc-900 dark:text-zinc-100">Search</strong> (toolbar) filters
-                    stickies and text boxes on the canvas (client-side).
+                    stickies and text boxes on the canvas (client-side).{" "}
+                    <strong className="text-zinc-900 dark:text-zinc-100">Color</strong> and{" "}
+                    <strong className="text-zinc-900 dark:text-zinc-100">Shapes</strong> are dropdowns on the
+                    board toolbar (between Help and Copy).
                   </li>
                   <li>
-                    <strong className="text-zinc-900 dark:text-zinc-100">Frame</strong> is sent behind
-                    newer objects; <strong className="text-zinc-900 dark:text-zinc-100">Text</strong> boxes
-                    open for edit on double-click.
+                    <strong className="text-zinc-900 dark:text-zinc-100">Text</strong> boxes open for edit on
+                    double-click. <strong className="text-zinc-900 dark:text-zinc-100">Frame</strong> objects (e.g.
+                    from templates) draw behind newer objects.
                   </li>
                   <li>
                     <strong className="text-zinc-900 dark:text-zinc-100">Connect</strong> with exactly two
@@ -1386,8 +1478,9 @@ export function BoardCanvas({
                   </li>
                   <li>
                     <strong className="text-zinc-900 dark:text-zinc-100">Marquee</strong> and the transformer
-                    work with stickies, shapes, and other objects as usual. Drawing, lasso, comments, and
-                    hyperlinks are on the <strong className="text-zinc-900 dark:text-zinc-100">left tool rail</strong>
+                    work with stickies, shapes, and other objects as usual. <strong className="text-zinc-900 dark:text-zinc-100">Sticky</strong>{" "}
+                    and <strong className="text-zinc-900 dark:text-zinc-100">Comments</strong> are on the top toolbar; drawing, lasso, and
+                    hyperlinks stay on the <strong className="text-zinc-900 dark:text-zinc-100">left tool rail</strong>
                     ; templates open from <strong className="text-zinc-900 dark:text-zinc-100">Templates</strong>.
                   </li>
                   <li>
@@ -1419,6 +1512,7 @@ export function BoardCanvas({
         boardId={boardId}
         onBeforeApply={captureHistoryCheckpoint}
       />
+      </div>
     </div>
   );
 }

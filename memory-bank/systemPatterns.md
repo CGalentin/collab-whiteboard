@@ -37,4 +37,4 @@ Browser (Next.js React)
 ## Conventions
 
 - TypeScript strict; `@/*` → `src/*`.
-- Small PRs; order per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md). Epic **PR 25+** is implemented in repo (see **progress.md** for post-roadmap auth/tool notes). Ongoing: **PR 24** optional, **PR 35** rules/QA in each environment, **PR 32** optional thumbnails.
+- Small PRs; order per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md). Epic **PR 25+** is implemented in repo; **Board UI vs roadmap** in that file describes current **`board-canvas`** toolbar vs **`board-tool-rail`** / **`board-canvas-rail-mid`**. **PR 24** skipped (intentional). Ongoing: **PR 35** sharing QA, **PR 32** optional thumbnails, **`npm run deploy:rules`** when `firestore.rules` edits ship.

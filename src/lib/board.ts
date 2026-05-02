@@ -18,3 +18,12 @@ export function assertBoardId(raw: string): string {
 export function boardFirestorePath(boardId: string): string {
   return `boards/${boardId}`;
 }
+
+/** Default title assigned when a board is created (matches `ensureBoardAccess`). */
+export function defaultBoardTitle(boardId: string): string {
+  return `Board ${boardId.slice(0, 8)}`;
+}
+
+export function isDefaultBoardTitle(boardId: string, title: string): boolean {
+  return title.trim() === defaultBoardTitle(boardId);
+}

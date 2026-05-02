@@ -10,7 +10,6 @@ import {
 
 export type BoardRailToolId =
   | "templates"
-  | "draw"
   | "pen"
   | "highlighter"
   | "eraser"
@@ -25,8 +24,6 @@ type BoardToolContextValue = {
   templatesModalOpen: boolean;
   openTemplatesModal: () => void;
   closeTemplatesModal: () => void;
-  railExpanded: boolean;
-  setRailExpanded: (v: boolean | ((prev: boolean) => boolean)) => void;
   mobileOpen: boolean;
   setMobileOpen: (v: boolean | ((prev: boolean) => boolean)) => void;
   notice: string | null;
@@ -46,7 +43,6 @@ const BoardToolContext = createContext<BoardToolContextValue | null>(null);
 export function BoardToolProvider({ children }: { children: ReactNode }) {
   const [activeTool, setActiveTool] = useState<BoardRailToolId | null>(null);
   const [templatesModalOpen, setTemplatesModalOpen] = useState(false);
-  const [railExpanded, setRailExpanded] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [historyCanUndo, setHistoryCanUndo] = useState(false);
@@ -61,8 +57,6 @@ export function BoardToolProvider({ children }: { children: ReactNode }) {
       templatesModalOpen,
       openTemplatesModal: () => setTemplatesModalOpen(true),
       closeTemplatesModal: () => setTemplatesModalOpen(false),
-      railExpanded,
-      setRailExpanded,
       mobileOpen,
       setMobileOpen,
       notice,
@@ -79,7 +73,6 @@ export function BoardToolProvider({ children }: { children: ReactNode }) {
     [
       activeTool,
       templatesModalOpen,
-      railExpanded,
       mobileOpen,
       notice,
       historyCanUndo,

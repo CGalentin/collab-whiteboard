@@ -2,7 +2,7 @@
 
 ## Start here next session
 
-Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. Roadmap: optional **PR 24**; **PR 35** **rules deploy** + **QA** if not done; **PR 32** optional template thumbnails. Features such as **mobile (PR 34)**, **auth flows** on **`/login`**, and **Hand / Shapes** on the board are in the codebase — see **activeContext** “Recent product updates.”
+Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. **PR 24** (demo/social) is **skipped**. **PR 35:** run **manual QA** if you use sharing; **deploy rules** when the rules file changes. **PR 32** optional template thumbnails. Board chrome: **`board-canvas`** top toolbar + **`board-tool-rail`** / **`board-tool-glyphs.tsx`** — see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) **Board UI vs roadmap**.
 
 ---
 
