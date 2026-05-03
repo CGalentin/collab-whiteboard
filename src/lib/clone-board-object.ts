@@ -55,6 +55,20 @@ export function cloneBoardObjectFields(
         zIndex,
         ...(o.href ? { href: o.href } : {}),
       };
+    case "ellipse":
+      return {
+        type: "ellipse",
+        x: o.x + dx,
+        y: o.y + dy,
+        radiusX: o.radiusX,
+        radiusY: o.radiusY,
+        rotation: o.rotation,
+        fill: o.fill,
+        stroke: o.stroke,
+        strokeWidth: o.strokeWidth,
+        zIndex,
+        ...(o.href ? { href: o.href } : {}),
+      };
     case "polygon":
       return {
         type: "polygon",
@@ -80,6 +94,7 @@ export function cloneBoardObjectFields(
         stroke: o.stroke,
         strokeWidth: o.strokeWidth,
         zIndex,
+        ...(o.lineStyle ? { lineStyle: o.lineStyle } : {}),
       };
     case "freehand":
       return {

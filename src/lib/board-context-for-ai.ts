@@ -54,6 +54,15 @@ function summarizeObject(o: BoardObject): string {
         y: o.y,
         r: o.radius,
       });
+    case "ellipse":
+      return JSON.stringify({
+        id: o.id,
+        type: "ellipse",
+        x: o.x,
+        y: o.y,
+        radiusX: o.radiusX,
+        radiusY: o.radiusY,
+      });
     case "line":
       return JSON.stringify({
         id: o.id,
@@ -62,6 +71,7 @@ function summarizeObject(o: BoardObject): string {
         y1: o.y1,
         x2: o.x2,
         y2: o.y2,
+        ...(o.lineStyle ? { lineStyle: o.lineStyle } : {}),
       });
     case "freehand":
       return JSON.stringify({

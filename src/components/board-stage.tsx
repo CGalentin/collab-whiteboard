@@ -10,12 +10,21 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import type { User } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { deleteField, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import Konva from "konva";
 import { useTheme } from "next-themes";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { Stage as KonvaStage } from "konva/lib/Stage";
-import { Circle, Layer, Line, Rect, Stage, Text, Transformer } from "react-konva";
+import {
+  Arrow,
+  Circle,
+  Layer,
+  Line,
+  Rect,
+  Stage,
+  Text,
+  Transformer,
+} from "react-konva";
 import { BoardInlineTextEditor } from "@/components/board-inline-text-editor";
 import { BoardObjectShape } from "@/components/board-object-shapes";
 import { CommentPinShape } from "@/components/comment-pin-shape";
@@ -27,6 +36,8 @@ import { LinkHotspotShape } from "@/components/link-hotspot-shape";
 import type { BoardObjectWrites } from "@/hooks/use-board-object-writes";
 import type { RemoteCursor } from "@/hooks/use-board-cursors";
 import { useLocalCursorWriter } from "@/hooks/use-board-cursors";
+import type { BoardLineConnectorStyle } from "@/lib/board-line-connector";
+import { lineConnectorWorldPoints } from "@/lib/board-line-connector";
 import {
   aabbIntersect,
   boardObjectWorldAabb,
@@ -46,8 +57,14 @@ import {
   type BoardObjectLink,
 } from "@/lib/board-object";
 import {
+  displayPathData,
+  documentPathData,
+  storedDataPathData,
+} from "@/lib/board-flowchart-paths";
+import {
   defaultStarRadii,
   getPolygonLinePointsFlat,
+  plusStrokeThickness,
 } from "@/lib/board-polygon-kinds";
 import { getFirebaseDb } from "@/lib/firebase";
 
@@ -56,13 +73,14 @@ const MAX_SCALE = 4;
 const ZOOM_STEP = 1.08;
 const MARQUEE_DRAG_PX = 4;
 
-/** Dashed segment in world space while placing a line (second point). */
+/** Dashed path in world space while placing a line (second point). */
 export type LinePreviewSegment = {
   x1: number;
   y1: number;
   x2: number;
   y2: number;
   stroke: string;
+  lineStyle?: BoardLineConnectorStyle;
 };
 
 type BoardStageProps = {
@@ -87,6 +105,10 @@ type BoardStageProps = {
   textSearchMatchIds?: ReadonlySet<string>;
   /** PR 28: left-rail pen / highlighter / eraser (eraser handled in canvas selection). */
   railDrawMode?: "none" | "pen" | "highlighter" | "eraser";
+  /** Pen freehand stroke (defaults to near-black). */
+  railPenStrokeColor?: string;
+  /** Highlighter stroke — use board color strip (defaults to yellow). */
+  railHighlighterStrokeColor?: string;
   /** PR 29: freehand closed polygon → `onMarqueeSelect`. */
   lassoActive?: boolean;
   /** PR 29: click empty canvas to drop a comment pin. */
@@ -146,16 +168,50 @@ function commitTransformNode(
     const c = node as Konva.Circle;
     const sx = c.scaleX();
     const sy = c.scaleY();
-    const factor = Math.max(Math.abs(sx), Math.abs(sy));
-    const nr = Math.max(4, c.radius() * factor);
+    const baseR = c.radius();
+    const nrx = Math.max(4, baseR * Math.abs(sx));
+    const nry = Math.max(4, baseR * Math.abs(sy));
     c.scaleX(1);
     c.scaleY(1);
-    c.radius(nr);
+    if (Math.abs(nrx - nry) < 0.75) {
+      const nr = (nrx + nry) / 2;
+      c.radius(nr);
+      queueObjectPatch(id, {
+        x: c.x(),
+        y: c.y(),
+        radius: nr,
+        rotation: c.rotation(),
+      });
+    } else {
+      queueObjectPatch(id, {
+        type: "ellipse",
+        x: c.x(),
+        y: c.y(),
+        radiusX: nrx,
+        radiusY: nry,
+        radius: deleteField(),
+        rotation: c.rotation(),
+      });
+    }
+    return;
+  }
+
+  if (o.type === "ellipse") {
+    const e = node as Konva.Ellipse;
+    const sx = e.scaleX();
+    const sy = e.scaleY();
+    const nrx = Math.max(4, e.radiusX() * Math.abs(sx));
+    const nry = Math.max(4, e.radiusY() * Math.abs(sy));
+    e.scaleX(1);
+    e.scaleY(1);
+    e.radiusX(nrx);
+    e.radiusY(nry);
     queueObjectPatch(id, {
-      x: c.x(),
-      y: c.y(),
-      radius: nr,
-      rotation: c.rotation(),
+      x: e.x(),
+      y: e.y(),
+      radiusX: nrx,
+      radiusY: nry,
+      rotation: e.rotation(),
     });
     return;
   }
@@ -168,7 +224,25 @@ function commitTransformNode(
     const h = Math.max(8, o.height * sy);
     g.scaleX(1);
     g.scaleY(1);
-    if (o.kind === "roundRect") {
+    if (o.kind === "plus") {
+      const t = plusStrokeThickness(w, h);
+      const cx = w / 2;
+      const cy = h / 2;
+      const v = g.findOne<Konva.Rect>(`#${o.id}-plus-v`);
+      const hbar = g.findOne<Konva.Rect>(`#${o.id}-plus-h`);
+      if (v) {
+        v.x(cx - t / 2);
+        v.y(0);
+        v.width(t);
+        v.height(h);
+      }
+      if (hbar) {
+        hbar.x(0);
+        hbar.y(cy - t / 2);
+        hbar.width(w);
+        hbar.height(t);
+      }
+    } else if (o.kind === "roundRect") {
       const r = g.findOne<Konva.Rect>("Rect");
       if (r) {
         r.width(w);
@@ -184,6 +258,103 @@ function commitTransformNode(
         s.outerRadius(outer);
         s.innerRadius(inner);
       }
+    } else if (o.kind === "database") {
+      const top = g.findOne<Konva.Ellipse>(".db-top");
+      const body = g.findOne<Konva.Rect>(".db-body");
+      const bot = g.findOne<Konva.Ellipse>(".db-bot");
+      if (top) {
+        top.x(w / 2);
+        top.y(h * 0.12);
+        top.radiusX(Math.max(4, w * 0.42));
+        top.radiusY(Math.max(3, h * 0.09));
+      }
+      if (body) {
+        body.x(w * 0.08);
+        body.y(h * 0.12);
+        body.width(w * 0.84);
+        body.height(h * 0.63);
+      }
+      if (bot) {
+        bot.x(w / 2);
+        bot.y(h * 0.88);
+        bot.radiusX(Math.max(4, w * 0.42));
+        bot.radiusY(Math.max(3, h * 0.09));
+      }
+    } else if (o.kind === "document") {
+      const p = g.findOne<Konva.Path>(".doc-path");
+      if (p) p.data(documentPathData(w, h));
+    } else if (o.kind === "multiDocument") {
+      const dw = Math.max(12, w - 10);
+      const dh = Math.max(12, h - 10);
+      const back = g.findOne<Konva.Path>(".md-back");
+      const mid = g.findOne<Konva.Path>(".md-mid");
+      const front = g.findOne<Konva.Path>(".md-front");
+      if (back) {
+        back.x(-2);
+        back.y(-2);
+        back.data(documentPathData(dw, dh));
+      }
+      if (mid) {
+        mid.x(2);
+        mid.y(2);
+        mid.data(documentPathData(dw, dh));
+      }
+      if (front) front.data(documentPathData(w, h));
+    } else if (o.kind === "predefinedProcess") {
+      const r = g.findOne<Konva.Rect>(".pp-rect");
+      const bl = g.findOne<Konva.Line>(".pp-bar-l");
+      const br = g.findOne<Konva.Line>(".pp-bar-r");
+      if (r) {
+        r.width(w);
+        r.height(h);
+      }
+      if (bl) bl.points([w * 0.12, h * 0.1, w * 0.12, h * 0.9]);
+      if (br) br.points([w * 0.88, h * 0.1, w * 0.88, h * 0.9]);
+    } else if (o.kind === "storedData") {
+      const p = g.findOne<Konva.Path>(".sd-path");
+      if (p) p.data(storedDataPathData(w, h));
+    } else if (o.kind === "internalStorage") {
+      const r = g.findOne<Konva.Rect>(".is-rect");
+      const l1 = g.findOne<Konva.Line>(".is-l");
+      const l2 = g.findOne<Konva.Line>(".is-t");
+      if (r) {
+        r.width(w);
+        r.height(h);
+      }
+      if (l1) l1.points([w * 0.14, h * 0.12, w * 0.14, h * 0.88]);
+      if (l2) l2.points([w * 0.14, h * 0.12, w * 0.55, h * 0.12]);
+    } else if (o.kind === "display") {
+      const p = g.findOne<Konva.Path>(".disp-path");
+      if (p) p.data(displayPathData(w, h));
+    } else if (o.kind === "terminal") {
+      const r = g.findOne<Konva.Rect>(".term-rect");
+      if (r) {
+        r.width(w);
+        r.height(h);
+        r.cornerRadius(Math.min(h / 2, w / 2));
+      }
+    } else if (o.kind === "offPageConnector") {
+      const c = g.findOne<Konva.Circle>(".opc-circle");
+      const sw = o.strokeWidth + 1;
+      if (c) {
+        c.x(w / 2);
+        c.y(h / 2);
+        c.radius(Math.max(4, Math.min(w, h) / 2 - sw));
+      }
+    } else if (o.kind === "or") {
+      const c = g.findOne<Konva.Circle>(".or-circle");
+      const lh = g.findOne<Konva.Line>(".or-h");
+      const lv = g.findOne<Konva.Line>(".or-v");
+      const sw = o.strokeWidth + 1;
+      const rad = Math.max(4, Math.min(w, h) / 2 - sw * 1.5);
+      const inner = Math.max(2, rad * 0.45);
+      if (c) {
+        c.x(w / 2);
+        c.y(h / 2);
+        c.radius(rad);
+      }
+      if (lh) lh.points([w / 2 - inner, h / 2, w / 2 + inner, h / 2]);
+      if (lv) lv.points([w / 2, h / 2 - inner, w / 2, h / 2 + inner]);
     } else {
       const line = g.findOne<Konva.Line>("Line");
       if (line) {
@@ -243,6 +414,8 @@ export function BoardStage({
   textSearchActive = false,
   textSearchMatchIds,
   railDrawMode = "none",
+  railPenStrokeColor = "#18181b",
+  railHighlighterStrokeColor = "#fef08a",
   lassoActive = false,
   commentPlaceActive = false,
   onCommentPlaced,
@@ -289,7 +462,11 @@ export function BoardStage({
     y2: number;
   } | null>(null);
 
-  type DrawingDraft = { mode: "pen" | "highlighter"; points: number[] };
+  type DrawingDraft = {
+    mode: "pen" | "highlighter";
+    points: number[];
+    stroke: string;
+  };
   const [drawingDraft, setDrawingDraft] = useState<DrawingDraft | null>(null);
   const [lassoDraftPoints, setLassoDraftPoints] = useState<number[] | null>(
     null,
@@ -719,9 +896,15 @@ export function BoardStage({
         cleanupDrawingListeners.current = null;
 
         const mode = railDrawMode;
+        const strokeForStroke =
+          mode === "pen" ? railPenStrokeColor : railHighlighterStrokeColor;
         let pts: number[] = [wDraw.x, wDraw.y];
         setOverlayEdit(null);
-        setDrawingDraft({ mode, points: [...pts] });
+        setDrawingDraft({
+          mode,
+          points: [...pts],
+          stroke: strokeForStroke,
+        });
 
         const onDrawMove = (me: MouseEvent) => {
           const ww = screenToWorld(me.clientX, me.clientY);
@@ -730,7 +913,9 @@ export function BoardStage({
           const ly = pts[pts.length - 1]!;
           if (Math.hypot(ww.x - lx, ww.y - ly) >= 2) {
             pts = pts.concat([ww.x, ww.y]);
-            setDrawingDraft({ mode, points: pts });
+            setDrawingDraft((prev) =>
+              prev ? { ...prev, points: pts } : null,
+            );
           }
         };
 
@@ -748,7 +933,7 @@ export function BoardStage({
               await user.getIdToken();
               const db = getFirebaseDb();
               const id = crypto.randomUUID();
-              const stroke = mode === "pen" ? "#18181b" : "#fef08a";
+              const stroke = strokeForStroke;
               const strokeWidth = mode === "pen" ? 3 : 16;
               const opacity = mode === "pen" ? 1 : 0.45;
               await setDoc(doc(db, "boards", boardId, "objects", id), {
@@ -969,6 +1154,8 @@ export function BoardStage({
       stagePos,
       screenToWorld,
       railDrawMode,
+      railPenStrokeColor,
+      railHighlighterStrokeColor,
       lassoActive,
       commentPlaceActive,
       onCommentPlaced,
@@ -1142,7 +1329,7 @@ export function BoardStage({
             {drawingDraft ? (
               <Line
                 points={drawingDraft.points}
-                stroke={drawingDraft.mode === "pen" ? "#18181b" : "#fef08a"}
+                stroke={drawingDraft.stroke}
                 strokeWidth={drawingDraft.mode === "pen" ? 3 : 16}
                 opacity={drawingDraft.mode === "highlighter" ? 0.45 : 1}
                 lineCap="round"
@@ -1164,19 +1351,45 @@ export function BoardStage({
               />
             ) : null}
             {linePreviewSegment ? (
-              <Line
-                points={[
-                  linePreviewSegment.x1,
-                  linePreviewSegment.y1,
-                  linePreviewSegment.x2,
-                  linePreviewSegment.y2,
-                ]}
-                stroke={linePreviewSegment.stroke}
-                strokeWidth={2}
-                dash={[8, 6]}
-                lineCap="round"
-                listening={false}
-              />
+              linePreviewSegment.lineStyle ? (
+                <Arrow
+                  points={lineConnectorWorldPoints(
+                    linePreviewSegment.x1,
+                    linePreviewSegment.y1,
+                    linePreviewSegment.x2,
+                    linePreviewSegment.y2,
+                    linePreviewSegment.lineStyle,
+                  )}
+                  stroke={linePreviewSegment.stroke}
+                  strokeWidth={2}
+                  fill={linePreviewSegment.stroke}
+                  dash={[8, 6]}
+                  lineCap="round"
+                  lineJoin="round"
+                  pointerLength={12}
+                  pointerWidth={12}
+                  pointerAtBeginning={
+                    linePreviewSegment.lineStyle === "arrowBoth" ||
+                    linePreviewSegment.lineStyle === "orthogonalBoth"
+                  }
+                  pointerAtEnding
+                  listening={false}
+                />
+              ) : (
+                <Line
+                  points={[
+                    linePreviewSegment.x1,
+                    linePreviewSegment.y1,
+                    linePreviewSegment.x2,
+                    linePreviewSegment.y2,
+                  ]}
+                  stroke={linePreviewSegment.stroke}
+                  strokeWidth={2}
+                  dash={[8, 6]}
+                  lineCap="round"
+                  listening={false}
+                />
+              )
             ) : null}
           </Layer>
           <Layer name="connectors">

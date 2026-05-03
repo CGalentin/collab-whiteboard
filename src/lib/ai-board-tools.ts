@@ -49,7 +49,7 @@ export const boardAgentTools: FunctionDeclarationsTool = {
     {
       name: "moveObject",
       description:
-        "Move an existing object by Firestore id (category: manipulation, layout). Use after reading ids from the board context. Works for sticky, rect, frame, text, circle, and line (lines translate as a whole).",
+        "Move an existing object by Firestore id (category: manipulation, layout). Use after reading ids from the board context. Works for sticky, rect, frame, text, circle, ellipse, and line (lines translate as a whole).",
       parameters: {
         type: SchemaType.OBJECT,
         properties: {

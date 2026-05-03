@@ -29,6 +29,7 @@
 | **Board chrome** | **`board-canvas.tsx`**: top toolbar — Search, AI, Help, **Color** + **Shapes** dropdowns, **Sticky** (add), **Comments** (toggle mode), link row, **Copy / Paste / Delete / Clear**; line hint. **`board-tool-rail.tsx`** + **`board-canvas-rail-mid.tsx`** inside **`BoardCanvas`**: Templates, drawing tools, Hand, Lasso, Links; mid — Line, Text, Connect, Duplicate. Shared SVGs: **`board-tool-glyphs.tsx`**. **Draw** removed from rail; **Add frame** removed from UI (frames via templates / AI). |
 | **Shapes** | **`board-shapes-menu.tsx`**, **`type: "polygon"`**, **`board-polygon-kinds`** |
 | **Mobile** | Bottom tool drawer, pinch zoom; README “Mobile and small screens” |
+| **Highlighter color (May 2026)** | **`board-stage.tsx`**: `DrawingDraft` carries `stroke` for the live `Line` preview and **`setDoc`** commit (no hardcoded yellow); **`onDrawMove`** uses functional **`setDrawingDraft`** so **`stroke`** is not dropped; **`handleStageMouseDown`** dependency array includes the rail stroke props. Props **`railPenStrokeColor`** (default `#18181b`) and **`railHighlighterStrokeColor`** (default `#fef08a`). **`board-canvas.tsx`** passes **`railHighlighterStrokeColor={shapeStyle.fill}`**. **`releaseRailToolForEditing`** removed from the **Color** button only (**Shapes** still releases the rail tool when opening shapes). |
 
 ---
 

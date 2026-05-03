@@ -7,6 +7,7 @@ const w = 1.75;
 export type BoardToolGlyphId =
   | BoardRailToolId
   | "templates"
+  | "select"
   | "line"
   | "text"
   | "connect"
@@ -31,6 +32,17 @@ export function BoardToolGlyph({ id, className = "h-5 w-5" }: Props) {
           <rect x="13" y="3" width="8" height="8" rx="1.5" />
           <rect x="3" y="13" width="8" height="8" rx="1.5" />
           <rect x="13" y="13" width="8" height="8" rx="1.5" />
+        </svg>
+      );
+    case "select":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4.5 4.5L9 18l2.5-5 5-2.5L4.5 4.5z"
+          />
+          <path strokeLinecap="round" d="M9 13l1.5 1.5" />
         </svg>
       );
     case "hand":

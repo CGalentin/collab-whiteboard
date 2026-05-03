@@ -41,6 +41,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
     activeTool,
     setActiveTool,
     openTemplatesModal,
+    closeTemplatesModal,
     templatesModalOpen,
     mobileOpen,
     setMobileOpen,
@@ -81,7 +82,18 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
       return;
     }
     setNotice(null);
-    setActiveTool(button.id);
+    if (activeTool === button.id) {
+      setActiveTool(null);
+    } else {
+      setActiveTool(button.id);
+    }
+    if (isMobileLayout()) setMobileOpen(false);
+  }
+
+  function chooseSelectMode() {
+    setNotice(null);
+    closeTemplatesModal();
+    setActiveTool(null);
     if (isMobileLayout()) setMobileOpen(false);
   }
 
@@ -120,6 +132,17 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
           title="Templates — open gallery"
         >
           <BoardToolGlyph id="templates" />
+        </button>
+        <button
+          type="button"
+          onClick={chooseSelectMode}
+          className={`${iconBtnBase} ${
+            activeTool === null && !templatesModalOpen ? iconBtnOn : iconBtnIdle
+          }`}
+          aria-label="Select"
+          title="Select — move and resize objects (default). Click again after another tool to return here."
+        >
+          <BoardToolGlyph id="select" />
         </button>
         {OTHER_RAIL_TOOLS.map((button) => {
           const selected = activeTool === button.id;
@@ -172,8 +195,11 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
             {notice}
           </p>
         ) : (
-          <p className="truncate text-center text-[10px] text-zinc-500 dark:text-zinc-500" title={activeTool ?? "none"}>
-            {activeTool ? activeTool.replace(/-/g, " ") : "—"}
+          <p
+            className="truncate text-center text-[10px] text-zinc-500 dark:text-zinc-500"
+            title={activeTool ?? "select"}
+          >
+            {activeTool ? activeTool.replace(/-/g, " ") : "Select"}
           </p>
         )}
       </div>
@@ -231,7 +257,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
           <p className="flex min-w-0 max-w-[40%] items-center self-center truncate text-center text-xs text-zinc-500 sm:max-w-[50%] dark:text-zinc-500">
             {activeTool
               ? OTHER_RAIL_TOOLS.find((t) => t.id === activeTool)?.label ?? activeTool
-              : "—"}
+              : "Select"}
           </p>
         </div>
       </div>

@@ -66,6 +66,9 @@ function applyOffsetToFields(
   } else if (t === "circle") {
     fields.x = (fields.x as number) + ox;
     fields.y = (fields.y as number) + oy;
+  } else if (t === "ellipse") {
+    fields.x = (fields.x as number) + ox;
+    fields.y = (fields.y as number) + oy;
   } else if (t === "line") {
     fields.x1 = (fields.x1 as number) + ox;
     fields.y1 = (fields.y1 as number) + oy;

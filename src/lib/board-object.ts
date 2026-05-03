@@ -1,5 +1,11 @@
 import { Timestamp } from "firebase/firestore";
+import {
+  isBoardLineConnectorStyle,
+  type BoardLineConnectorStyle,
+} from "@/lib/board-line-connector";
 import { isPolygonKind, type PolygonKind } from "@/lib/board-polygon-kinds";
+
+export type { BoardLineConnectorStyle } from "@/lib/board-line-connector";
 
 /**
  * Discriminated canvas entities in Firestore `boards/{boardId}/objects/{objectId}`.
@@ -9,6 +15,7 @@ export type BoardObjectType =
   | "rect"
   | "sticky"
   | "circle"
+  | "ellipse"
   | "line"
   | "freehand"
   | "text"
@@ -72,7 +79,24 @@ export type BoardObjectCircle = {
   updatedAt?: Timestamp;
 };
 
-/** Segment in world space. PR 11. */
+/** Center + radii (Konva `Ellipse`) — shapes menu “ellipse” tool. */
+export type BoardObjectEllipse = {
+  id: string;
+  type: "ellipse";
+  x: number;
+  y: number;
+  radiusX: number;
+  radiusY: number;
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  zIndex: number;
+  rotation: number;
+  href?: string;
+  updatedAt?: Timestamp;
+};
+
+/** Segment in world space. PR 11. Optional `lineStyle` adds arrows / elbow / arc geometry. */
 export type BoardObjectLine = {
   id: string;
   type: "line";
@@ -83,6 +107,7 @@ export type BoardObjectLine = {
   stroke: string;
   strokeWidth: number;
   zIndex: number;
+  lineStyle?: BoardLineConnectorStyle;
   updatedAt?: Timestamp;
 };
 
@@ -199,6 +224,7 @@ export type BoardObjectConnector = {
 export type BoardObjectShapeLayer =
   | BoardObjectRect
   | BoardObjectCircle
+  | BoardObjectEllipse
   | BoardObjectLine
   | BoardObjectFreehand
   | BoardObjectPolygon;
@@ -207,6 +233,7 @@ export type BoardObject =
   | BoardObjectRect
   | BoardObjectSticky
   | BoardObjectCircle
+  | BoardObjectEllipse
   | BoardObjectLine
   | BoardObjectFreehand
   | BoardObjectFrame
@@ -220,6 +247,7 @@ export function isShapeLayerObject(o: BoardObject): o is BoardObjectShapeLayer {
   return (
     o.type === "rect" ||
     o.type === "circle" ||
+    o.type === "ellipse" ||
     o.type === "line" ||
     o.type === "freehand" ||
     o.type === "polygon"
@@ -235,6 +263,8 @@ export function boardObjectAnchor(o: BoardObject): { x: number; y: number } {
     case "text":
       return { x: o.x + o.width / 2, y: o.y + o.height / 2 };
     case "circle":
+      return { x: o.x, y: o.y };
+    case "ellipse":
       return { x: o.x, y: o.y };
     case "line":
       return { x: (o.x1 + o.x2) / 2, y: (o.y1 + o.y2) / 2 };
@@ -292,6 +322,7 @@ export function getBoardObjectHref(o: BoardObject): string | undefined {
     case "rect":
     case "sticky":
     case "circle":
+    case "ellipse":
     case "text":
     case "frame":
     case "comment":
@@ -308,6 +339,7 @@ export function boardObjectSupportsUserHref(o: BoardObject): boolean {
     o.type === "rect" ||
     o.type === "sticky" ||
     o.type === "circle" ||
+    o.type === "ellipse" ||
     o.type === "text" ||
     o.type === "frame" ||
     o.type === "comment" ||
@@ -384,6 +416,36 @@ export function parseBoardObject(
     };
   }
 
+  if (type === "ellipse") {
+    const x = num(raw.x);
+    const y = num(raw.y);
+    const radiusX = num(raw.radiusX);
+    const radiusY = num(raw.radiusY);
+    if (x === null || y === null || radiusX === null || radiusY === null) return null;
+    if (radiusX <= 0 || radiusY <= 0) return null;
+
+    const zIndex = num(raw.zIndex) ?? 0;
+    const strokeWidth = num(raw.strokeWidth) ?? 2;
+    const rotation = num(raw.rotation) ?? 0;
+
+    const ehref = optionalStr(raw.href);
+    return {
+      id,
+      type: "ellipse",
+      x,
+      y,
+      radiusX,
+      radiusY,
+      fill: str(raw.fill, "#bfdbfe"),
+      stroke: str(raw.stroke, "#1e40af"),
+      strokeWidth,
+      zIndex,
+      rotation,
+      ...(ehref ? { href: ehref } : {}),
+      updatedAt: raw.updatedAt instanceof Timestamp ? raw.updatedAt : undefined,
+    };
+  }
+
   if (type === "line") {
     const x1 = num(raw.x1);
     const y1 = num(raw.y1);
@@ -393,6 +455,11 @@ export function parseBoardObject(
 
     const zIndex = num(raw.zIndex) ?? 0;
     const strokeWidth = num(raw.strokeWidth) ?? 2;
+
+    const lineStyleRaw = raw.lineStyle;
+    const lineStyle = isBoardLineConnectorStyle(lineStyleRaw)
+      ? lineStyleRaw
+      : undefined;
 
     return {
       id,
@@ -404,6 +471,7 @@ export function parseBoardObject(
       stroke: str(raw.stroke, "#57534e"),
       strokeWidth,
       zIndex,
+      ...(lineStyle ? { lineStyle } : {}),
       updatedAt: raw.updatedAt instanceof Timestamp ? raw.updatedAt : undefined,
     };
   }

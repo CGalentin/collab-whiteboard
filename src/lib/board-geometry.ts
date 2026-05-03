@@ -1,3 +1,4 @@
+import { lineConnectorPathBounds } from "@/lib/board-line-connector";
 import { boardObjectAnchor, type BoardObject } from "@/lib/board-object";
 
 function rotatedRectAabb(
@@ -54,17 +55,19 @@ export function boardObjectWorldAabb(
       const r = o.radius;
       return { x: o.x - r, y: o.y - r, width: 2 * r, height: 2 * r };
     }
+    case "ellipse": {
+      const w = 2 * o.radiusX;
+      const h = 2 * o.radiusY;
+      return rotatedRectAabb(o.x - o.radiusX, o.y - o.radiusY, w, h, o.rotation);
+    }
     case "line": {
-      const x1 = Math.min(o.x1, o.x2);
-      const y1 = Math.min(o.y1, o.y2);
-      const x2 = Math.max(o.x1, o.x2);
-      const y2 = Math.max(o.y1, o.y2);
-      const pad = Math.max(4, o.strokeWidth * 2);
+      const b = lineConnectorPathBounds(o.x1, o.y1, o.x2, o.y2, o.lineStyle);
+      const pad = Math.max(8, o.strokeWidth * 3);
       return {
-        x: x1 - pad,
-        y: y1 - pad,
-        width: Math.max(x2 - x1 + 2 * pad, 1),
-        height: Math.max(y2 - y1 + 2 * pad, 1),
+        x: b.minX - pad,
+        y: b.minY - pad,
+        width: Math.max(b.maxX - b.minX + 2 * pad, 1),
+        height: Math.max(b.maxY - b.minY + 2 * pad, 1),
       };
     }
     case "freehand": {

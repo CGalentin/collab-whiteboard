@@ -12,7 +12,7 @@ Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeConte
 |--------|--------|
 | App | **Next.js 16** App Router, **React 19**, **TypeScript** |
 | Styling | **Tailwind CSS v4** |
-| Canvas | **Konva** + **react-konva** (`BoardStage` on `/board`) |
+| Canvas | **Konva** + **react-konva** (`BoardStage` on `/board`); rail **`freehand`** stroke color from **`board-canvas`** palette via **`railHighlighterStrokeColor`** / **`railPenStrokeColor`** |
 | Auth + data | **Firebase Auth** (email + Google), **Firestore** |
 | Hosting | **Vercel** (Git → auto deploy) |
 | AI | **Google Gemini API** via **`POST /api/ai`**; **`GEMINI_API_KEY`** server-only |

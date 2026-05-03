@@ -19,7 +19,7 @@ Browser (Next.js React)
 
 ## Separation of concerns
 
-- **UI / Konva:** rendering, interaction, debounced writes.
+- **UI / Konva:** rendering, interaction, debounced writes. **Rail pen/highlighter:** `BoardStage` keeps a short-lived **`DrawingDraft`** with **`points` + `stroke`**; stroke comes from props (**`railHighlighterStrokeColor`** / **`railPenStrokeColor`**) so the parent palette drives preview and **`freehand`** **`setDoc`** (not a fixed highlighter yellow).
 - **Firestore:** source of truth — [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 - **API routes:** **`/api/ai`** only for Gemini; key never exposed.
 

@@ -52,13 +52,15 @@ import { BoardToolGlyph } from "@/components/board-tool-glyphs";
 import { BoardToolRail } from "@/components/board-tool-rail";
 import { BoardCanvasRailMid } from "@/components/board-canvas-rail-mid";
 import type { BoardObjectWrites } from "@/hooks/use-board-object-writes";
+import type { BoardLineConnectorStyle } from "@/lib/board-line-connector";
 import type { PolygonKind } from "@/lib/board-polygon-kinds";
 
 type LineToolState =
   | { kind: "off" }
-  | { kind: "awaiting_first" }
+  | { kind: "awaiting_first"; lineStyle?: BoardLineConnectorStyle }
   | {
       kind: "awaiting_second";
+      lineStyle?: BoardLineConnectorStyle;
       x1: number;
       y1: number;
       px: number;
@@ -133,7 +135,7 @@ export function BoardCanvas({
   const toolbarShapesRef = useRef<HTMLDivElement>(null);
 
   const [shapeAddBusy, setShapeAddBusy] = useState<
-    null | "rect" | "circle" | PolygonKind
+    null | "rect" | "ellipse" | PolygonKind
   >(null);
   const [addingSticky, setAddingSticky] = useState(false);
   const [clearingBoard, setClearingBoard] = useState(false);
@@ -394,6 +396,12 @@ export function BoardCanvas({
     setLineState({ kind: "off" });
   }, []);
 
+  /** Exit pen/highlighter/lasso/etc. so the canvas is in pointer–select mode. */
+  const releaseRailToolForEditing = useCallback(() => {
+    boardTool?.setNotice(null);
+    boardTool?.setActiveTool(null);
+  }, [boardTool]);
+
   const deleteObjectIdsQuiet = useCallback(
     async (ids: string[]) => {
       if (ids.length === 0) return;
@@ -472,6 +480,11 @@ export function BoardCanvas({
   }, []);
 
   const toggleLineTool = useCallback(() => {
+    const turningOn = lineStateRef.current.kind === "off";
+    if (turningOn) {
+      boardTool?.setNotice(null);
+      boardTool?.setActiveTool(null);
+    }
     setLineState((prev) => {
       const next: LineToolState =
         prev.kind === "off"
@@ -480,7 +493,23 @@ export function BoardCanvas({
       lineStateRef.current = next;
       return next;
     });
-  }, []);
+  }, [boardTool]);
+
+  /** Shapes menu: two-click connector with optional arrow / elbow / arc style. */
+  const startConnectorLineToolFromShapesMenu = useCallback(
+    (lineStyle: BoardLineConnectorStyle) => {
+      setShapesMenuOpen(false);
+      setColorDropdownOpen(false);
+      boardTool?.setNotice(null);
+      boardTool?.setActiveTool(null);
+      setLineState(() => {
+        const next: LineToolState = { kind: "awaiting_first", lineStyle };
+        lineStateRef.current = next;
+        return next;
+      });
+    },
+    [boardTool],
+  );
 
   const deleteSelection = useCallback(async () => {
     if (selectedObjectIds.length === 0) return;
@@ -624,6 +653,7 @@ export function BoardCanvas({
   }, [boardId, user, cancelLineTool, captureHistoryCheckpoint]);
 
   const addTextObject = useCallback(async () => {
+    releaseRailToolForEditing();
     cancelLineTool();
     captureHistoryCheckpoint();
     setAddingTextObj(true);
@@ -650,7 +680,7 @@ export function BoardCanvas({
     } finally {
       setAddingTextObj(false);
     }
-  }, [boardId, user, cancelLineTool, captureHistoryCheckpoint]);
+  }, [boardId, user, cancelLineTool, captureHistoryCheckpoint, releaseRailToolForEditing]);
 
   const connectTwoSelected = useCallback(async () => {
     if (selectedObjectIds.length !== 2) return;
@@ -748,7 +778,13 @@ export function BoardCanvas({
   }, [copySelection, pasteFromClipboard, undoHistory, redoHistory]);
 
   const finishLineDoc = useCallback(
-    async (x1: number, y1: number, x2: number, y2: number) => {
+    async (
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      lineStyle?: BoardLineConnectorStyle,
+    ) => {
       captureHistoryCheckpoint();
       try {
         await user.getIdToken();
@@ -764,6 +800,7 @@ export function BoardCanvas({
           stroke: lineColor,
           strokeWidth: 2,
           zIndex: Date.now(),
+          ...(lineStyle ? { lineStyle } : {}),
           updatedAt: serverTimestamp(),
         });
       } catch (e) {
@@ -780,6 +817,7 @@ export function BoardCanvas({
       if (s.kind === "awaiting_first") {
         const next: LineToolState = {
           kind: "awaiting_second",
+          lineStyle: s.lineStyle,
           x1: w.x,
           y1: w.y,
           px: w.x,
@@ -794,7 +832,7 @@ export function BoardCanvas({
       if (dx * dx + dy * dy < 4) return;
       lineStateRef.current = { kind: "off" };
       setLineState({ kind: "off" });
-      void finishLineDoc(s.x1, s.y1, w.x, w.y);
+      void finishLineDoc(s.x1, s.y1, w.x, w.y, s.lineStyle);
     },
     [finishLineDoc],
   );
@@ -808,6 +846,7 @@ export function BoardCanvas({
   }, []);
 
   const addRectangle = useCallback(async () => {
+    releaseRailToolForEditing();
     cancelLineTool();
     captureHistoryCheckpoint();
     setShapeAddBusy("rect");
@@ -834,22 +873,25 @@ export function BoardCanvas({
     } finally {
       setShapeAddBusy(null);
     }
-  }, [boardId, user, cancelLineTool, captureHistoryCheckpoint]);
+  }, [boardId, user, cancelLineTool, captureHistoryCheckpoint, releaseRailToolForEditing]);
 
-  const addCircle = useCallback(async () => {
+  const addEllipse = useCallback(async () => {
+    releaseRailToolForEditing();
     cancelLineTool();
     captureHistoryCheckpoint();
-    setShapeAddBusy("circle");
+    setShapeAddBusy("ellipse");
     try {
       await user.getIdToken();
       const db = getFirebaseDb();
       const id = crypto.randomUUID();
       const { fill, stroke } = shapePaletteRef.current;
+      const r = 56;
       await setDoc(doc(db, "boards", boardId, "objects", id), {
-        type: "circle",
+        type: "ellipse",
         x: 80 + Math.random() * 80,
         y: 80 + Math.random() * 80,
-        radius: 56,
+        radiusX: r,
+        radiusY: r,
         rotation: 0,
         fill,
         stroke,
@@ -858,14 +900,15 @@ export function BoardCanvas({
         updatedAt: serverTimestamp(),
       });
     } catch (e) {
-      console.error("[objects] add circle failed", e);
+      console.error("[objects] add ellipse failed", e);
     } finally {
       setShapeAddBusy(null);
     }
-  }, [boardId, user, cancelLineTool, captureHistoryCheckpoint]);
+  }, [boardId, user, cancelLineTool, captureHistoryCheckpoint, releaseRailToolForEditing]);
 
   const addPolygon = useCallback(
     async (kind: PolygonKind) => {
+      releaseRailToolForEditing();
       cancelLineTool();
       captureHistoryCheckpoint();
       setShapeAddBusy(kind);
@@ -895,10 +938,11 @@ export function BoardCanvas({
         setShapeAddBusy(null);
       }
     },
-    [boardId, user, cancelLineTool, captureHistoryCheckpoint],
+    [boardId, user, cancelLineTool, captureHistoryCheckpoint, releaseRailToolForEditing],
   );
 
   const addSticky = useCallback(async () => {
+    releaseRailToolForEditing();
     cancelLineTool();
     captureHistoryCheckpoint();
     setAddingSticky(true);
@@ -927,7 +971,7 @@ export function BoardCanvas({
     } finally {
       setAddingSticky(false);
     }
-  }, [boardId, user, cancelLineTool, captureHistoryCheckpoint]);
+  }, [boardId, user, cancelLineTool, captureHistoryCheckpoint, releaseRailToolForEditing]);
 
   const clearBoardObjects = useCallback(async () => {
     if (objects.length === 0) return;
@@ -970,6 +1014,7 @@ export function BoardCanvas({
           x2: lineState.px,
           y2: lineState.py,
           stroke: shapeStyle.fill,
+          lineStyle: lineState.lineStyle,
         }
       : null;
 
@@ -1189,6 +1234,7 @@ export function BoardCanvas({
           <button
             type="button"
             onClick={() => {
+              releaseRailToolForEditing();
               setShapesMenuOpen((o) => !o);
               setColorDropdownOpen(false);
             }}
@@ -1200,7 +1246,7 @@ export function BoardCanvas({
             }`}
             aria-expanded={shapesMenuOpen}
             aria-haspopup="dialog"
-            title="Shapes — rectangle, ellipse, polygons"
+            title="Shapes — connectors, rectangle, ellipse, polygons"
           >
             <BoardToolGlyph id="shapes" className="h-4 w-4 shrink-0" />
             <span>Shapes</span>
@@ -1221,13 +1267,14 @@ export function BoardCanvas({
             open={shapesMenuOpen}
             onClose={() => setShapesMenuOpen(false)}
             busy={shapeAddBusy !== null}
+            onPickLineConnector={startConnectorLineToolFromShapesMenu}
             onPickRect={() => {
               setShapesMenuOpen(false);
               void addRectangle();
             }}
             onPickCircle={() => {
               setShapesMenuOpen(false);
-              void addCircle();
+              void addEllipse();
             }}
             onPickPolygon={(k) => {
               setShapesMenuOpen(false);
@@ -1240,8 +1287,6 @@ export function BoardCanvas({
           onClick={() => {
             setColorDropdownOpen(false);
             setShapesMenuOpen(false);
-            boardTool?.setNotice(null);
-            boardTool?.setActiveTool(null);
             void addSticky();
           }}
           disabled={addingSticky}
@@ -1352,7 +1397,9 @@ export function BoardCanvas({
         {lineToolActive ? (
           <p className="w-full text-[11px] text-zinc-600 dark:text-zinc-400 sm:w-auto">
             {lineState.kind === "awaiting_first"
-              ? "Click the board for the line start."
+              ? lineState.lineStyle
+                ? "Click the board for the connector start."
+                : "Click the board for the line start."
               : "Click again for the end point. Esc cancels."}
           </p>
         ) : null}
@@ -1381,6 +1428,7 @@ export function BoardCanvas({
           textSearchActive={textSearchActive}
           textSearchMatchIds={textSearchMatchIds}
           railDrawMode={railDrawMode}
+          railHighlighterStrokeColor={shapeStyle.fill}
           lassoActive={lassoActive}
           commentPlaceActive={commentPlaceActive}
           onCommentPlaced={(id) => setSelectedObjectIds([id])}

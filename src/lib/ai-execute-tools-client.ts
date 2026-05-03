@@ -193,6 +193,15 @@ async function execMoveObject(
     return;
   }
 
+  if (o.type === "ellipse") {
+    await updateDoc(ref, {
+      x,
+      y,
+      updatedAt: serverTimestamp(),
+    });
+    return;
+  }
+
   if (o.type === "line") {
     const cx = (o.x1 + o.x2) / 2;
     const cy = (o.y1 + o.y2) / 2;
