@@ -3,6 +3,7 @@ import {
   isBoardLineConnectorStyle,
   type BoardLineConnectorStyle,
 } from "@/lib/board-line-connector";
+import { DEFAULT_BOARD_FONT_FAMILY } from "@/lib/board-font-presets";
 import { isPolygonKind, type PolygonKind } from "@/lib/board-polygon-kinds";
 
 export type { BoardLineConnectorStyle } from "@/lib/board-line-connector";
@@ -57,6 +58,10 @@ export type BoardObjectSticky = {
   strokeWidth: number;
   text: string;
   zIndex: number;
+  /** PR 48 — optional; defaults to 14 in render/parser. */
+  fontSize?: number;
+  /** PR 48 — CSS font-family stack. */
+  fontFamily?: string;
   /** PR 30 */
   href?: string;
   updatedAt?: Timestamp;
@@ -155,6 +160,8 @@ export type BoardObjectText = {
   rotation: number;
   text: string;
   fontSize: number;
+  /** PR 48 — CSS font-family stack. */
+  fontFamily?: string;
   fill: string;
   zIndex: number;
   /** PR 30 */
@@ -342,7 +349,6 @@ export function boardObjectSupportsUserHref(o: BoardObject): boolean {
     o.type === "ellipse" ||
     o.type === "text" ||
     o.type === "frame" ||
-    o.type === "comment" ||
     o.type === "link" ||
     o.type === "polygon"
   );
@@ -370,6 +376,8 @@ export function parseBoardObject(
     const strokeWidth = num(raw.strokeWidth) ?? 1;
 
     const shref = optionalStr(raw.href);
+    const stickyFontSize = num(raw.fontSize);
+    const stickyFontFamily = optionalStr(raw.fontFamily);
     return {
       id,
       type: "sticky",
@@ -383,6 +391,8 @@ export function parseBoardObject(
       strokeWidth,
       text: str(raw.text, ""),
       zIndex,
+      ...(stickyFontSize !== null ? { fontSize: stickyFontSize } : {}),
+      ...(stickyFontFamily ? { fontFamily: stickyFontFamily } : {}),
       ...(shref ? { href: shref } : {}),
       updatedAt: raw.updatedAt instanceof Timestamp ? raw.updatedAt : undefined,
     };
@@ -541,6 +551,7 @@ export function parseBoardObject(
     const rotation = num(raw.rotation) ?? 0;
     const zIndex = num(raw.zIndex) ?? 0;
     const fontSize = num(raw.fontSize) ?? 16;
+    const fontFamily = optionalStr(raw.fontFamily) ?? DEFAULT_BOARD_FONT_FAMILY;
 
     // `fill` is Konva **text** color. Older docs used near-white (#fafafa), which was unreadable on light box chrome.
     const rawFill = typeof raw.fill === "string" ? raw.fill.trim() : "";
@@ -560,6 +571,7 @@ export function parseBoardObject(
       rotation,
       text: str(raw.text, "Text"),
       fontSize,
+      fontFamily,
       fill,
       zIndex,
       ...(thref ? { href: thref } : {}),

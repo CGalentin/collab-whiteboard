@@ -8,6 +8,7 @@ import {
   checkActionCode,
   confirmPasswordReset,
   createUserWithEmailAndPassword,
+  updateProfile,
   fetchSignInMethodsForEmail,
   GoogleAuthProvider,
   sendEmailVerification,
@@ -48,6 +49,7 @@ function LoginForm() {
     return "signin";
   });
   const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPassword2, setNewPassword2] = useState("");
@@ -188,7 +190,19 @@ function LoginForm() {
     const auth = getFirebaseAuth();
     try {
       if (formMode === "signup") {
+        const name = displayName.trim();
+        if (name.length < 2) {
+          setError("Enter a display name (at least 2 characters).");
+          setBusy(false);
+          return;
+        }
+        if (name.length > 40) {
+          setError("Display name must be 40 characters or fewer.");
+          setBusy(false);
+          return;
+        }
         const cred = await createUserWithEmailAndPassword(auth, trimmed, password);
+        await updateProfile(cred.user, { displayName: name });
         const verifyUrl = getAuthActionContinueUrl(
           `/login?from=${encodeURIComponent(from)}&emailSent=1`,
         );
@@ -447,6 +461,29 @@ function LoginForm() {
             placeholder="you@example.com"
           />
         </div>
+        {formMode === "signup" ? (
+          <div className="space-y-2">
+            <label
+              htmlFor="sign-display-name"
+              className="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-500"
+            >
+              Display name
+            </label>
+            <input
+              id="sign-display-name"
+              name="displayName"
+              type="text"
+              autoComplete="name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+              minLength={2}
+              maxLength={40}
+              className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-emerald-500/80 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+              placeholder="Alex"
+            />
+          </div>
+        ) : null}
         <div className="space-y-2">
           <div className="flex items-end justify-between gap-2">
             <label

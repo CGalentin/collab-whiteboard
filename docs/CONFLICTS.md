@@ -38,6 +38,12 @@ Comment threads are a **single `body` string** per pin. Two users editing the **
 
 Creating an object writes the **full** initial document. That does not race with `updateDoc` on **other** docs. Do not `setDoc` over an existing id (the app uses random UUIDs).
 
+### Lasso selection (PR 38)
+
+Lasso uses a closed freehand polygon. An object is selected if its **anchor**, **AABB center**, or any **corner of its axis-aligned bounds** lies inside the polygon (`objectIdsInLassoPolygon` in `src/lib/board-lasso-geometry.ts`). Connectors are skipped.
+
+With **two or more** objects selected (lasso, shift-click, or marquee), **group drag** moves every selected draggable object together (live preview + Firestore on release). **Color** (toolbar palette), **Rotate 90°**, **Duplicate**, and **Delete** apply to the full selection. **Transform** handles attach to all transformable selected shapes (not lines, freehand, or comments).
+
 ### Connectors
 
 A **`connector`** references `fromId` and `toId`. If either object is **deleted**, the client **stops drawing** the arrow until the doc is removed or IDs fixed—orphan connector docs may remain in Firestore (cleanup TBD).

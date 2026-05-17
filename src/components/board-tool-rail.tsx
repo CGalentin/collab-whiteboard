@@ -223,7 +223,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
         {mobileOpen ? (
           <div
             id="board-tool-drawer"
-            className="fixed left-0 right-0 z-[60] max-h-[50dvh] overflow-y-auto sm:left-2 sm:right-2"
+            className="fixed left-0 right-0 z-[60] max-h-[38dvh] overflow-y-auto sm:left-2 sm:right-2"
             style={{
               bottom: "calc(3.5rem + env(safe-area-inset-bottom, 0px))",
             }}
@@ -235,7 +235,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
         ) : null}
 
         <div
-          className="fixed bottom-0 left-0 right-0 z-[60] flex min-h-14 items-stretch gap-1 border-t border-zinc-200/90 bg-white/95 px-2 py-1 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur dark:border-zinc-800/90 dark:bg-zinc-950/95"
+          className="fixed bottom-0 left-0 right-0 z-[60] flex min-h-11 items-stretch gap-1 border-t border-zinc-200/90 bg-white/95 px-2 py-0.5 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur dark:border-zinc-800/90 dark:bg-zinc-950/95"
           style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}
         >
           <button

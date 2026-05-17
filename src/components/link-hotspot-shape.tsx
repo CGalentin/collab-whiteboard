@@ -13,7 +13,10 @@ type LinkHotspotShapeProps = {
   isSelected: boolean;
   innerRef: (node: Konva.Node | null) => void;
   onObjectTap: (e: KonvaEventObject<MouseEvent>) => void;
-  onDragEnd: (x: number, y: number) => void;
+  onDragEnd: (e: KonvaEventObject<Event>) => void;
+  onDragMove?: (e: KonvaEventObject<Event>) => void;
+  onDragStart?: () => void;
+  interactionLocked?: boolean;
 };
 
 function LinkHotspotShapeInner({
@@ -22,7 +25,11 @@ function LinkHotspotShapeInner({
   innerRef,
   onObjectTap,
   onDragEnd,
+  onDragMove,
+  onDragStart,
+  interactionLocked = false,
 }: LinkHotspotShapeProps) {
+  const canInteract = !interactionLocked;
   const stroke = isSelected ? SELECT_STROKE : "#0ea5e9";
   const sw = (isSelected ? 2 : 1) + 0;
 
@@ -33,14 +40,19 @@ function LinkHotspotShapeInner({
       x={object.x}
       y={object.y}
       rotation={object.rotation}
-      draggable
+      draggable={canInteract}
+      listening={canInteract}
       onDragStart={(e) => {
         e.cancelBubble = true;
+        onDragStart?.();
+      }}
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        onDragMove?.(e);
       }}
       onDragEnd={(e) => {
-        const node = e.target;
-        onDragEnd(node.x(), node.y());
         e.cancelBubble = true;
+        onDragEnd(e);
       }}
       onMouseDown={(e) => {
         e.cancelBubble = true;

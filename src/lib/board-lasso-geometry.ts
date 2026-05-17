@@ -1,3 +1,4 @@
+import { boardObjectWorldAabb } from "@/lib/board-geometry";
 import { boardObjectAnchor, type BoardObject } from "@/lib/board-object";
 
 /** Ray-casting point-in-polygon (closed ring: pairs x0,y0,x1,y1,…). */
@@ -52,4 +53,44 @@ export function objectIdsWithAnchorInPolygon(
     if (pointInPolygon(p.x, p.y, flatRing)) out.push(o.id);
   }
   return out;
+}
+
+/**
+ * Lasso selection: anchor inside polygon, or any corner of the object AABB inside
+ * (catches large shapes whose anchor sits outside a tight lasso).
+ */
+export function objectIdsInLassoPolygon(
+  objects: BoardObject[],
+  flatRing: number[],
+  resolve?: (id: string) => BoardObject | undefined,
+): string[] {
+  if (flatRing.length < 6) return [];
+  const out = new Set<string>();
+  for (const o of objects) {
+    if (o.type === "connector") continue;
+    const anchor = boardObjectAnchor(o);
+    if (pointInPolygon(anchor.x, anchor.y, flatRing)) {
+      out.add(o.id);
+      continue;
+    }
+    const box = boardObjectWorldAabb(o, resolve);
+    const center = {
+      x: box.x + box.width / 2,
+      y: box.y + box.height / 2,
+    };
+    if (pointInPolygon(center.x, center.y, flatRing)) {
+      out.add(o.id);
+      continue;
+    }
+    const corners = [
+      { x: box.x, y: box.y },
+      { x: box.x + box.width, y: box.y },
+      { x: box.x + box.width, y: box.y + box.height },
+      { x: box.x, y: box.y + box.height },
+    ];
+    if (corners.some((c) => pointInPolygon(c.x, c.y, flatRing))) {
+      out.add(o.id);
+    }
+  }
+  return [...out];
 }

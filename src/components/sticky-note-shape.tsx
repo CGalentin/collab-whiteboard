@@ -5,6 +5,7 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import type Konva from "konva";
 import { Group, Rect, Text } from "react-konva";
 import type { BoardObjectSticky } from "@/lib/board-object";
+import { DEFAULT_BOARD_FONT_FAMILY } from "@/lib/board-font-presets";
 
 import { SEARCH_HIT_STROKE, type TextSearchVisual } from "@/lib/board-search";
 
@@ -18,7 +19,10 @@ type StickyNoteShapeProps = {
   innerRef: (node: Konva.Node | null) => void;
   onObjectTap: (e: KonvaEventObject<MouseEvent>) => void;
   onRequestEdit: () => void;
-  onDragEnd: (x: number, y: number) => void;
+  onDragEnd: (e: KonvaEventObject<Event>) => void;
+  onDragMove?: (e: KonvaEventObject<Event>) => void;
+  onDragStart?: () => void;
+  interactionLocked?: boolean;
 };
 
 function StickyNoteShapeInner({
@@ -29,7 +33,11 @@ function StickyNoteShapeInner({
   onObjectTap,
   onRequestEdit,
   onDragEnd,
+  onDragMove,
+  onDragStart,
+  interactionLocked = false,
 }: StickyNoteShapeProps) {
+  const canInteract = !interactionLocked;
   const pad = 10;
   const dimmed = textSearchVisual === "dim";
   const hit = textSearchVisual === "match";
@@ -48,14 +56,19 @@ function StickyNoteShapeInner({
       y={object.y}
       rotation={object.rotation}
       opacity={dimmed ? 0.22 : 1}
-      draggable
+      draggable={canInteract}
+      listening={canInteract}
       onDragStart={(e) => {
         e.cancelBubble = true;
+        onDragStart?.();
+      }}
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        onDragMove?.(e);
       }}
       onDragEnd={(e) => {
-        const node = e.target;
-        onDragEnd(node.x(), node.y());
         e.cancelBubble = true;
+        onDragEnd(e);
       }}
       onMouseDown={(e) => {
         e.cancelBubble = true;
@@ -91,8 +104,8 @@ function StickyNoteShapeInner({
         width={object.width - pad * 2}
         height={object.height - pad * 2}
         text={object.text.trim() ? object.text : " "}
-        fontSize={14}
-        fontFamily="system-ui, sans-serif"
+        fontSize={object.fontSize ?? 14}
+        fontFamily={object.fontFamily ?? DEFAULT_BOARD_FONT_FAMILY}
         fill="#1c1917"
         align="left"
         verticalAlign="top"
@@ -124,7 +137,10 @@ function stickyPropsEqual(
     o.fill === p.fill &&
     o.stroke === p.stroke &&
     o.strokeWidth === p.strokeWidth &&
-    o.text === p.text
+    o.text === p.text &&
+    (o.fontSize ?? 14) === (p.fontSize ?? 14) &&
+    (o.fontFamily ?? DEFAULT_BOARD_FONT_FAMILY) ===
+      (p.fontFamily ?? DEFAULT_BOARD_FONT_FAMILY)
   );
 }
 

@@ -189,6 +189,29 @@ export function useBoardObjectWrites(boardId: string, user: User) {
     [boardId, user],
   );
 
+  /** Immediate patch (e.g. drag end) — avoids debounce flicker on pen/highlighter strokes. */
+  const flushObjectPatchNow = useCallback(
+    async (objectId: string, patch: Record<string, unknown>) => {
+      const cur = pendingObjectPatches.current.get(objectId) ?? {};
+      pendingObjectPatches.current.delete(objectId);
+
+      const payload = { ...cur, ...patch };
+      if (Object.keys(payload).length === 0) return;
+
+      try {
+        await user.getIdToken();
+        const db = getFirebaseDb();
+        await updateDoc(doc(db, "boards", boardId, "objects", objectId), {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.error("[objects] flush object patch failed", e);
+      }
+    },
+    [boardId, user],
+  );
+
   const setStickyColors = useCallback(
     async (objectId: string, fill: string, stroke: string) => {
       try {
@@ -206,13 +229,69 @@ export function useBoardObjectWrites(boardId: string, user: User) {
     [boardId, user],
   );
 
+  /** Immediate fill/stroke (shapes, stickies) — same path as sticky recolor for reliable UI. */
+  const setFillStrokeColors = useCallback(
+    async (objectId: string, fill: string, stroke: string) => {
+      const pending = pendingObjectPatches.current.get(objectId);
+      if (pending) {
+        delete pending.fill;
+        delete pending.stroke;
+        if (Object.keys(pending).length === 0) {
+          pendingObjectPatches.current.delete(objectId);
+        } else {
+          pendingObjectPatches.current.set(objectId, pending);
+        }
+      }
+      try {
+        await user.getIdToken();
+        const db = getFirebaseDb();
+        await updateDoc(doc(db, "boards", boardId, "objects", objectId), {
+          fill,
+          stroke,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.error("[objects] fill/stroke update failed", e);
+      }
+    },
+    [boardId, user],
+  );
+
+  const setStrokeColor = useCallback(
+    async (objectId: string, stroke: string) => {
+      const pending = pendingObjectPatches.current.get(objectId);
+      if (pending) {
+        delete pending.stroke;
+        if (Object.keys(pending).length === 0) {
+          pendingObjectPatches.current.delete(objectId);
+        } else {
+          pendingObjectPatches.current.set(objectId, pending);
+        }
+      }
+      try {
+        await user.getIdToken();
+        const db = getFirebaseDb();
+        await updateDoc(doc(db, "boards", boardId, "objects", objectId), {
+          stroke,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (e) {
+        console.error("[objects] stroke update failed", e);
+      }
+    },
+    [boardId, user],
+  );
+
   return {
     queueObjectPatch,
     queuePosition,
     queueText,
     flushTextNow,
     flushCommentBodyNow,
+    flushObjectPatchNow,
     setStickyColors,
+    setFillStrokeColors,
+    setStrokeColor,
   };
 }
 

@@ -395,13 +395,170 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 
 ---
 
+## Epic — App cleanup (PR 36–54)
+
+*Post-epic polish: fix edge cases without breaking collab/sync. **~15 min** tasks per checkbox; **lint + build + manual QA** each PR. **PR 24** remains skipped.*
+
+### Where we left off (next session)
+
+**Workflow:** Review **one PR at a time** with manual QA on the board. Hard-refresh → test checklist for that PR → check boxes in this file only when signed off → then next PR. Run **`npm run lint`** + **`npm run build`** before commit/push.
+
+| PR | Theme | Code in repo? | QA status (May 2026) |
+|----|--------|---------------|----------------------|
+| **36** | Hand pan only | Yes | Re-test recommended |
+| **37** | Tools return to Select | Yes | Fixed (immediate release on pen/comment/link); **re-verify** |
+| **38** | Lasso + group move | Yes | **Group drag, multi-select color, drag fix** landed; **re-verify** lasso QA |
+| **39** | Line/freehand move + color | Yes | Move + palette color for pen/highlighter/line; **re-verify** |
+| **40–54** | Sign-up → icons | Yes (40–53); **54** partial | **Unchecked below — start at PR 40** |
+
+**Recent agent work (not yet your sign-off on 40–54):**
+
+- **Lasso:** Multi-select group move, live drag preview, palette applies to whole selection (`board-group-drag.ts`, `board-stage.tsx`, `board-canvas.tsx`).
+- **Drag:** Fixed absolute vs offset node reset (stickies no longer jump to 0,0).
+- **Color:** Pen/highlighter/line color before draw + when selected; Color menu no longer exits pen/highlighter.
+- **Eraser:** **Tap** (delete whole object) vs **Brush** (partial stroke erase via `board-eraser-geometry.ts`); brush splits freehand/lines instead of deleting whole stroke.
+
+**Start next session:** [PR 40 — sign-up display name](#pr-40--featsignup-display-name-2) (checkboxes unchecked).
+
+See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
+
+---
+
+### PR 36 — `fix/hand-tool-viewport-pan` *(#1)*
+
+- [x] Pass `handToolActive` into object shapes; disable `draggable` / selection while hand is on.
+- [x] Pointer down on objects still pans viewport (capture on wrapper).
+- [x] **QA:** Hand on → drag anywhere moves board only; hand off → normal object drag.
+
+### PR 37 — `fix/select-default-after-tools` *(#7)*
+
+- [x] After pen/highlighter stroke commit → `releaseRailToolForEditing()`.
+- [x] After lasso closes → return to select.
+- [x] After comment pin placed → clear `comments` tool mode.
+- [x] After hyperlink hotspot placed → return to select.
+- [x] After connect created → return to select.
+- [x] **QA:** Each one-shot tool ends in Select without extra click.
+
+### PR 38 — `fix/lasso-select-and-move` *(#6)*
+
+- [x] Improve lasso hit test (AABB intersection with object bounds).
+- [x] Lasso sets `selectedObjectIds` for all hits.
+- [x] Multi-select drag moves all selected draggable objects (batch `x/y` patch).
+- [x] Document behavior in **`docs/CONFLICTS.md`** if needed.
+- [x] **QA:** Lasso 2+ stickies → drag group → second browser syncs.
+
+### PR 39 — `feat/line-freehand-select-edit` *(#8)*
+
+- [x] Enable drag + position patch for `line` and `freehand` in select mode.
+- [x] Exclude from Transformer if endpoint edit is deferred.
+- [x] **QA:** Draw line + highlighter → select → move → sync.
+
+### PR 40 — `feat/signup-display-name` *(#2)*
+
+- [ ] Required display name field on sign-up only.
+- [ ] `updateProfile({ displayName })` after account creation.
+- [ ] Validation + inline errors.
+- [ ] **QA:** New user name appears in presence/cursors.
+
+### PR 41 — `feat/object-color-on-create` *(#3, #17)*
+
+- [ ] Default sticky swatch yellow (index 3).
+- [ ] Palette recolors selected rect/circle/polygon/sticky/line (not sticky-only).
+- [ ] Pen stroke from board palette.
+- [ ] **QA:** New sticky yellow; change color after select.
+
+### PR 42 — `feat/pen-stroke-width` *(#5)*
+
+- [ ] S/M/L presets when pen or highlighter active.
+- [ ] Persist `strokeWidth` on `freehand`; use in preview + commit.
+- [ ] **QA:** Two widths sync across browsers.
+
+### PR 43 — `feat/duplicate-selection-batch` *(#4)*
+
+- [ ] Duplicate works for multi-select (≥1 ids).
+- [ ] Frame + children duplicated when applicable (objects whose center lies inside frame bounds).
+- [ ] **QA:** Lasso 3 objects → Duplicate → offset copies + connector remap.
+
+### PR 44 — `feat/delete-board-dashboard` *(#9)*
+
+- [ ] Owner delete on dashboard card with confirm.
+- [ ] Delete metadata + user index; batch-delete objects subcollection.
+- [ ] Shared boards: leave only, not delete.
+- [ ] **QA:** Deleted board gone from list and URL.
+
+### PR 45 — `fix/comments-pin-and-link-decouple` *(#10, #16)*
+
+- [ ] Larger comment pin hit target.
+- [ ] Hide link URL row for `type === "comment"` by default.
+- [ ] **QA:** Place comment → no link bar; easier tap.
+
+### PR 46 — `feat/link-panel-collapsible` *(#14)*
+
+- [ ] Link row collapsed by default; expand to edit URL.
+- [ ] Collapse shows truncated URL / icon.
+- [ ] **QA:** Select shape → expand link → save → collapse.
+
+### PR 47 — `fix/connectors-and-connect-tool` *(#15, #13 optional)*
+
+- [ ] Connector arrow points to `toId` only (not both ends).
+- [ ] Connect tool UX hint (first selected = from).
+- [ ] Debug connect or mark deferred in roadmap.
+- [ ] **QA:** Connect two shapes → single arrow at end.
+
+### PR 48 — `feat/text-font-and-size` *(#23)*
+
+- [ ] Font size presets for text when selected.
+- [ ] 2–3 font families; Firestore fields + render (Sans / Serif / Mono).
+- [ ] **QA:** Font change syncs.
+
+### PR 49 — `feat/shape-edit-and-rotate-control` *(#20, #21)*
+
+- [ ] Toolbar **Rotate 90°** for transformable types.
+- [ ] Document polygon = box transform only.
+- [ ] **QA:** Rotate button updates Firestore `rotation`.
+
+### PR 50 — `feat/snap-to-grid` *(#20)*
+
+- [ ] Shared `GRID_SIZE` constant (24px).
+- [ ] Toolbar toggle; snap drag/transform end when on.
+- [ ] **QA:** Snap on → objects land on grid.
+
+### PR 51 — `feat/dashboard-board-sections` *(#18)*
+
+- [ ] **My boards** vs **Shared with me** sections.
+- [ ] **QA:** Owned and shared boards in correct groups.
+
+### PR 52 — `fix/mobile-toolbar-layout` *(#11 — partial)*
+
+- [ ] Interim: shorter bottom bar + reduced drawer height (`max-h-[38dvh]`).
+- [ ] Full layout per user mockup (blocked).
+
+### PR 53 — `fix/mobile-color-picker` *(#12)*
+
+- [ ] Fix touch/z-index/overflow on Color dropdown (`z-[60]` on mobile).
+- [ ] **QA:** Mobile → Color → swatches work.
+
+### PR 54 — `chore/toolbar-icon-refresh` *(#19 — partial)*
+
+*Custom PNGs in **`public/icons/`**; SVG fallbacks remain for tools without assets. All buttons keep **`aria-label`** / **`title`**.*
+
+- [ ] **Pen** — [`public/icons/tool-pen.png`](public/icons/tool-pen.png)
+- [ ] **Highlighter** — [`public/icons/tool-highlighter.png`](public/icons/tool-highlighter.png)
+- [ ] **Lasso** — [`public/icons/tool-lasso.png`](public/icons/tool-lasso.png) (slightly larger: `h-[1.625rem]`)
+- [ ] **Hand** (pan) — [`public/icons/tool-hand.png`](public/icons/tool-hand.png)
+- [ ] **Text** (mid-rail) — [`public/icons/tool-text.png`](public/icons/tool-text.png)
+- [ ] **Eraser** — [`public/icons/tool-eraser.png`](public/icons/tool-eraser.png)
+- [ ] **Still SVG:** templates, select, line, connect, duplicate, hyperlinks, comments, sticky-add, shapes (upload when ready).
+
+---
+
 ## Board UI vs roadmap *(live layout, May 2026)*
 
 *Numbered PRs above stay the historical checklist; this section describes the **current** board chrome.*
 
 | Area | Behavior / files |
 |------|-------------------|
-| **Left rail** | **`board-tool-rail.tsx`** — narrow desktop column; **`BoardToolGlyph`** in **`board-tool-glyphs.tsx`**. Tools: Templates, Hand, Pen, Highlighter, Eraser, Lasso, Hyperlinks; Undo/Redo. **`BoardCanvas`** passes **`midRailSlot`**: **`board-canvas-rail-mid.tsx`** — Line, Text, Connect, Duplicate (icon-only + titles). |
+| **Left rail** | **`board-tool-rail.tsx`** + **`BoardToolGlyph`** (`**board-tool-glyphs.tsx**`). **Custom PNGs:** hand, pen, highlighter, eraser, lasso (`public/icons/`). **SVG:** templates, select, hyperlinks, undo/redo. **Mid-rail:** line, connect, duplicate (SVG); **text** (PNG). |
 | **Top canvas toolbar** | **`board-canvas.tsx`** (absolute strip): Search, AI, Help; **Color** + **Shapes** dropdowns; **Sticky** (add note); **Comments** (toggle place mode); link row when selection supports it; **Copy / Paste / Delete / Clear board**; line-tool hint. |
 | **Removed from manual UI** | **Draw** (rail type); **Add frame** button (frames still from **templates** / **AI** / existing docs; **`type: "frame"`** unchanged). |
 | **Stage shell** | Canvas card **`overflow-visible`** for toolbar menus; **`BoardStage`** wrapped in inner **`overflow-hidden`** so Konva still clips. |
@@ -420,6 +577,7 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | 22–24 | Deploy + submission + demo |
 | **25+** | **Multi-board save, dashboard, tool rail, drawing, templates, AI templates, mobile** |
 | **35** | **Board sharing — members, invites, join route, AI for editors** |
+| **36–54** | **App cleanup — hand pan, tools, selection, colors, mobile, dashboard** |
 | **UX** | **Board UI vs roadmap** — top toolbar + left rail split (May 2026) |
 
 ---

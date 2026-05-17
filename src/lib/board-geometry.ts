@@ -33,6 +33,18 @@ function rotatedRectAabb(
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
+/** Whether a point lies inside an axis-aligned rectangle (frame bounds, etc.). */
+export function pointInsideAxisRect(
+  px: number,
+  py: number,
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
+): boolean {
+  return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+}
+
 /** Axis-aligned bounds in world space (for marquee hit-testing). */
 export function boardObjectWorldAabb(
   o: BoardObject,

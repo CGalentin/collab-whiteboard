@@ -12,9 +12,11 @@ import {
   Path,
   Rect,
   Star,
+  Text,
 } from "react-konva";
 import { lineConnectorWorldPoints } from "@/lib/board-line-connector";
-import type { BoardObjectShapeLayer } from "@/lib/board-object";
+import type { BoardObjectRect, BoardObjectShapeLayer } from "@/lib/board-object";
+import { DEFAULT_BOARD_FONT_FAMILY } from "@/lib/board-font-presets";
 import {
   displayPathData,
   documentPathData,
@@ -28,53 +30,144 @@ import {
 
 const SELECT_STROKE = "#34d399";
 
+const TEXT_PAD = 10;
+
+/** Rectangles use the same Group + click/dbl-click pattern as stickies. */
+function BoundedShapeGroup({
+  object,
+  isSelected,
+  interactionLocked = false,
+  innerRef,
+  onObjectTap,
+  onRequestEdit,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: {
+  object: BoardObjectRect;
+  isSelected: boolean;
+  interactionLocked?: boolean;
+  innerRef: (node: Konva.Node | null) => void;
+  onObjectTap: (e: KonvaEventObject<MouseEvent>) => void;
+  onRequestEdit: () => void;
+  onDragStart?: () => void;
+  onDragMove?: (e: KonvaEventObject<Event>) => void;
+  onDragEnd: (e: KonvaEventObject<Event>) => void;
+}) {
+  const canInteract = !interactionLocked;
+  const strokeColor = isSelected ? SELECT_STROKE : object.stroke;
+  const strokeW = isSelected ? 3 : object.strokeWidth;
+  const label = (object.text ?? "").trim();
+
+  return (
+    <Group
+      id={object.id}
+      ref={innerRef}
+      x={object.x}
+      y={object.y}
+      rotation={object.rotation}
+      draggable={canInteract}
+      listening={canInteract}
+      onDragStart={(e) => {
+        e.cancelBubble = true;
+        onDragStart?.();
+      }}
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        onDragMove?.(e);
+      }}
+      onDragEnd={(e) => {
+        e.cancelBubble = true;
+        onDragEnd(e);
+      }}
+      onMouseDown={(e) => {
+        e.cancelBubble = true;
+      }}
+      onClick={(e) => {
+        e.cancelBubble = true;
+        onObjectTap(e);
+      }}
+      onDblClick={(e) => {
+        e.cancelBubble = true;
+        onRequestEdit();
+      }}
+      onDblTap={(e) => {
+        e.cancelBubble = true;
+        onRequestEdit();
+      }}
+    >
+      <Rect
+        width={object.width}
+        height={object.height}
+        fill={object.fill}
+        stroke={strokeColor}
+        strokeWidth={strokeW}
+        cornerRadius={4}
+        shadowColor="black"
+        shadowBlur={4}
+        shadowOpacity={0.15}
+        shadowOffsetY={2}
+      />
+      <Text
+        x={TEXT_PAD}
+        y={TEXT_PAD}
+        width={object.width - TEXT_PAD * 2}
+        height={object.height - TEXT_PAD * 2}
+        text={label || " "}
+        fontSize={14}
+        fontFamily={DEFAULT_BOARD_FONT_FAMILY}
+        fill="#1c1917"
+        align="left"
+        verticalAlign="top"
+        wrap="word"
+        ellipsis
+        listening={false}
+      />
+    </Group>
+  );
+}
+
 type BoardObjectShapeProps = {
   object: BoardObjectShapeLayer;
   isSelected: boolean;
+  /** Hand tool: viewport pan only — no drag or select on shapes. */
+  interactionLocked?: boolean;
   innerRef: (node: Konva.Node | null) => void;
-  onPointerDown: (e: KonvaEventObject<MouseEvent>) => void;
-  onDragEnd: (e: KonvaEventObject<DragEvent>) => void;
+  onObjectTap: (e: KonvaEventObject<MouseEvent>) => void;
+  /** Double-click / double-tap — same as sticky (text edit on rect, select on others). */
+  onRequestEdit: () => void;
+  onDragStart?: () => void;
+  onDragMove?: (e: KonvaEventObject<Event>) => void;
+  onDragEnd: (e: KonvaEventObject<Event>) => void;
 };
 
 function BoardObjectShapeInner({
   object,
   isSelected,
+  interactionLocked = false,
   innerRef,
-  onPointerDown,
+  onObjectTap,
+  onRequestEdit,
+  onDragStart,
+  onDragMove,
   onDragEnd,
 }: BoardObjectShapeProps) {
+  const canInteract = !interactionLocked;
   const commonStroke = isSelected ? SELECT_STROKE : object.stroke;
   const strokeW = object.strokeWidth + (isSelected ? 1 : 0);
 
   if (object.type === "rect") {
     return (
-      <Rect
-        id={object.id}
-        ref={innerRef}
-        x={object.x}
-        y={object.y}
-        width={object.width}
-        height={object.height}
-        rotation={object.rotation}
-        fill={object.fill}
-        stroke={commonStroke}
-        strokeWidth={strokeW}
-        hitStrokeWidth={Math.max(16, object.strokeWidth * 3)}
-        draggable
-        onDragStart={(e) => {
-          e.cancelBubble = true;
-        }}
-        onDragEnd={(e) => {
-          e.cancelBubble = true;
-          onDragEnd(e);
-        }}
-        onMouseDown={(e) => {
-          e.cancelBubble = true;
-        }}
-        onTap={(e) => {
-          e.cancelBubble = true;
-          onPointerDown(e as unknown as KonvaEventObject<MouseEvent>);
-        }}
+      <BoundedShapeGroup
+        object={object}
+        isSelected={isSelected}
+        interactionLocked={interactionLocked}
+        innerRef={innerRef}
+        onObjectTap={onObjectTap}
+        onRequestEdit={onRequestEdit}
+        onDragStart={onDragStart}
+        onDragMove={onDragMove}
+        onDragEnd={onDragEnd}
       />
     );
   }
@@ -93,12 +186,38 @@ function BoardObjectShapeInner({
         lineJoin="round"
         perfectDrawEnabled={false}
         hitStrokeWidth={Math.max(24, object.strokeWidth * 4)}
+        draggable={canInteract}
+        listening={canInteract}
+        onDragStart={(e) => {
+          e.cancelBubble = true;
+          onDragStart?.();
+        }}
+        onDragMove={(e) => {
+          e.cancelBubble = true;
+          onDragMove?.(e);
+        }}
+        onDragEnd={(e) => {
+          e.cancelBubble = true;
+          onDragEnd(e);
+        }}
         onMouseDown={(e) => {
           e.cancelBubble = true;
         }}
+        onClick={(e) => {
+          e.cancelBubble = true;
+          onObjectTap(e);
+        }}
         onTap={(e) => {
           e.cancelBubble = true;
-          onPointerDown(e as unknown as KonvaEventObject<MouseEvent>);
+          onObjectTap(e as unknown as KonvaEventObject<MouseEvent>);
+        }}
+        onDblClick={(e) => {
+          e.cancelBubble = true;
+          onRequestEdit();
+        }}
+        onDblTap={(e) => {
+          e.cancelBubble = true;
+          onRequestEdit();
         }}
       />
     );
@@ -116,20 +235,38 @@ function BoardObjectShapeInner({
       x: o.x,
       y: o.y,
       rotation: o.rotation,
-      draggable: true,
-      onDragStart: (e: KonvaEventObject<DragEvent>) => {
+      draggable: canInteract,
+      listening: canInteract,
+      onDragStart: (e: KonvaEventObject<Event>) => {
         e.cancelBubble = true;
+        onDragStart?.();
       },
-      onDragEnd: (e: KonvaEventObject<DragEvent>) => {
+      onDragMove: (e: KonvaEventObject<Event>) => {
+        e.cancelBubble = true;
+        onDragMove?.(e);
+      },
+      onDragEnd: (e: KonvaEventObject<Event>) => {
         e.cancelBubble = true;
         onDragEnd(e);
       },
       onMouseDown: (e: KonvaEventObject<MouseEvent>) => {
         e.cancelBubble = true;
       },
+      onClick: (e: KonvaEventObject<MouseEvent>) => {
+        e.cancelBubble = true;
+        onObjectTap(e);
+      },
       onTap: (e: KonvaEventObject<Event>) => {
         e.cancelBubble = true;
-        onPointerDown(e as unknown as KonvaEventObject<MouseEvent>);
+        onObjectTap(e as unknown as KonvaEventObject<MouseEvent>);
+      },
+      onDblClick: (e: KonvaEventObject<MouseEvent>) => {
+        e.cancelBubble = true;
+        onRequestEdit();
+      },
+      onDblTap: (e: KonvaEventObject<Event>) => {
+        e.cancelBubble = true;
+        onRequestEdit();
       },
     };
     if (o.kind === "plus") {
@@ -459,9 +596,15 @@ function BoardObjectShapeInner({
         stroke={commonStroke}
         strokeWidth={strokeW}
         hitStrokeWidth={Math.max(24, object.strokeWidth * 4)}
-        draggable
+        draggable={canInteract}
+        listening={canInteract}
         onDragStart={(e) => {
           e.cancelBubble = true;
+          onDragStart?.();
+        }}
+        onDragMove={(e) => {
+          e.cancelBubble = true;
+          onDragMove?.(e);
         }}
         onDragEnd={(e) => {
           e.cancelBubble = true;
@@ -470,9 +613,21 @@ function BoardObjectShapeInner({
         onMouseDown={(e) => {
           e.cancelBubble = true;
         }}
+        onClick={(e) => {
+          e.cancelBubble = true;
+          onObjectTap(e);
+        }}
         onTap={(e) => {
           e.cancelBubble = true;
-          onPointerDown(e as unknown as KonvaEventObject<MouseEvent>);
+          onObjectTap(e as unknown as KonvaEventObject<MouseEvent>);
+        }}
+        onDblClick={(e) => {
+          e.cancelBubble = true;
+          onRequestEdit();
+        }}
+        onDblTap={(e) => {
+          e.cancelBubble = true;
+          onRequestEdit();
         }}
       />
     );
@@ -492,9 +647,15 @@ function BoardObjectShapeInner({
         stroke={commonStroke}
         strokeWidth={strokeW}
         hitStrokeWidth={Math.max(24, object.strokeWidth * 4)}
-        draggable
+        draggable={canInteract}
+        listening={canInteract}
         onDragStart={(e) => {
           e.cancelBubble = true;
+          onDragStart?.();
+        }}
+        onDragMove={(e) => {
+          e.cancelBubble = true;
+          onDragMove?.(e);
         }}
         onDragEnd={(e) => {
           e.cancelBubble = true;
@@ -503,9 +664,21 @@ function BoardObjectShapeInner({
         onMouseDown={(e) => {
           e.cancelBubble = true;
         }}
+        onClick={(e) => {
+          e.cancelBubble = true;
+          onObjectTap(e);
+        }}
         onTap={(e) => {
           e.cancelBubble = true;
-          onPointerDown(e as unknown as KonvaEventObject<MouseEvent>);
+          onObjectTap(e as unknown as KonvaEventObject<MouseEvent>);
+        }}
+        onDblClick={(e) => {
+          e.cancelBubble = true;
+          onRequestEdit();
+        }}
+        onDblTap={(e) => {
+          e.cancelBubble = true;
+          onRequestEdit();
         }}
       />
     );
@@ -528,12 +701,38 @@ function BoardObjectShapeInner({
         lineCap="round"
         lineJoin="round"
         hitStrokeWidth={hitW}
+        draggable={canInteract}
+        listening={canInteract}
+        onDragStart={(e) => {
+          e.cancelBubble = true;
+          onDragStart?.();
+        }}
+        onDragMove={(e) => {
+          e.cancelBubble = true;
+          onDragMove?.(e);
+        }}
+        onDragEnd={(e) => {
+          e.cancelBubble = true;
+          onDragEnd(e);
+        }}
         onMouseDown={(e) => {
           e.cancelBubble = true;
         }}
+        onClick={(e) => {
+          e.cancelBubble = true;
+          onObjectTap(e);
+        }}
         onTap={(e) => {
           e.cancelBubble = true;
-          onPointerDown(e as unknown as KonvaEventObject<MouseEvent>);
+          onObjectTap(e as unknown as KonvaEventObject<MouseEvent>);
+        }}
+        onDblClick={(e) => {
+          e.cancelBubble = true;
+          onRequestEdit();
+        }}
+        onDblTap={(e) => {
+          e.cancelBubble = true;
+          onRequestEdit();
         }}
       />
     );
@@ -563,12 +762,38 @@ function BoardObjectShapeInner({
       pointerAtBeginning={pointerStart}
       pointerAtEnding={pointerEnd}
       hitStrokeWidth={hitW}
+      draggable={canInteract}
+      listening={canInteract}
+      onDragStart={(e) => {
+        e.cancelBubble = true;
+        onDragStart?.();
+      }}
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        onDragMove?.(e);
+      }}
+      onDragEnd={(e) => {
+        e.cancelBubble = true;
+        onDragEnd(e);
+      }}
       onMouseDown={(e) => {
         e.cancelBubble = true;
       }}
+      onClick={(e) => {
+        e.cancelBubble = true;
+        onObjectTap(e);
+      }}
       onTap={(e) => {
         e.cancelBubble = true;
-        onPointerDown(e as unknown as KonvaEventObject<MouseEvent>);
+        onObjectTap(e as unknown as KonvaEventObject<MouseEvent>);
+      }}
+      onDblClick={(e) => {
+        e.cancelBubble = true;
+        onRequestEdit();
+      }}
+      onDblTap={(e) => {
+        e.cancelBubble = true;
+        onRequestEdit();
       }}
     />
   );
@@ -579,6 +804,7 @@ function boardObjectShapeEqual(
   b: BoardObjectShapeProps,
 ): boolean {
   if (a.isSelected !== b.isSelected) return false;
+  if (a.interactionLocked !== b.interactionLocked) return false;
   const o = a.object;
   const p = b.object;
   if (o.type !== p.type || o.id !== p.id) return false;

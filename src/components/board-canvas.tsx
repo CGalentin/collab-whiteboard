@@ -33,19 +33,28 @@ import { useBoardObjectWrites } from "@/hooks/use-board-object-writes";
 import { useBoardObjects } from "@/hooks/use-board-objects";
 import { useRemoteCursors } from "@/hooks/use-board-cursors";
 import { getFirebaseDb } from "@/lib/firebase";
-import type { BoardObject, BoardObjectSticky } from "@/lib/board-object";
+import type { BoardObject } from "@/lib/board-object";
 import { boardFirestorePath } from "@/lib/board";
 import {
   matchSwatchIndex,
+  paletteChoiceFromStrokeColor,
   paletteChoiceToStyle,
   type BoardPaletteChoice,
 } from "@/lib/board-color-swatches";
+import type { EraserBrushChange } from "@/lib/board-eraser-geometry";
 import { getTextSearchMatchIds } from "@/lib/board-search";
 import {
   boardObjectSupportsUserHref,
   getBoardObjectHref,
 } from "@/lib/board-object";
 import { normalizeBoardHref, openBoardHrefInNewTab } from "@/lib/board-href";
+import {
+  BOARD_FONT_FAMILIES,
+  boardFontFamilyFromId,
+  boardFontFamilyIdFromValue,
+  DEFAULT_BOARD_FONT_FAMILY,
+} from "@/lib/board-font-presets";
+import { boardObjectWorldAabb, pointInsideAxisRect } from "@/lib/board-geometry";
 import { BoardPaletteStrip } from "@/components/board-palette-strip";
 import { BoardShapesMenu } from "@/components/board-shapes-menu";
 import { BoardToolGlyph } from "@/components/board-tool-glyphs";
@@ -147,6 +156,7 @@ export function BoardCanvas({
   const internalClipboardRef = useRef<string | null>(null);
   const [lineState, setLineState] = useState<LineToolState>({ kind: "off" });
   const lineStateRef = useRef<LineToolState>({ kind: "off" });
+  const lineToolActive = lineState.kind !== "off";
   const shapePaletteRef = useRef(paletteChoiceToStyle({ kind: "swatch", index: 3 }));
   const [boardSearchQuery, setBoardSearchQuery] = useState("");
   const boardSearchQueryRef = useRef("");
@@ -170,41 +180,118 @@ export function BoardCanvas({
     shapePaletteRef.current = shapeStyle;
   }, [shapeStyle]);
 
-  const selectedSticky =
-    selectedObjectIds.length === 1
-      ? objects.find(
-          (o): o is BoardObjectSticky =>
-            o.id === selectedObjectIds[0] && o.type === "sticky",
-        )
-      : undefined;
-
   const linkSelection = useMemo(() => {
     if (selectedObjectIds.length !== 1) return undefined;
     const o = objects.find((x) => x.id === selectedObjectIds[0]);
-    if (!o || !boardObjectSupportsUserHref(o)) return undefined;
+    if (!o || o.type === "comment" || !boardObjectSupportsUserHref(o))
+      return undefined;
     return o;
   }, [objects, selectedObjectIds]);
 
+  const [linkPanelOpen, setLinkPanelOpen] = useState(false);
   const [linkDraft, setLinkDraft] = useState("");
+  const [snapToGridEnabled, setSnapToGridEnabled] = useState(false);
+  const [penStrokeWidth, setPenStrokeWidth] = useState(3);
+  const [highlighterStrokeWidth, setHighlighterStrokeWidth] = useState(16);
+  const [eraserMode, setEraserMode] = useState<"tap" | "brush">("brush");
+  const [eraserBrushRadius, setEraserBrushRadius] = useState(20);
   useEffect(() => {
     if (!linkSelection) {
       setLinkDraft("");
+      setLinkPanelOpen(false);
       return;
     }
     setLinkDraft(getBoardObjectHref(linkSelection) ?? "");
+    setLinkPanelOpen(Boolean(getBoardObjectHref(linkSelection)));
   }, [linkSelection]);
 
-  /** Dummy when no sticky (strip not rendered); avoids non-null assertions in JSX. */
+  const selectedColorTarget = useMemo(() => {
+    if (selectedObjectIds.length === 0) return undefined;
+    const recolorable = selectedObjectIds
+      .map((id) => objects.find((x) => x.id === id))
+      .filter((o): o is BoardObject => {
+        if (!o) return false;
+        return (
+          o.type === "sticky" ||
+          o.type === "rect" ||
+          o.type === "circle" ||
+          o.type === "ellipse" ||
+          o.type === "polygon" ||
+          o.type === "frame" ||
+          o.type === "line" ||
+          o.type === "freehand" ||
+          o.type === "text"
+        );
+      });
+    if (recolorable.length === 0) return undefined;
+    return recolorable.length === 1 ? recolorable[0] : recolorable;
+  }, [objects, selectedObjectIds]);
+
+  const selectedTypography = useMemo(() => {
+    if (selectedObjectIds.length !== 1) return undefined;
+    const o = objects.find((x) => x.id === selectedObjectIds[0]);
+    if (o?.type === "text" || o?.type === "sticky") return o;
+    return undefined;
+  }, [objects, selectedObjectIds]);
+
+  /** Palette strip value when editing selection (or draw tools). */
   const stickyStripChoice = useMemo((): BoardPaletteChoice => {
-    if (!selectedSticky) return { kind: "swatch", index: 3 };
-    const idx = matchSwatchIndex(selectedSticky.fill, selectedSticky.stroke);
+    const target = selectedColorTarget;
+    if (!target) return boardPaletteChoice;
+    const sample = Array.isArray(target) ? target[0] : target;
+    if (!sample) return boardPaletteChoice;
+    if (sample.type === "line" || sample.type === "freehand") {
+      return paletteChoiceFromStrokeColor(sample.stroke);
+    }
+    const fill =
+      "fill" in sample
+        ? sample.fill
+        : "stroke" in sample
+          ? sample.stroke
+          : "#fef08a";
+    const stroke =
+      "stroke" in sample && typeof sample.stroke === "string"
+        ? sample.stroke
+        : "#18181b";
+    const idx = matchSwatchIndex(fill, stroke);
     if (idx !== null) return { kind: "swatch", index: idx };
-    return {
-      kind: "custom",
-      fill: selectedSticky.fill,
-      stroke: selectedSticky.stroke,
-    };
-  }, [selectedSticky]);
+    return { kind: "custom", fill, stroke };
+  }, [selectedColorTarget, boardPaletteChoice]);
+
+  const colorChipStyle = useMemo(() => {
+    if (activeRailTool === "pen" || lineToolActive) {
+      return { backgroundColor: shapeStyle.stroke };
+    }
+    if (activeRailTool === "highlighter") {
+      return { backgroundColor: shapeStyle.fill };
+    }
+    if (selectedColorTarget) {
+      const sample = Array.isArray(selectedColorTarget)
+        ? selectedColorTarget[0]
+        : selectedColorTarget;
+      if (sample?.type === "line" || sample?.type === "freehand") {
+        return { backgroundColor: sample.stroke };
+      }
+    }
+    return { backgroundColor: shapeStyle.fill };
+  }, [
+    activeRailTool,
+    lineToolActive,
+    shapeStyle,
+    selectedColorTarget,
+  ]);
+
+  const colorDropdownLabel = useMemo(() => {
+    if (activeRailTool === "pen") return "Pen color";
+    if (activeRailTool === "highlighter") return "Highlighter color";
+    if (lineToolActive) return "Line color";
+    if (selectedColorTarget) {
+      return Array.isArray(selectedColorTarget)
+        ? `Selection color (${selectedColorTarget.length})`
+        : "Selection color";
+    }
+    return "New objects color";
+  }, [activeRailTool, lineToolActive, selectedColorTarget]);
 
   useEffect(() => {
     if (!colorDropdownOpen && !shapesMenuOpen) return;
@@ -274,12 +361,63 @@ export function BoardCanvas({
         captureHistoryCheckpoint();
         await baseWrites.flushCommentBodyNow(objectId, body);
       },
+      flushObjectPatchNow: async (objectId, patch) => {
+        captureHistoryCheckpoint();
+        await baseWrites.flushObjectPatchNow(objectId, patch);
+      },
       setStickyColors: async (objectId, fill, stroke) => {
         captureHistoryCheckpoint();
         await baseWrites.setStickyColors(objectId, fill, stroke);
       },
+      setFillStrokeColors: async (objectId, fill, stroke) => {
+        captureHistoryCheckpoint();
+        await baseWrites.setFillStrokeColors(objectId, fill, stroke);
+      },
+      setStrokeColor: async (objectId, stroke) => {
+        captureHistoryCheckpoint();
+        await baseWrites.setStrokeColor(objectId, stroke);
+      },
     }),
     [baseWrites, captureHistoryCheckpoint],
+  );
+
+  const recolorBoardObject = useCallback(
+    (o: BoardObject, fill: string, stroke: string) => {
+      if (o.type === "line" || o.type === "freehand") {
+        void writes.setStrokeColor(o.id, stroke);
+        return;
+      }
+      if (o.type === "text") {
+        void writes.setFillStrokeColors(o.id, fill, stroke);
+        return;
+      }
+      if (
+        o.type === "sticky" ||
+        o.type === "rect" ||
+        o.type === "circle" ||
+        o.type === "ellipse" ||
+        o.type === "polygon" ||
+        o.type === "frame"
+      ) {
+        void writes.setFillStrokeColors(o.id, fill, stroke);
+      }
+    },
+    [writes],
+  );
+
+  /** Apply palette to draw tools and/or the current selection. */
+  const applyPaletteChoice = useCallback(
+    (next: BoardPaletteChoice) => {
+      setBoardPaletteChoice(next);
+      const { fill, stroke } = paletteChoiceToStyle(next);
+      const ids = selectedIdsRef.current;
+      for (const id of ids) {
+        const o = objectsRef.current.find((x) => x.id === id);
+        if (!o) continue;
+        recolorBoardObject(o, fill, stroke);
+      }
+    },
+    [recolorBoardObject],
   );
 
   useEffect(() => {
@@ -402,6 +540,22 @@ export function BoardCanvas({
     boardTool?.setActiveTool(null);
   }, [boardTool]);
 
+  const openColorDropdown = useCallback(() => {
+    if (
+      activeRailTool !== "pen" &&
+      activeRailTool !== "highlighter" &&
+      !lineToolActive
+    ) {
+      releaseRailToolForEditing();
+    }
+    setColorDropdownOpen((o) => !o);
+    setShapesMenuOpen(false);
+  }, [
+    activeRailTool,
+    lineToolActive,
+    releaseRailToolForEditing,
+  ]);
+
   const deleteObjectIdsQuiet = useCallback(
     async (ids: string[]) => {
       if (ids.length === 0) return;
@@ -451,11 +605,11 @@ export function BoardCanvas({
           return;
         }
       }
+      if (activeRailTool === "eraser" && eraserMode === "tap") {
+        void deleteObjectIdsQuiet([objectId]);
+        return;
+      }
       if (activeRailTool === "eraser") {
-        const o = objects.find((x) => x.id === objectId);
-        if (o?.type === "freehand" || o?.type === "comment") {
-          void deleteObjectIdsQuiet([objectId]);
-        }
         return;
       }
       if (shiftKey) {
@@ -468,7 +622,38 @@ export function BoardCanvas({
         setSelectedObjectIds([objectId]);
       }
     },
-    [activeRailTool, objects, deleteObjectIdsQuiet],
+    [activeRailTool, eraserMode, objects, deleteObjectIdsQuiet],
+  );
+
+  const onEraserBrushApply = useCallback(
+    async (change: EraserBrushChange) => {
+      if (
+        change.deleteIds.length === 0 &&
+        change.updates.length === 0 &&
+        change.creates.length === 0
+      ) {
+        return;
+      }
+      try {
+        await user.getIdToken();
+        const db = getFirebaseDb();
+        for (const { id, patch } of change.updates) {
+          await writes.flushObjectPatchNow(id, patch);
+        }
+        for (const create of change.creates) {
+          const id = crypto.randomUUID();
+          await setDoc(doc(db, "boards", boardId, "objects", id), {
+            ...create.fields,
+            zIndex: Date.now(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+        await deleteObjectIdsQuiet(change.deleteIds);
+      } catch (e) {
+        console.error("[objects] eraser brush apply failed", e);
+      }
+    },
+    [boardId, user, writes, deleteObjectIdsQuiet],
   );
 
   const onClearSelection = useCallback(() => {
@@ -544,7 +729,32 @@ export function BoardCanvas({
 
   const duplicateSelection = useCallback(async () => {
     if (selectedObjectIds.length === 0) return;
-    const selected = selectedObjectIds
+
+    const expandedIds = new Set(selectedObjectIds);
+    for (const id of selectedObjectIds) {
+      const frame = objects.find((o) => o.id === id && o.type === "frame");
+      if (!frame || frame.type !== "frame") continue;
+      for (const other of objects) {
+        if (
+          other.id === frame.id ||
+          other.type === "frame" ||
+          other.type === "connector"
+        ) {
+          continue;
+        }
+        const box = boardObjectWorldAabb(other);
+        const cx = box.x + box.width / 2;
+        const cy = box.y + box.height / 2;
+        if (
+          pointInsideAxisRect(cx, cy, frame.x, frame.y, frame.width, frame.height)
+        ) {
+          expandedIds.add(other.id);
+        }
+      }
+    }
+
+    const idsToDuplicate = [...expandedIds];
+    const selected = idsToDuplicate
       .map((id) => objects.find((o) => o.id === id))
       .filter((o): o is BoardObject => o !== undefined);
     if (selected.length === 0) return;
@@ -590,7 +800,7 @@ export function BoardCanvas({
       }
 
       setSelectedObjectIds(
-        selectedObjectIds
+        idsToDuplicate
           .map((id) => idRemap.get(id))
           .filter((id): id is string => Boolean(id)),
       );
@@ -670,6 +880,7 @@ export function BoardCanvas({
         rotation: 0,
         text: "Double-click to edit",
         fontSize: 18,
+        fontFamily: DEFAULT_BOARD_FONT_FAMILY,
         fill: "#18181b",
         zIndex: Date.now(),
         updatedAt: serverTimestamp(),
@@ -705,12 +916,44 @@ export function BoardCanvas({
       });
       cancelLineTool();
       setSelectedObjectIds([id]);
+      releaseRailToolForEditing();
+      boardTool?.setNotice(
+        "Connector added — arrow points from the first object you selected to the second.",
+      );
     } catch (e) {
       console.error("[objects] connect failed", e);
+      boardTool?.setNotice("Could not connect — select exactly two shapes and try again.");
     } finally {
       setLinkingConnector(false);
     }
-  }, [boardId, user, selectedObjectIds, cancelLineTool, captureHistoryCheckpoint]);
+  }, [
+    boardId,
+    user,
+    selectedObjectIds,
+    cancelLineTool,
+    captureHistoryCheckpoint,
+    releaseRailToolForEditing,
+    boardTool,
+  ]);
+
+  const rotateSelection90 = useCallback(() => {
+    if (selectedObjectIds.length === 0) return;
+    captureHistoryCheckpoint();
+    for (const id of selectedObjectIds) {
+      const o = objects.find((x) => x.id === id);
+      if (
+        !o ||
+        o.type === "line" ||
+        o.type === "freehand" ||
+        o.type === "comment" ||
+        o.type === "connector"
+      ) {
+        continue;
+      }
+      const next = ((o.rotation ?? 0) + 90) % 360;
+      writes.queueObjectPatch(id, { rotation: next });
+    }
+  }, [selectedObjectIds, objects, writes, captureHistoryCheckpoint]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -790,7 +1033,7 @@ export function BoardCanvas({
         await user.getIdToken();
         const db = getFirebaseDb();
         const id = crypto.randomUUID();
-        const { fill: lineColor } = shapePaletteRef.current;
+        const { stroke: lineColor } = shapePaletteRef.current;
         await setDoc(doc(db, "boards", boardId, "objects", id), {
           type: "line",
           x1,
@@ -865,9 +1108,11 @@ export function BoardCanvas({
         fill,
         stroke,
         strokeWidth: 2,
+        text: "",
         zIndex: Date.now(),
         updatedAt: serverTimestamp(),
       });
+      setSelectedObjectIds([id]);
     } catch (e) {
       console.error("[objects] add rect failed", e);
     } finally {
@@ -899,6 +1144,7 @@ export function BoardCanvas({
         zIndex: Date.now(),
         updatedAt: serverTimestamp(),
       });
+      setSelectedObjectIds([id]);
     } catch (e) {
       console.error("[objects] add ellipse failed", e);
     } finally {
@@ -931,6 +1177,7 @@ export function BoardCanvas({
           zIndex: Date.now(),
           updatedAt: serverTimestamp(),
         });
+        setSelectedObjectIds([id]);
         setShapesMenuOpen(false);
       } catch (e) {
         console.error("[objects] add polygon failed", e);
@@ -1005,7 +1252,6 @@ export function BoardCanvas({
     }
   }, [boardId, user, objects.length, cancelLineTool, captureHistoryCheckpoint]);
 
-  const lineToolActive = lineState.kind !== "off";
   const linePreviewSegment =
     lineState.kind === "awaiting_second"
       ? {
@@ -1013,7 +1259,7 @@ export function BoardCanvas({
           y1: lineState.y1,
           x2: lineState.px,
           y2: lineState.py,
-          stroke: shapeStyle.fill,
+          stroke: shapeStyle.stroke,
           lineStyle: lineState.lineStyle,
         }
       : null;
@@ -1021,9 +1267,11 @@ export function BoardCanvas({
   const railDrawMode = useMemo(() => {
     if (activeRailTool === "pen") return "pen" as const;
     if (activeRailTool === "highlighter") return "highlighter" as const;
-    if (activeRailTool === "eraser") return "eraser" as const;
     return "none" as const;
   }, [activeRailTool]);
+
+  const eraserBrushActive =
+    activeRailTool === "eraser" && eraserMode === "brush";
 
   const lassoActive = activeRailTool === "lasso";
   const commentPlaceActive = activeRailTool === "comments";
@@ -1170,10 +1418,7 @@ export function BoardCanvas({
         <div ref={toolbarColorRef} className="relative shrink-0">
           <button
             type="button"
-            onClick={() => {
-              setColorDropdownOpen((o) => !o);
-              setShapesMenuOpen(false);
-            }}
+            onClick={openColorDropdown}
             className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow dark:bg-zinc-900 ${
               colorDropdownOpen
                 ? "border-emerald-500 ring-2 ring-emerald-500/30 dark:border-emerald-500"
@@ -1181,19 +1426,11 @@ export function BoardCanvas({
             }`}
             aria-expanded={colorDropdownOpen}
             aria-haspopup="listbox"
-            title={
-              selectedSticky
-                ? "Color for selected sticky"
-                : "Color for new shapes and stickies"
-            }
+            title={colorDropdownLabel}
           >
             <span
               className="h-4 w-4 shrink-0 rounded border border-zinc-300 dark:border-zinc-600"
-              style={{
-                backgroundColor: paletteChoiceToStyle(
-                  selectedSticky ? stickyStripChoice : boardPaletteChoice,
-                ).fill,
-              }}
+              style={colorChipStyle}
             />
             <span>Color</span>
             <svg
@@ -1210,20 +1447,20 @@ export function BoardCanvas({
             </svg>
           </button>
           {colorDropdownOpen ? (
-            <div className="absolute left-0 top-[calc(100%+0.35rem)] z-[35] w-[min(17.5rem,calc(100vw-2rem))] rounded-xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-600 dark:bg-zinc-900">
+            <div className="absolute left-0 top-[calc(100%+0.35rem)] z-[60] w-[min(17.5rem,calc(100vw-2rem))] touch-manipulation rounded-xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-600 dark:bg-zinc-900 lg:z-[35]">
               <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                {selectedSticky ? "Selection color" : "New objects color"}
+                {colorDropdownLabel}
               </p>
               <BoardPaletteStrip
-                choice={selectedSticky ? stickyStripChoice : boardPaletteChoice}
-                onChoiceChange={(next) => {
-                  if (selectedSticky) {
-                    const { fill, stroke } = paletteChoiceToStyle(next);
-                    void writes.setStickyColors(selectedSticky.id, fill, stroke);
-                  } else {
-                    setBoardPaletteChoice(next);
-                  }
-                }}
+                choice={
+                  selectedColorTarget &&
+                  activeRailTool !== "pen" &&
+                  activeRailTool !== "highlighter" &&
+                  !lineToolActive
+                    ? stickyStripChoice
+                    : boardPaletteChoice
+                }
+                onChoiceChange={applyPaletteChoice}
                 className="rounded-lg border border-zinc-100 bg-zinc-50/80 p-1.5 dark:border-zinc-700 dark:bg-zinc-950/60"
                 aria-label="Color palette"
               />
@@ -1321,10 +1558,22 @@ export function BoardCanvas({
           <span>Comments</span>
         </button>
         {linkSelection ? (
-          <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50/95 px-2 py-1.5 text-xs shadow dark:border-sky-900/50 dark:bg-sky-950/40 sm:min-w-[18rem] sm:max-w-[28rem]">
-            <label htmlFor="board-link-url" className="shrink-0 text-zinc-600 dark:text-sky-200/90">
-              Link
-            </label>
+          <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50/95 px-2 py-1.5 text-xs shadow dark:border-sky-900/50 dark:bg-sky-950/40">
+            <button
+              type="button"
+              onClick={() => setLinkPanelOpen((o) => !o)}
+              className="shrink-0 font-medium text-sky-800 dark:text-sky-200"
+              aria-expanded={linkPanelOpen}
+            >
+              Link {linkPanelOpen ? "▾" : "▸"}
+            </button>
+            {!linkPanelOpen && linkDraft ? (
+              <span className="max-w-[10rem] truncate font-mono text-[10px] text-zinc-600 dark:text-sky-200/80">
+                {linkDraft}
+              </span>
+            ) : null}
+            {linkPanelOpen ? (
+              <>
             <input
               id="board-link-url"
               type="url"
@@ -1354,10 +1603,140 @@ export function BoardCanvas({
                 Clear
               </button>
             ) : null}
-            <span className="w-full text-[10px] text-zinc-500 dark:text-sky-300/80 sm:w-auto" title="Open link from canvas">
-              ⌘/Ctrl+click to open
-            </span>
+              </>
+            ) : null}
           </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setSnapToGridEnabled((v) => !v)}
+          className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow ${
+            snapToGridEnabled
+              ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+              : "border-zinc-300 bg-white text-zinc-700 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+          }`}
+          title="Snap objects to 24px grid when moving"
+        >
+          Snap
+        </button>
+        <button
+          type="button"
+          onClick={rotateSelection90}
+          disabled={selectedObjectIds.length === 0}
+          className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow disabled:opacity-40 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+          title="Rotate selection 90°"
+        >
+          Rotate 90°
+        </button>
+        {(activeRailTool === "pen" || activeRailTool === "highlighter") && (
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-1 py-0.5 text-[10px] dark:border-zinc-600 dark:bg-zinc-900">
+            <span className="px-1 text-zinc-500">Size</span>
+            {[2, 4, 8].map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() =>
+                  activeRailTool === "pen"
+                    ? setPenStrokeWidth(w === 2 ? 2 : w === 4 ? 4 : 8)
+                    : setHighlighterStrokeWidth(w === 2 ? 10 : w === 4 ? 16 : 24)
+                }
+                className="rounded px-1.5 py-0.5 font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300"
+              >
+                {w === 2 ? "S" : w === 4 ? "M" : "L"}
+              </button>
+            ))}
+          </div>
+        )}
+        {activeRailTool === "eraser" && (
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-zinc-300 bg-white px-1 py-0.5 text-[10px] dark:border-zinc-600 dark:bg-zinc-900">
+            <span className="px-1 text-zinc-500">Eraser</span>
+            <button
+              type="button"
+              onClick={() => setEraserMode("tap")}
+              className={`rounded px-1.5 py-0.5 font-medium ${
+                eraserMode === "tap"
+                  ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200"
+                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300"
+              }`}
+              title="Tap an object to delete it"
+            >
+              Tap
+            </button>
+            <button
+              type="button"
+              onClick={() => setEraserMode("brush")}
+              className={`rounded px-1.5 py-0.5 font-medium ${
+                eraserMode === "brush"
+                  ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200"
+                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300"
+              }`}
+              title="Drag to erase pen, highlighter, and line strokes"
+            >
+              Brush
+            </button>
+            {eraserMode === "brush" ? (
+              <>
+                <span className="px-0.5 text-zinc-400">|</span>
+                <span className="px-1 text-zinc-500">Size</span>
+                {([12, 20, 32] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setEraserBrushRadius(r)}
+                    className={`rounded px-1.5 py-0.5 font-medium ${
+                      eraserBrushRadius === r
+                        ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100"
+                        : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300"
+                    }`}
+                  >
+                    {r === 12 ? "S" : r === 20 ? "M" : "L"}
+                  </button>
+                ))}
+              </>
+            ) : null}
+          </div>
+        )}
+        {selectedTypography ? (
+          <>
+            <select
+              aria-label="Font size"
+              value={
+                selectedTypography.type === "text"
+                  ? selectedTypography.fontSize
+                  : (selectedTypography.fontSize ?? 14)
+              }
+              onChange={(e) =>
+                writes.queueObjectPatch(selectedTypography.id, {
+                  fontSize: Number(e.target.value),
+                })
+              }
+              className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+            >
+              {[12, 14, 18, 24, 32].map((n) => (
+                <option key={n} value={n}>
+                  {n}px
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Font family"
+              value={boardFontFamilyIdFromValue(
+                selectedTypography.fontFamily ?? DEFAULT_BOARD_FONT_FAMILY,
+              )}
+              onChange={(e) =>
+                writes.queueObjectPatch(selectedTypography.id, {
+                  fontFamily: boardFontFamilyFromId(e.target.value),
+                })
+              }
+              className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+            >
+              {BOARD_FONT_FAMILIES.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </>
         ) : null}
         <button
           type="button"
@@ -1428,14 +1807,28 @@ export function BoardCanvas({
           textSearchActive={textSearchActive}
           textSearchMatchIds={textSearchMatchIds}
           railDrawMode={railDrawMode}
+          railPenStrokeColor={shapeStyle.stroke}
           railHighlighterStrokeColor={shapeStyle.fill}
+          penStrokeWidth={penStrokeWidth}
+          highlighterStrokeWidth={highlighterStrokeWidth}
+          snapToGridEnabled={snapToGridEnabled}
           lassoActive={lassoActive}
           commentPlaceActive={commentPlaceActive}
-          onCommentPlaced={(id) => setSelectedObjectIds([id])}
+          onCommentPlaced={(id) => {
+            setSelectedObjectIds([id]);
+            releaseRailToolForEditing();
+          }}
           linkPlaceActive={linkPlaceActive}
-          onLinkPlaced={(id) => setSelectedObjectIds([id])}
+          onLinkPlaced={(id) => {
+            setSelectedObjectIds([id]);
+            releaseRailToolForEditing();
+          }}
           onHistoryCheckpoint={captureHistoryCheckpoint}
           handToolActive={handToolActive}
+          onRailActionComplete={releaseRailToolForEditing}
+          eraserBrushActive={eraserBrushActive}
+          eraserBrushRadius={eraserBrushRadius}
+          onEraserBrushApply={onEraserBrushApply}
         />
       </div>
 

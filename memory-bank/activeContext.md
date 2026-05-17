@@ -5,8 +5,9 @@
 ## Session handoff (new chat)
 
 1. **`memory-bank/progress.md`** + **this file**
-2. **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** — epic **PR 25+** (**PR 24** demo/social skipped) + **Board UI vs roadmap** (live layout at bottom of file)
-3. Code under **`src/`** as needed
+2. **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** — section **“Where we left off”** under epic PR 36–54
+3. Manual QA **one PR at a time**; check roadmap boxes only after your sign-off
+4. **`npm run lint`** + **`npm run build`** before push
 
 ---
 
@@ -14,84 +15,63 @@
 
 | Area | State |
 |------|--------|
-| **MVP** | Shipped through **PR 23**; production deploy **PR 22** done |
-| **PR 24** | **Skipped** (demo script, video, social, Gauntlet delivery checklist) — intentional; **PR 23** submission docs remain the written deliverable |
-| **v2 + epic** | **PR 25–35** in code: multi-board, dashboard, tool rail, drawing, lasso, links, undo, templates, AI on dashboard, **mobile (PR 34)**, **sharing (PR 35)** |
-| **Next** | **PR 35** two-account **manual QA** if you rely on sharing · **PR 32** optional template thumbnails · **`npm run deploy:rules`** when `firestore.rules` changes (prod may already match) |
+| **MVP + v2** | **PR 01–35** shipped (**PR 24** skipped) |
+| **App cleanup** | **PR 36–39** code + partial QA; **PR 40–54** in repo, **checkboxes unchecked** for your review |
+| **Next session** | Start **PR 40** (sign-up display name), then 41 → 54 in order |
+| **Do not** | Batch-check PRs or ship without per-PR manual QA |
 
-**PR 35** — sharing code + rules file in repo; validate **invite + collaborator** flows in your environment.
+### Workflow
 
-### Recent product updates (not every item is a roadmap PR)
-
-| Topic | Where |
-|--------|--------|
-| **Auth** | **`/login`**: forgot password, reset in-app, email verification after signup, **`applyActionCode`** for verify links; **`RequireAuth`** + **`verify-email-gate`**. Helpers: **`src/lib/auth-client.ts`**. **Firebase console:** email/password on, **authorized domains** for action links. |
-| **Board chrome** | **`board-canvas.tsx`**: top toolbar — Search, AI, Help, **Color** + **Shapes** dropdowns, **Sticky** (add), **Comments** (toggle mode), link row, **Copy / Paste / Delete / Clear**; line hint. **`board-tool-rail.tsx`** + **`board-canvas-rail-mid.tsx`** inside **`BoardCanvas`**: Templates, drawing tools, Hand, Lasso, Links; mid — Line, Text, Connect, Duplicate. Shared SVGs: **`board-tool-glyphs.tsx`**. **Draw** removed from rail; **Add frame** removed from UI (frames via templates / AI). |
-| **Shapes** | **`board-shapes-menu.tsx`**, **`type: "polygon"`**, **`board-polygon-kinds`** |
-| **Mobile** | Bottom tool drawer, pinch zoom; README “Mobile and small screens” |
-| **Highlighter color (May 2026)** | **`board-stage.tsx`**: `DrawingDraft` carries `stroke` for the live `Line` preview and **`setDoc`** commit (no hardcoded yellow); **`onDrawMove`** uses functional **`setDrawingDraft`** so **`stroke`** is not dropped; **`handleStageMouseDown`** dependency array includes the rail stroke props. Props **`railPenStrokeColor`** (default `#18181b`) and **`railHighlighterStrokeColor`** (default `#fef08a`). **`board-canvas.tsx`** passes **`railHighlighterStrokeColor={shapeStyle.fill}`**. **`releaseRailToolForEditing`** removed from the **Color** button only (**Shapes** still releases the rail tool when opening shapes). |
+1. Open roadmap → find next unchecked PR (starts at **40**).
+2. Hard-refresh board → run that PR’s **QA** bullets.
+3. Check boxes in **BUILD_ROADMAP.md** when satisfied.
+4. Repeat.
 
 ---
 
-## PR 25 — implemented files
+## PR 36–39 — agent work (re-verify when you have time)
 
-| Area | Paths / notes |
-|------|---------------|
-| Board id | **`src/lib/board.ts`** — board id validation + Firestore path helpers |
-| Board bootstrap | **`src/lib/boards-client.ts`** — ensure `boards/{boardId}` + `users/{uid}/boards/{boardId}` docs |
-| Routes | **`src/app/board/page.tsx`** redirect + **`src/app/board/[boardId]/page.tsx`** dynamic board |
-| Board surfaces | **`board-canvas`** (includes **`BoardToolRail`**), **`presence-sidebar`**, **`ai-board-panel`** |
-| API | **`src/app/api/ai/route.ts`** — **owner or editor** member may run tools (not viewer) |
-| Rules | **`firestore.rules`** — see file; deploy with **`npm run deploy:rules`** |
+| PR | What landed in code | Your QA |
+|----|---------------------|---------|
+| **37** | `releaseRailToolForEditing()` immediately on pen/comment/link (not after Firestore) | Re-verify |
+| **38** | Lasso group select/move; multi-select color; `commitDragFromNode` drag fix | Re-verify |
+| **39** | Line/freehand move; pen/highlighter/line **Color** before & after draw | Re-verify |
+| **—** | Eraser **Tap** vs **Brush**; partial stroke erase (`board-eraser-geometry.ts`) | Not a numbered PR — test with eraser tool |
 
-### PR 27–31 — key paths
-
-| Area | Paths |
-|------|--------|
-| Tool state | **`src/context/board-tool-context.tsx`**, **`src/components/board-tool-rail.tsx`**, **`src/components/board-tool-glyphs.tsx`**, provider on **`src/app/board/[boardId]/page.tsx`** |
-| Drawing (PR 28) | **`board-object.ts`** (`freehand`), **`board-stage.tsx`**, **`board-canvas.tsx`** |
-| Lasso (PR 29) | **`board-lasso-geometry.ts`**, **`board-stage`**, **`board-canvas`** |
-| Comments (PR 29) | **`comment-pin-shape.tsx`**, **`type: "comment"`**; placement mode from **top toolbar** (context `activeTool === "comments"`) |
-| Hyperlinks (PR 30) | **`board-href.ts`**, **`link-hotspot-shape.tsx`**, rail **Hyperlinks**, toolbar link row |
-| Undo/Redo (PR 31) | **`board-tool-context.tsx`**, **`board-tool-rail.tsx`**, **`board-canvas.tsx`**, **`board-stage.tsx`**, **`use-board-object-writes.ts`** |
-| Templates (PR 32) | **`board-templates.ts`**, **`board-templates-modal.tsx`**, **`board-tool-context.tsx`** |
-| AI dashboard (PR 33) | **`dashboard-ai-template-section.tsx`**, **`ai-parse-api-response.ts`** |
+Key files: `board-stage.tsx`, `board-canvas.tsx`, `board-group-drag.ts`, `board-eraser-geometry.ts`, `board-lasso-geometry.ts`.
 
 ---
 
-## AI feature — key files (`boardId` is dynamic; executor knows `freehand`)
+## PR 40–54 — awaiting your sign-off
 
-| Piece | Path |
-|--------|------|
-| API | `src/app/api/ai/route.ts` |
-| Token verify | `src/lib/verify-firebase-id-token.ts` |
-| System prompt | `src/lib/ai-board-system-prompt.ts` |
-| Gemini | `src/lib/run-board-gemini.ts` |
-| Tools | `src/lib/ai-board-tools.ts` |
-| Executor | `src/lib/ai-execute-tools-client.ts` |
-| Board snapshot | `src/lib/board-context-for-ai.ts` |
-| UI | `src/components/ai-board-panel.tsx` |
-| Types | `src/lib/ai-api-types.ts` |
+All checkboxes **unchecked** in roadmap. Implementation exists from prior agent sessions; treat as **review + QA**, not greenfield build.
 
----
-
-## Submission docs (if needed)
-
-| Doc | Path |
-|-----|------|
-| Architecture | [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) |
-| AI dev log | [`docs/AI_DEVELOPMENT_LOG.md`](../docs/AI_DEVELOPMENT_LOG.md) |
-| AI cost | [`docs/AI_COST_ANALYSIS.md`](../docs/AI_COST_ANALYSIS.md) |
-| Pre-Search | [`docs/PRESEARCH_REFERENCE.md`](../docs/PRESEARCH_REFERENCE.md) · [`PRESEARCH_AND_TRACKING.md`](../PRESEARCH_AND_TRACKING.md) |
+| PR | One-line reminder |
+|----|-------------------|
+| 40 | Sign-up display name → presence/cursors |
+| 41 | Yellow sticky default; palette on shapes + pen |
+| 42 | Pen/highlighter S/M/L width |
+| 43 | Multi-select duplicate (+ frame children) |
+| 44 | Delete board on dashboard |
+| 45 | Comment pin; no link bar on comments |
+| 46 | Collapsible link panel |
+| 47 | One-way connector arrow |
+| 48 | Text font size + families |
+| 49 | Rotate 90° |
+| 50 | Snap to grid (24px) |
+| 51 | My boards / Shared with me |
+| 52 | Mobile toolbar interim |
+| 53 | Mobile color dropdown z-index |
+| 54 | Custom toolbar PNGs (partial) |
 
 ---
 
 ## Open decisions
 
-- **PR 32+:** Optional template **thumbnails**; mobile toolbar polish.
-- **PR 35:** Two-account **QA** when using sharing; **rules deploy** only when `firestore.rules` changes.
-- **Auth:** Firebase **authorized domains** + **email templates** must match deployed URL.
-- **Clipboard:** same-tab fallback; [docs/CONFLICTS.md](../docs/CONFLICTS.md).
+- **PR 54:** Remaining SVG icons when assets ready.
+- **PR 35:** Two-account sharing QA; **`npm run deploy:rules`** when rules change.
+- **PR 52:** Full mobile mockup blocked.
+- **Eraser:** Styled connector lines may simplify to plain segments after partial brush erase.
 
 ## Blockers
 
@@ -99,6 +79,7 @@
 
 ## Commands
 
-- Dev: `npm run dev`
+- Dev: `npm run dev` (delete `.next` if stale)
 - Build: `npm run build`
-- Rules: `npm run deploy:rules` (Firebase CLI + project)
+- Lint: `npm run lint`
+- Rules: `npm run deploy:rules`

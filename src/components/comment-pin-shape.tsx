@@ -5,7 +5,7 @@ import type Konva from "konva";
 import { Circle, Group, Text } from "react-konva";
 import type { BoardObjectComment } from "@/lib/board-object";
 
-const R = 12;
+const R = 17;
 
 type CommentPinShapeProps = {
   object: BoardObjectComment;
@@ -13,7 +13,10 @@ type CommentPinShapeProps = {
   innerRef: (node: Konva.Node | null) => void;
   onObjectTap: (e: KonvaEventObject<MouseEvent>) => void;
   onRequestEdit: () => void;
-  onDragEnd: (x: number, y: number) => void;
+  onDragEnd: (e: KonvaEventObject<Event>) => void;
+  onDragMove?: (e: KonvaEventObject<Event>) => void;
+  onDragStart?: () => void;
+  interactionLocked?: boolean;
 };
 
 export function CommentPinShape({
@@ -23,7 +26,11 @@ export function CommentPinShape({
   onObjectTap,
   onRequestEdit,
   onDragEnd,
+  onDragMove,
+  onDragStart,
+  interactionLocked = false,
 }: CommentPinShapeProps) {
+  const canInteract = !interactionLocked;
   const ring = isSelected ? "#38bdf8" : "#a78bfa";
   const preview =
     object.body.trim().length > 0
@@ -36,14 +43,19 @@ export function CommentPinShape({
       ref={innerRef}
       x={object.x}
       y={object.y}
-      draggable
+      draggable={canInteract}
+      listening={canInteract}
       onDragStart={(e) => {
         e.cancelBubble = true;
+        onDragStart?.();
+      }}
+      onDragMove={(e) => {
+        e.cancelBubble = true;
+        onDragMove?.(e);
       }}
       onDragEnd={(e) => {
         e.cancelBubble = true;
-        const g = e.target;
-        onDragEnd(g.x(), g.y());
+        onDragEnd(e);
       }}
       onMouseDown={(e) => {
         e.cancelBubble = true;

@@ -1,3 +1,4 @@
+import { DEFAULT_BOARD_FONT_FAMILY } from "@/lib/board-font-presets";
 import type { BoardObject } from "@/lib/board-object";
 
 /**
@@ -39,6 +40,8 @@ export function cloneBoardObjectFields(
         stroke: o.stroke,
         strokeWidth: o.strokeWidth,
         text: o.text,
+        fontSize: o.fontSize ?? 14,
+        fontFamily: o.fontFamily ?? DEFAULT_BOARD_FONT_FAMILY,
         zIndex,
         ...(o.href ? { href: o.href } : {}),
       };
@@ -130,6 +133,7 @@ export function cloneBoardObjectFields(
         rotation: o.rotation,
         text: o.text,
         fontSize: o.fontSize,
+        fontFamily: o.fontFamily ?? DEFAULT_BOARD_FONT_FAMILY,
         fill: o.fill,
         zIndex,
         ...(o.href ? { href: o.href } : {}),

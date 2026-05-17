@@ -47,45 +47,68 @@ export function BoardToolGlyph({ id, className = "h-5 w-5" }: Props) {
       );
     case "hand":
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M7 11V7a2 2 0 114 0v4M11 11V6a2 2 0 114 0v9a4 4 0 01-4 4H9"
-          />
-        </svg>
+        // User-provided asset — public/icons/tool-hand.png
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/icons/tool-hand.png"
+          alt=""
+          width={24}
+          height={24}
+          className={`${className} object-contain dark:invert`}
+          aria-hidden
+        />
       );
     case "pen":
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M15.232 5.232l3.536 3.536M9 11l-4 8 8-4 3.536-3.536"
-          />
-        </svg>
+        // User-provided asset — public/icons/tool-pen.png
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/icons/tool-pen.png"
+          alt=""
+          width={24}
+          height={24}
+          className={`${className} object-contain dark:invert`}
+          aria-hidden
+        />
       );
     case "highlighter":
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
-          <path strokeLinecap="round" d="M6 20h12M9 4l8 8-4 1-5-5 1-4z" />
-        </svg>
+        // User-provided asset — public/icons/tool-highlighter.png
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/icons/tool-highlighter.png"
+          alt=""
+          width={24}
+          height={24}
+          className={`${className} object-contain dark:invert`}
+          aria-hidden
+        />
       );
     case "eraser":
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 18l-4-4 9-9 4 4-9 9H8z" />
-        </svg>
+        // User-provided asset — public/icons/tool-eraser.png
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/icons/tool-eraser.png"
+          alt=""
+          width={24}
+          height={24}
+          className={`${className} object-contain dark:invert`}
+          aria-hidden
+        />
       );
     case "lasso":
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M7 8c2-3 7-3 9 0s0 7-3 9-7 1-9-2 2-5 5-5 3 2 0 5-2 2"
-          />
-        </svg>
+        // User-provided asset — public/icons/tool-lasso.png
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/icons/tool-lasso.png"
+          alt=""
+          width={26}
+          height={26}
+          className="h-[1.625rem] w-[1.625rem] object-contain dark:invert"
+          aria-hidden
+        />
       );
     case "comments":
       return (
@@ -137,10 +160,16 @@ export function BoardToolGlyph({ id, className = "h-5 w-5" }: Props) {
       );
     case "text":
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 6.75h15M9.75 6.75v10.5a2.25 2.25 0 002.25 2.25" />
-          <path strokeLinecap="round" d="M12.75 6.75v3" />
-        </svg>
+        // User-provided asset — public/icons/tool-text.png
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/icons/tool-text.png"
+          alt=""
+          width={24}
+          height={24}
+          className={`${className} object-contain dark:invert`}
+          aria-hidden
+        />
       );
     case "connect":
       return (

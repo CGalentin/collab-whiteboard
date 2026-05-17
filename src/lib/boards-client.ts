@@ -1,7 +1,17 @@
 "use client";
 
 import type { User } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
 import { defaultBoardTitle } from "@/lib/board";
 import { getFirebaseDb } from "@/lib/firebase";
 
@@ -150,4 +160,37 @@ export async function updateBoardTitleAsOwner(
     title: trimmed,
     updatedAt: now,
   });
+}
+
+const DELETE_OBJECTS_BATCH = 400;
+
+/**
+ * Owner-only: delete board metadata, user index, and all objects (batched).
+ */
+export async function deleteOwnedBoard(user: User, boardId: string): Promise<void> {
+  await user.getIdToken();
+  const db = getFirebaseDb();
+  const boardRef = doc(db, "boards", boardId);
+  const boardSnap = await getDoc(boardRef);
+  if (!boardSnap.exists()) {
+    throw new Error("Board not found.");
+  }
+  const ownerUid = boardSnap.data()?.ownerUid;
+  if (typeof ownerUid !== "string" || ownerUid !== user.uid) {
+    throw new Error("Only the board owner can delete this board.");
+  }
+
+  const objectsCol = collection(db, "boards", boardId, "objects");
+  let snapshot = await getDocs(objectsCol);
+  while (!snapshot.empty) {
+    const batch = writeBatch(db);
+    const chunk = snapshot.docs.slice(0, DELETE_OBJECTS_BATCH);
+    chunk.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    if (snapshot.docs.length <= DELETE_OBJECTS_BATCH) break;
+    snapshot = await getDocs(objectsCol);
+  }
+
+  await deleteDoc(doc(db, "users", user.uid, "boards", boardId));
+  await deleteDoc(boardRef);
 }

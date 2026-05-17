@@ -16,7 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { getFirebaseDb } from "@/lib/firebase";
 import { DashboardAiTemplateSection } from "@/components/dashboard-ai-template-section";
 import { DashboardTemplatesGallery } from "@/components/dashboard-templates-gallery";
-import { ensureOwnedBoard } from "@/lib/boards-client";
+import { deleteOwnedBoard, ensureOwnedBoard } from "@/lib/boards-client";
 
 type UserBoardRow = {
   boardId: string;
@@ -58,7 +58,11 @@ function DashboardContent() {
   const [rows, setRows] = useState<UserBoardRow[]>([]);
   const [loadingRows, setLoadingRows] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const ownedRows = rows.filter((r) => r.access === "owned");
+  const sharedRows = rows.filter((r) => r.access === "shared");
 
   useEffect(() => {
     if (!user) return;
@@ -159,6 +163,72 @@ function DashboardContent() {
     return new Date(ms).toLocaleString();
   }
 
+  async function handleDeleteBoard(row: UserBoardRow) {
+    if (row.access !== "owned" || !user) return;
+    const ok = window.confirm(
+      `Delete "${row.title}"? All objects on this board will be removed. This cannot be undone.`,
+    );
+    if (!ok) return;
+    setDeletingId(row.boardId);
+    setError(null);
+    try {
+      await deleteOwnedBoard(user, row.boardId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete board.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  function renderBoardGrid(list: UserBoardRow[], showDelete: boolean) {
+    if (list.length === 0) {
+      return (
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-500">
+          {showDelete ? "No boards here yet." : "No shared boards yet."}
+        </p>
+      );
+    }
+    return (
+      <ul className="mt-3 grid list-none grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {list.map((row) => (
+          <li key={row.boardId} className="relative">
+            <Link
+              href={`/board/${row.boardId}`}
+              className="flex min-h-[4.5rem] touch-manipulation flex-col justify-between rounded-2xl border border-zinc-200/90 bg-white/95 p-4 shadow-sm transition hover:border-brand-teal/45 hover:shadow-md hover:ring-1 hover:ring-accent-lavender/25 active:bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-900/70 active:dark:bg-zinc-900/80 dark:hover:border-accent-violet/35 dark:hover:ring-accent-violet/15"
+            >
+              <div className="min-w-0 flex-1 pr-8">
+                <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {row.title}
+                </p>
+                <p className="mt-1 truncate font-mono text-xs text-zinc-500 dark:text-zinc-500">
+                  {row.boardId}
+                </p>
+              </div>
+              <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
+                Updated {formatWhen(row.updatedAtMs)}
+              </p>
+            </Link>
+            {showDelete ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void handleDeleteBoard(row);
+                }}
+                disabled={deletingId === row.boardId}
+                className="absolute right-3 top-3 rounded-lg border border-red-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-950/40"
+                title="Delete board"
+              >
+                {deletingId === row.boardId ? "…" : "Delete"}
+              </button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   if (!user) return null;
 
   return (
@@ -191,7 +261,6 @@ function DashboardContent() {
       <div className="mx-auto mt-6 flex w-full max-w-5xl flex-col gap-10">
         <DashboardTemplatesGallery user={user} />
 
-        {/* Future: split list into folders (private vs shared) using row.access + richer titles */}
         <section className="min-w-0" aria-labelledby="your-boards-heading">
           <h1
             id="your-boards-heading"
@@ -200,10 +269,7 @@ function DashboardContent() {
             Your boards
           </h1>
           <p className="mt-2 break-words text-sm text-zinc-600 dark:text-zinc-400">
-            Signed in as {user.email ?? user.displayName ?? user.uid}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
-            Names and grouping will expand — for now, shared boards you join also appear in this list.
+            Signed in as {user.displayName ?? user.email ?? user.uid}
           </p>
 
           <div className="mt-5 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-3">
@@ -236,39 +302,26 @@ function DashboardContent() {
               above or click <span className="font-medium">Create empty board</span>.
             </div>
           ) : (
-            <ul className="mt-4 grid list-none grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {rows.map((row) => (
-                <li key={row.boardId}>
-                  <Link
-                    href={`/board/${row.boardId}`}
-                    className="flex min-h-[4.5rem] touch-manipulation flex-col justify-between rounded-2xl border border-zinc-200/90 bg-white/95 p-4 shadow-sm transition hover:border-brand-teal/45 hover:shadow-md hover:ring-1 hover:ring-accent-lavender/25 active:bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-900/70 active:dark:bg-zinc-900/80 dark:hover:border-accent-violet/35 dark:hover:ring-accent-violet/15"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                          {row.title}
-                        </p>
-                        <p className="mt-1 truncate font-mono text-xs text-zinc-500 dark:text-zinc-500">
-                          {row.boardId}
-                        </p>
-                      </div>
-                      {row.access === "shared" ? (
-                        <span className="shrink-0 rounded-full bg-accent-lavender/35 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-800 dark:bg-accent-violet/25 dark:text-zinc-100">
-                          Shared
-                        </span>
-                      ) : (
-                        <span className="shrink-0 rounded-full bg-emerald-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-teal dark:bg-brand-teal/20 dark:text-teal-200">
-                          Yours
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-500">
-                      Updated {formatWhen(row.updatedAtMs)}
-                    </p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-6 space-y-8">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                  My boards
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+                  Boards you own — you can delete them from here.
+                </p>
+                {renderBoardGrid(ownedRows, true)}
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                  Shared with me
+                </h2>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
+                  Boards others invited you to — use Leave on the board page to remove from your list.
+                </p>
+                {renderBoardGrid(sharedRows, false)}
+              </div>
+            </div>
           )}
         </section>
 

@@ -37,6 +37,8 @@ export function ConnectorShape({
       fill={isSelected ? "#34d399" : object.stroke}
       pointerLength={12}
       pointerWidth={12}
+      pointerAtBeginning={false}
+      pointerAtEnding
       lineJoin="round"
       hitStrokeWidth={Math.max(20, object.strokeWidth * 4)}
       onMouseDown={(e) => {

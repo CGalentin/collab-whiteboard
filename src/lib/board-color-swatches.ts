@@ -47,6 +47,19 @@ export function matchSwatchIndex(fill: string, stroke: string): number | null {
   return i === -1 ? null : i;
 }
 
+/** Map a line / pen / highlighter stroke color back to a palette choice. */
+export function paletteChoiceFromStrokeColor(stroke: string): BoardPaletteChoice {
+  const i = BOARD_PALETTE_SWATCHES.findIndex(
+    (s) => s.stroke === stroke || s.fill === stroke,
+  );
+  if (i !== -1) return { kind: "swatch", index: i };
+  return {
+    kind: "custom",
+    fill: stroke,
+    stroke: companionStrokeForFill(stroke),
+  };
+}
+
 /** Derive a contrasting stroke for arbitrary fill (hex or rgba). */
 export function companionStrokeForFill(fill: string): string {
   const t = fill.trim();
