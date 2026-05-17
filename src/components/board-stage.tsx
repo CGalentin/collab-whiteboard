@@ -168,7 +168,8 @@ function clientXYFromStageEvent(
     if (!t) return null;
     return { clientX: t.clientX, clientY: t.clientY };
   }
-  return { clientX: evt.clientX, clientY: evt.clientY };
+  const e = evt as MouseEvent | PointerEvent;
+  return { clientX: e.clientX, clientY: e.clientY };
 }
 
 /** Touch / pen / primary mouse — used instead of `button === 0` only (touch has no button). */
