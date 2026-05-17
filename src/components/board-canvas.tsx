@@ -3,9 +3,11 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -141,7 +143,10 @@ export function BoardCanvas({
   const [shapesMenuOpen, setShapesMenuOpen] = useState(false);
   const [colorDropdownOpen, setColorDropdownOpen] = useState(false);
   const toolbarColorRef = useRef<HTMLDivElement>(null);
+  const colorButtonRef = useRef<HTMLButtonElement>(null);
   const toolbarShapesRef = useRef<HTMLDivElement>(null);
+  const [mobileColorDropdownStyle, setMobileColorDropdownStyle] =
+    useState<CSSProperties>({});
 
   const [shapeAddBusy, setShapeAddBusy] = useState<
     null | "rect" | "ellipse" | PolygonKind
@@ -293,10 +298,53 @@ export function BoardCanvas({
     return "New objects color";
   }, [activeRailTool, lineToolActive, selectedColorTarget]);
 
+  useLayoutEffect(() => {
+    if (!colorDropdownOpen) {
+      setMobileColorDropdownStyle({});
+      return;
+    }
+
+    const placeMobilePanel = () => {
+      if (window.matchMedia("(min-width: 1024px)").matches) {
+        setMobileColorDropdownStyle({});
+        return;
+      }
+      const btn = colorButtonRef.current;
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      // Clear mobile tool rail (~3.5rem) + safe area
+      const bottomInset = 56 + 16;
+      const maxHeight = Math.min(
+        window.innerHeight * 0.38,
+        Math.max(140, window.innerHeight - r.bottom - 12 - bottomInset),
+      );
+      setMobileColorDropdownStyle({
+        position: "fixed",
+        top: r.bottom + 6,
+        left: 12,
+        right: 12,
+        width: "auto",
+        zIndex: 70,
+        maxHeight,
+        overflowY: "auto",
+      });
+    };
+
+    placeMobilePanel();
+    window.addEventListener("resize", placeMobilePanel);
+    window.addEventListener("scroll", placeMobilePanel, true);
+    return () => {
+      window.removeEventListener("resize", placeMobilePanel);
+      window.removeEventListener("scroll", placeMobilePanel, true);
+    };
+  }, [colorDropdownOpen]);
+
   useEffect(() => {
     if (!colorDropdownOpen && !shapesMenuOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
+    const onDoc = (e: PointerEvent) => {
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (t instanceof Element && t.closest('input[type="color"]')) return;
       if (
         colorDropdownOpen &&
         toolbarColorRef.current &&
@@ -318,10 +366,10 @@ export function BoardCanvas({
         setShapesMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("pointerdown", onDoc);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("pointerdown", onDoc);
       document.removeEventListener("keydown", onKey);
     };
   }, [colorDropdownOpen, shapesMenuOpen]);
@@ -1359,7 +1407,7 @@ export function BoardCanvas({
       >
       <div className="board-canvas-grid pointer-events-none absolute inset-0 z-0 opacity-45 dark:opacity-[0.35]" />
 
-      <div className="absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2 pointer-events-auto">
+      <div className="absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2 pointer-events-auto max-lg:z-[65]">
         <div className="flex min-w-[9rem] max-w-[14rem] flex-1 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white/95 px-2 py-1 shadow dark:border-zinc-700 dark:bg-zinc-900/95 sm:min-w-[12rem] sm:max-w-[18rem]">
           <label htmlFor="board-text-search" className="sr-only">
             Search sticky notes and text boxes
@@ -1417,9 +1465,10 @@ export function BoardCanvas({
         </button>
         <div ref={toolbarColorRef} className="relative shrink-0">
           <button
+            ref={colorButtonRef}
             type="button"
             onClick={openColorDropdown}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow dark:bg-zinc-900 ${
+            className={`inline-flex min-h-11 touch-manipulation items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow dark:bg-zinc-900 ${
               colorDropdownOpen
                 ? "border-emerald-500 ring-2 ring-emerald-500/30 dark:border-emerald-500"
                 : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
@@ -1447,7 +1496,10 @@ export function BoardCanvas({
             </svg>
           </button>
           {colorDropdownOpen ? (
-            <div className="absolute left-0 top-[calc(100%+0.35rem)] z-[60] w-[min(17.5rem,calc(100vw-2rem))] touch-manipulation rounded-xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-600 dark:bg-zinc-900 lg:z-[35]">
+            <div
+              className="absolute left-0 top-[calc(100%+0.35rem)] z-[60] w-[min(17.5rem,calc(100vw-2rem))] touch-manipulation rounded-xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-600 dark:bg-zinc-900 lg:z-[35]"
+              style={mobileColorDropdownStyle}
+            >
               <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 {colorDropdownLabel}
               </p>
