@@ -50,7 +50,9 @@ import {
 } from "@/lib/board-group-drag";
 import { snapCoordToGrid } from "@/lib/board-grid";
 import {
+  applyEraserBrushChangeToObjects,
   computeEraserBrushChanges,
+  eraserBrushChangeIsEmpty,
   type EraserBrushChange,
 } from "@/lib/board-eraser-geometry";
 import {
@@ -154,6 +156,64 @@ function pointerToWorld(
     x: (p.x - stagePos.x) / scale,
     y: (p.y - stagePos.y) / scale,
   };
+}
+
+type StagePointerEvent = MouseEvent | TouchEvent | PointerEvent;
+
+function clientXYFromStageEvent(
+  evt: StagePointerEvent,
+): { clientX: number; clientY: number } | null {
+  if (typeof TouchEvent !== "undefined" && evt instanceof TouchEvent) {
+    const t = evt.changedTouches[0] ?? evt.touches[0];
+    if (!t) return null;
+    return { clientX: t.clientX, clientY: t.clientY };
+  }
+  return { clientX: evt.clientX, clientY: evt.clientY };
+}
+
+/** Touch / pen / primary mouse — used instead of `button === 0` only (touch has no button). */
+function primaryPointerAccepted(evt: StagePointerEvent): boolean {
+  if (typeof TouchEvent !== "undefined" && evt instanceof TouchEvent) {
+    return true;
+  }
+  const pe = evt as PointerEvent;
+  if (pe.pointerType === "touch") return true;
+  return pe.button === 0;
+}
+
+function pointerIdFromStageEvent(evt: StagePointerEvent): number {
+  if ("pointerId" in evt && typeof evt.pointerId === "number") {
+    return evt.pointerId;
+  }
+  if (typeof TouchEvent !== "undefined" && evt instanceof TouchEvent) {
+    return evt.changedTouches[0]?.identifier ?? evt.touches[0]?.identifier ?? 1;
+  }
+  return 1;
+}
+
+function attachWindowPointerDrag(
+  pointerId: number,
+  onMove: (clientX: number, clientY: number) => void,
+  onEnd: () => void,
+): () => void {
+  const onPointerMove = (pe: PointerEvent) => {
+    if (pe.pointerId !== pointerId) return;
+    onMove(pe.clientX, pe.clientY);
+  };
+  const onPointerUp = (pe: PointerEvent) => {
+    if (pe.pointerId !== pointerId) return;
+    detach();
+    onEnd();
+  };
+  const detach = () => {
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
+  };
+  window.addEventListener("pointermove", onPointerMove, { passive: false });
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
+  return detach;
 }
 
 function commitTransformNode(
@@ -509,7 +569,7 @@ export function BoardStage({
   highlighterStrokeWidth = 16,
   snapToGridEnabled = false,
   eraserBrushActive = false,
-  eraserBrushRadius = 20,
+  eraserBrushRadius = 6,
   onEraserBrushApply,
 }: BoardStageProps) {
   const searchOn = textSearchActive;
@@ -524,46 +584,44 @@ export function BoardStage({
   const stageRef = useRef<KonvaStage>(null);
   const transformerRef = useRef<Konva.Transformer>(null);
   const transformTargets = useRef<Map<string, Konva.Node>>(new Map());
-  const optimisticPatchesRef = useRef<Map<string, Record<string, unknown>>>(
-    new Map(),
-  );
-  const [optimisticTick, setOptimisticTick] = useState(0);
+  const [optimisticPatches, setOptimisticPatches] = useState<
+    Map<string, Record<string, unknown>>
+  >(() => new Map());
   const pendingDragNodeResetRef = useRef<Konva.Node | null>(null);
 
+  const activeOptimisticPatches = useMemo(() => {
+    if (optimisticPatches.size === 0) return optimisticPatches;
+    const next = new Map<string, Record<string, unknown>>();
+    for (const [id, patch] of optimisticPatches) {
+      const o = objects.find((x) => x.id === id);
+      if (o && optimisticPatchMatches(o, patch)) continue;
+      next.set(id, patch);
+    }
+    return next;
+  }, [objects, optimisticPatches]);
+
   const displayObjects = useMemo(() => {
-    const opt = optimisticPatchesRef.current;
-    if (opt.size === 0) return objects;
+    if (activeOptimisticPatches.size === 0) return objects;
     return objects.map((o) => {
-      const patch = opt.get(o.id);
+      const patch = activeOptimisticPatches.get(o.id);
       return patch ? applyOptimisticPatch(o, patch) : o;
     });
-  }, [objects, optimisticTick]);
-
-  useEffect(() => {
-    const opt = optimisticPatchesRef.current;
-    let cleared = false;
-    for (const [id, patch] of [...opt.entries()]) {
-      const o = objects.find((x) => x.id === id);
-      if (o && optimisticPatchMatches(o, patch)) {
-        opt.delete(id);
-        cleared = true;
-      }
-    }
-    if (cleared) setOptimisticTick((t) => t + 1);
-  }, [objects]);
+  }, [objects, activeOptimisticPatches]);
 
   useLayoutEffect(() => {
     const node = pendingDragNodeResetRef.current;
     if (!node) return;
     node.position({ x: 0, y: 0 });
     pendingDragNodeResetRef.current = null;
-  }, [optimisticTick]);
+  }, [optimisticPatches]);
 
   type OverlayEdit = {
     kind: "sticky" | "rect" | "text" | "comment";
     id: string;
   };
   const [overlayEdit, setOverlayEdit] = useState<OverlayEdit | null>(null);
+  const [stageContainerEl, setStageContainerEl] =
+    useState<HTMLDivElement | null>(null);
   const [overlayDraft, setOverlayDraft] = useState("");
   const overlayDraftRef = useRef(overlayDraft);
 
@@ -599,6 +657,11 @@ export function BoardStage({
   const [eraserDraftPoints, setEraserDraftPoints] = useState<number[] | null>(
     null,
   );
+  const [eraserPreviewObjects, setEraserPreviewObjects] = useState<
+    BoardObject[] | null
+  >(null);
+  const eraserSessionStartRef = useRef<BoardObject[] | null>(null);
+  const renderObjects = eraserPreviewObjects ?? displayObjects;
 
   const spaceDown = useRef(false);
   const panning = useRef(false);
@@ -857,6 +920,12 @@ export function BoardStage({
         : "cursor-crosshair";
 
   const ready = size.w >= 2 && size.h >= 2;
+
+  const setStageRef = useCallback((node: KonvaStage | null) => {
+    stageRef.current = node;
+    setStageContainerEl(node?.container() ?? null);
+  }, []);
+
   const interactionLocked = handToolActive;
 
   const openStickyEditor = useCallback(
@@ -991,17 +1060,19 @@ export function BoardStage({
 
   const beginGroupDrag = useCallback(
     (draggedId: string) => {
-      const opt = optimisticPatchesRef.current;
-      let cleared = false;
       const idsToTrack =
         selectedObjectIds.length >= 2 &&
         selectedObjectIds.includes(draggedId)
           ? selectedObjectIds
           : [draggedId];
-      for (const id of idsToTrack) {
-        if (opt.delete(id)) cleared = true;
-      }
-      if (cleared) setOptimisticTick((t) => t + 1);
+      setOptimisticPatches((prev) => {
+        const next = new Map(prev);
+        let cleared = false;
+        for (const id of idsToTrack) {
+          if (next.delete(id)) cleared = true;
+        }
+        return cleared ? next : prev;
+      });
 
       if (
         selectedObjectIds.length < 2 ||
@@ -1082,20 +1153,22 @@ export function BoardStage({
         dy = snapped.y - origin.y;
       }
 
-      const opt = optimisticPatchesRef.current;
-      let changed = false;
-      for (const { id, patch } of buildPositionPatches(
-        draggedId,
-        dx,
-        dy,
-        origins,
-      )) {
-        // Dragged shape already moves via Konva; only preview siblings.
-        if (!usesOffsetDrag(o) && id === draggedId) continue;
-        opt.set(id, patch);
-        changed = true;
-      }
-      if (changed) setOptimisticTick((t) => t + 1);
+      setOptimisticPatches((prev) => {
+        const next = new Map(prev);
+        let changed = false;
+        for (const { id, patch } of buildPositionPatches(
+          draggedId,
+          dx,
+          dy,
+          origins,
+        )) {
+          // Dragged shape already moves via Konva; only preview siblings.
+          if (!usesOffsetDrag(o) && id === draggedId) continue;
+          next.set(id, patch);
+          changed = true;
+        }
+        return changed ? next : prev;
+      });
     },
     [objects, snapToGridEnabled, snapPos, buildPositionPatches],
   );
@@ -1118,7 +1191,12 @@ export function BoardStage({
         origin ?? boardObjectDragPosition(o) ?? { x: 0, y: 0 };
       let { dx, dy } = dragDeltaFromNode(o, node, dragOrigin);
       if (dx === 0 && dy === 0) {
-        optimisticPatchesRef.current.delete(draggedId);
+        setOptimisticPatches((prev) => {
+          if (!prev.has(draggedId)) return prev;
+          const next = new Map(prev);
+          next.delete(draggedId);
+          return next;
+        });
         if (offsetDrag) node.position({ x: 0, y: 0 });
         return;
       }
@@ -1140,12 +1218,19 @@ export function BoardStage({
 
       let draggedPatch: Record<string, unknown> | undefined;
       for (const { id, patch } of patches) {
-        optimisticPatchesRef.current.set(id, patch);
         void writes.flushObjectPatchNow(id, patch);
         if (id === draggedId) draggedPatch = patch;
       }
 
       if (patches.length === 0) return;
+
+      setOptimisticPatches((prev) => {
+        const next = new Map(prev);
+        for (const { id, patch } of patches) {
+          next.set(id, patch);
+        }
+        return next;
+      });
 
       if (offsetDrag) {
         pendingDragNodeResetRef.current = node;
@@ -1158,7 +1243,6 @@ export function BoardStage({
           y: draggedPatch.y,
         });
       }
-      setOptimisticTick((t) => t + 1);
     },
     [objects, writes, snapToGridEnabled, snapPos, buildPositionPatches],
   );
@@ -1221,14 +1305,25 @@ export function BoardStage({
 
   const cleanupMarqueeListeners = useRef<(() => void) | null>(null);
 
-  const handleStageMouseDown = useCallback(
-    (e: KonvaEventObject<MouseEvent>) => {
+  const worldFromStageDown = useCallback(
+    (st: KonvaStage, evt: StagePointerEvent) => {
+      const fromStage = pointerToWorld(st, scale, stagePos);
+      if (fromStage) return fromStage;
+      const client = clientXYFromStageEvent(evt);
+      if (!client) return null;
+      return screenToWorld(client.clientX, client.clientY);
+    },
+    [scale, stagePos, screenToWorld],
+  );
+
+  const handleStageBackgroundDown = useCallback(
+    (e: KonvaEventObject<StagePointerEvent>) => {
       if (handToolActive) return;
       const st = e.target.getStage();
       if (!st || e.target !== st) return;
 
       if (onLineStageBackgroundDown) {
-        const w = pointerToWorld(st, scale, stagePos);
+        const w = worldFromStageDown(st, e.evt);
         if (w) {
           setOverlayEdit(null);
           onLineStageBackgroundDown(w);
@@ -1237,8 +1332,8 @@ export function BoardStage({
       }
 
       if (eraserBrushActive) {
-        if (spaceDown.current || e.evt.button !== 0) return;
-        const wErase = pointerToWorld(st, scale, stagePos);
+        if (spaceDown.current || !primaryPointerAccepted(e.evt)) return;
+        const wErase = worldFromStageDown(st, e.evt);
         if (!wErase) return;
 
         cleanupMarqueeListeners.current?.();
@@ -1249,37 +1344,34 @@ export function BoardStage({
         cleanupLassoListeners.current = null;
         setOverlayEdit(null);
 
+        const sessionStart = displayObjects;
+        eraserSessionStartRef.current = sessionStart;
+        setEraserPreviewObjects(null);
+
         let pts: number[] = [wErase.x, wErase.y];
-        let historyMarked = false;
-        let lastEraserFlushLen = 0;
-        const pointerId =
-          "pointerId" in e.evt ? e.evt.pointerId : 1;
+        const pointerId = pointerIdFromStageEvent(e.evt);
         setEraserDraftPoints([...pts]);
 
-        const flushHits = () => {
-          if (pts.length < lastEraserFlushLen + 2) return;
-          const overlap = lastEraserFlushLen > 0 ? lastEraserFlushLen - 2 : 0;
-          const delta = pts.slice(overlap);
-          lastEraserFlushLen = pts.length;
-          const change = computeEraserBrushChanges(
-            objects,
-            delta,
-            eraserBrushRadius,
-          );
-          if (
-            change.deleteIds.length === 0 &&
-            change.updates.length === 0 &&
-            change.creates.length === 0
-          ) {
+        const refreshEraserPreview = (pathPts: number[]) => {
+          if (pathPts.length < 4) {
+            setEraserPreviewObjects(null);
             return;
           }
-          if (!historyMarked) {
-            historyMarked = true;
-            onHistoryCheckpoint?.();
+          const change = computeEraserBrushChanges(
+            sessionStart,
+            pathPts,
+            eraserBrushRadius,
+          );
+          if (eraserBrushChangeIsEmpty(change)) {
+            setEraserPreviewObjects(null);
+            return;
           }
-          onEraserBrushApply?.(change);
+          const { objects: preview } = applyEraserBrushChangeToObjects(
+            sessionStart,
+            change,
+          );
+          setEraserPreviewObjects(preview);
         };
-        flushHits();
 
         const onPointerMove = (pe: PointerEvent) => {
           if (pe.pointerId !== pointerId) return;
@@ -1287,10 +1379,10 @@ export function BoardStage({
           if (!ww) return;
           const lx = pts[pts.length - 2]!;
           const ly = pts[pts.length - 1]!;
-          if (Math.hypot(ww.x - lx, ww.y - ly) >= 2) {
+          if (Math.hypot(ww.x - lx, ww.y - ly) >= 1) {
             pts = pts.concat([ww.x, ww.y]);
             setEraserDraftPoints([...pts]);
-            flushHits();
+            refreshEraserPreview(pts);
           }
         };
 
@@ -1300,13 +1392,33 @@ export function BoardStage({
           window.removeEventListener("pointerup", onPointerUp);
           window.removeEventListener("pointercancel", onPointerUp);
           cleanupDrawingListeners.current = null;
+          eraserSessionStartRef.current = null;
           setEraserDraftPoints(null);
+          setEraserPreviewObjects(null);
+
+          if (pts.length >= 4) {
+            const change = computeEraserBrushChanges(
+              sessionStart,
+              pts,
+              eraserBrushRadius,
+            );
+            if (!eraserBrushChangeIsEmpty(change)) {
+              const { change: changeWithIds } = applyEraserBrushChangeToObjects(
+                sessionStart,
+                change,
+              );
+              onHistoryCheckpoint?.();
+              onEraserBrushApply?.(changeWithIds);
+            }
+          }
         };
 
         cleanupDrawingListeners.current = () => {
           window.removeEventListener("pointermove", onPointerMove);
           window.removeEventListener("pointerup", onPointerUp);
           window.removeEventListener("pointercancel", onPointerUp);
+          eraserSessionStartRef.current = null;
+          setEraserPreviewObjects(null);
         };
 
         window.addEventListener("pointermove", onPointerMove);
@@ -1316,8 +1428,8 @@ export function BoardStage({
       }
 
       if (railDrawMode === "pen" || railDrawMode === "highlighter") {
-        if (spaceDown.current || e.evt.button !== 0) return;
-        const wDraw = pointerToWorld(st, scale, stagePos);
+        if (spaceDown.current || !primaryPointerAccepted(e.evt)) return;
+        const wDraw = worldFromStageDown(st, e.evt);
         if (!wDraw) return;
 
         cleanupMarqueeListeners.current?.();
@@ -1329,6 +1441,7 @@ export function BoardStage({
         const strokeForStroke =
           mode === "pen" ? railPenStrokeColor : railHighlighterStrokeColor;
         let pts: number[] = [wDraw.x, wDraw.y];
+        const drawPointerId = pointerIdFromStageEvent(e.evt);
         setOverlayEdit(null);
         setDrawingDraft({
           mode,
@@ -1336,22 +1449,7 @@ export function BoardStage({
           stroke: strokeForStroke,
         });
 
-        const onDrawMove = (me: MouseEvent) => {
-          const ww = screenToWorld(me.clientX, me.clientY);
-          if (!ww) return;
-          const lx = pts[pts.length - 2]!;
-          const ly = pts[pts.length - 1]!;
-          if (Math.hypot(ww.x - lx, ww.y - ly) >= 2) {
-            pts = pts.concat([ww.x, ww.y]);
-            setDrawingDraft((prev) =>
-              prev ? { ...prev, points: pts } : null,
-            );
-          }
-        };
-
         const onDrawUp = () => {
-          window.removeEventListener("mousemove", onDrawMove);
-          window.removeEventListener("mouseup", onDrawUp);
           cleanupDrawingListeners.current = null;
           setDrawingDraft(null);
           const committed = pts;
@@ -1385,19 +1483,28 @@ export function BoardStage({
           })();
         };
 
-        cleanupDrawingListeners.current = () => {
-          window.removeEventListener("mousemove", onDrawMove);
-          window.removeEventListener("mouseup", onDrawUp);
-        };
-
-        window.addEventListener("mousemove", onDrawMove);
-        window.addEventListener("mouseup", onDrawUp);
+        cleanupDrawingListeners.current = attachWindowPointerDrag(
+          drawPointerId,
+          (clientX, clientY) => {
+            const ww = screenToWorld(clientX, clientY);
+            if (!ww) return;
+            const lx = pts[pts.length - 2]!;
+            const ly = pts[pts.length - 1]!;
+            if (Math.hypot(ww.x - lx, ww.y - ly) >= 1) {
+              pts = pts.concat([ww.x, ww.y]);
+              setDrawingDraft((prev) =>
+                prev ? { ...prev, points: pts } : null,
+              );
+            }
+          },
+          onDrawUp,
+        );
         return;
       }
 
       if (lassoActive) {
-        if (spaceDown.current || e.evt.button !== 0) return;
-        const wL = pointerToWorld(st, scale, stagePos);
+        if (spaceDown.current || !primaryPointerAccepted(e.evt)) return;
+        const wL = worldFromStageDown(st, e.evt);
         if (!wL) return;
 
         cleanupMarqueeListeners.current?.();
@@ -1408,23 +1515,11 @@ export function BoardStage({
         cleanupLassoListeners.current = null;
 
         let pts: number[] = [wL.x, wL.y];
+        const lassoPointerId = pointerIdFromStageEvent(e.evt);
         setOverlayEdit(null);
         setLassoDraftPoints([...pts]);
 
-        const onLassoMove = (me: MouseEvent) => {
-          const ww = screenToWorld(me.clientX, me.clientY);
-          if (!ww) return;
-          const lx = pts[pts.length - 2]!;
-          const ly = pts[pts.length - 1]!;
-          if (Math.hypot(ww.x - lx, ww.y - ly) >= 3) {
-            pts = pts.concat([ww.x, ww.y]);
-            setLassoDraftPoints([...pts]);
-          }
-        };
-
         const onLassoUp = () => {
-          window.removeEventListener("mousemove", onLassoMove);
-          window.removeEventListener("mouseup", onLassoUp);
           cleanupLassoListeners.current = null;
           setLassoDraftPoints(null);
           const ring = closeLassoRing(pts);
@@ -1439,19 +1534,26 @@ export function BoardStage({
           onRailActionComplete?.();
         };
 
-        cleanupLassoListeners.current = () => {
-          window.removeEventListener("mousemove", onLassoMove);
-          window.removeEventListener("mouseup", onLassoUp);
-        };
-
-        window.addEventListener("mousemove", onLassoMove);
-        window.addEventListener("mouseup", onLassoUp);
+        cleanupLassoListeners.current = attachWindowPointerDrag(
+          lassoPointerId,
+          (clientX, clientY) => {
+            const ww = screenToWorld(clientX, clientY);
+            if (!ww) return;
+            const lx = pts[pts.length - 2]!;
+            const ly = pts[pts.length - 1]!;
+            if (Math.hypot(ww.x - lx, ww.y - ly) >= 3) {
+              pts = pts.concat([ww.x, ww.y]);
+              setLassoDraftPoints([...pts]);
+            }
+          },
+          onLassoUp,
+        );
         return;
       }
 
       if (commentPlaceActive) {
-        if (spaceDown.current || e.evt.button !== 0) return;
-        const wp = pointerToWorld(st, scale, stagePos);
+        if (spaceDown.current || !primaryPointerAccepted(e.evt)) return;
+        const wp = worldFromStageDown(st, e.evt);
         if (!wp) return;
 
         cleanupMarqueeListeners.current?.();
@@ -1486,8 +1588,8 @@ export function BoardStage({
       }
 
       if (linkPlaceActive) {
-        if (spaceDown.current || e.evt.button !== 0) return;
-        const wLink = pointerToWorld(st, scale, stagePos);
+        if (spaceDown.current || !primaryPointerAccepted(e.evt)) return;
+        const wLink = worldFromStageDown(st, e.evt);
         if (!wLink) return;
 
         cleanupMarqueeListeners.current?.();
@@ -1527,9 +1629,9 @@ export function BoardStage({
         return;
       }
 
-      if (spaceDown.current || e.evt.button !== 0) return;
+      if (spaceDown.current || !primaryPointerAccepted(e.evt)) return;
 
-      const w = pointerToWorld(st, scale, stagePos);
+      const w = worldFromStageDown(st, e.evt);
       if (!w) return;
 
       cleanupMarqueeListeners.current?.();
@@ -1539,22 +1641,9 @@ export function BoardStage({
       marqueeSession.current = start;
       setMarqueeWorld(start);
       setOverlayEdit(null);
-
-      const onMove = (me: MouseEvent) => {
-        const ww = screenToWorld(me.clientX, me.clientY);
-        if (!ww || !marqueeSession.current) return;
-        const next = {
-          ...marqueeSession.current,
-          x2: ww.x,
-          y2: ww.y,
-        };
-        marqueeSession.current = next;
-        setMarqueeWorld(next);
-      };
+      const marqueePointerId = pointerIdFromStageEvent(e.evt);
 
       const onUp = () => {
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
         cleanupMarqueeListeners.current = null;
 
         const m = marqueeSession.current;
@@ -1578,25 +1667,33 @@ export function BoardStage({
         }
       };
 
-      cleanupMarqueeListeners.current = () => {
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      };
-
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
+      cleanupMarqueeListeners.current = attachWindowPointerDrag(
+        marqueePointerId,
+        (clientX, clientY) => {
+          const ww = screenToWorld(clientX, clientY);
+          if (!ww || !marqueeSession.current) return;
+          const next = {
+            ...marqueeSession.current,
+            x2: ww.x,
+            y2: ww.y,
+          };
+          marqueeSession.current = next;
+          setMarqueeWorld(next);
+        },
+        onUp,
+      );
     },
     [
       handToolActive,
       eraserBrushActive,
       eraserBrushRadius,
       onEraserBrushApply,
+      displayObjects,
+      worldFromStageDown,
       onLineStageBackgroundDown,
       onClearSelection,
       onMarqueeSelect,
       objects,
-      scale,
-      stagePos,
       screenToWorld,
       railDrawMode,
       railPenStrokeColor,
@@ -1623,15 +1720,22 @@ export function BoardStage({
     };
   }, []);
 
-  const handleStageMouseMove = useCallback(
-    (e: KonvaEventObject<MouseEvent>) => {
+  const handleStagePointerMove = useCallback(
+    (e: KonvaEventObject<StagePointerEvent>) => {
       if (!onLineStagePointerMoveWorld) return;
       const st = e.target.getStage();
       if (!st) return;
-      const w = pointerToWorld(st, scale, stagePos);
+      const w =
+        pointerToWorld(st, scale, stagePos) ??
+        (() => {
+          const client = clientXYFromStageEvent(e.evt);
+          return client
+            ? screenToWorld(client.clientX, client.clientY)
+            : null;
+        })();
       if (w) onLineStagePointerMoveWorld(w);
     },
-    [onLineStagePointerMoveWorld, scale, stagePos],
+    [onLineStagePointerMoveWorld, scale, stagePos, screenToWorld],
   );
 
   return (
@@ -1647,7 +1751,7 @@ export function BoardStage({
     >
       {ready ? (
         <Stage
-          ref={stageRef}
+          ref={setStageRef}
           width={size.w}
           height={size.h}
           scaleX={scale}
@@ -1655,12 +1759,14 @@ export function BoardStage({
           x={stagePos.x}
           y={stagePos.y}
           onWheel={handleWheel}
-          onMouseDown={handleStageMouseDown}
-          onMouseMove={handleStageMouseMove}
+          onMouseDown={handleStageBackgroundDown}
+          onTouchStart={handleStageBackgroundDown}
+          onMouseMove={handleStagePointerMove}
+          onTouchMove={handleStagePointerMove}
           style={{ touchAction: "none" }}
         >
           <Layer name="objects">
-            {displayObjects
+            {renderObjects
               .filter((o) => o.type !== "connector")
               .map((o) => {
                 if (isShapeLayerObject(o)) {
@@ -1789,15 +1895,26 @@ export function BoardStage({
               />
             ) : null}
             {eraserDraftPoints && eraserDraftPoints.length >= 2 ? (
-              <Line
-                points={eraserDraftPoints}
-                stroke="rgba(244, 63, 94, 0.55)"
-                strokeWidth={eraserBrushRadius * 2}
-                lineCap="round"
-                lineJoin="round"
-                perfectDrawEnabled={false}
-                listening={false}
-              />
+              <>
+                <Line
+                  points={eraserDraftPoints}
+                  stroke="rgba(244, 63, 94, 0.28)"
+                  strokeWidth={Math.max(2, eraserBrushRadius * 2)}
+                  lineCap="round"
+                  lineJoin="round"
+                  perfectDrawEnabled={false}
+                  listening={false}
+                />
+                <Circle
+                  x={eraserDraftPoints[eraserDraftPoints.length - 2]}
+                  y={eraserDraftPoints[eraserDraftPoints.length - 1]}
+                  radius={eraserBrushRadius}
+                  fill="rgba(244, 63, 94, 0.12)"
+                  stroke="rgba(244, 63, 94, 0.65)"
+                  strokeWidth={1}
+                  listening={false}
+                />
+              </>
             ) : null}
             {lassoDraftPoints && lassoDraftPoints.length >= 4 ? (
               <Line
@@ -1941,10 +2058,7 @@ export function BoardStage({
               );
             }
           }}
-          stageContainer={
-            // Konva `container()` is only read when the text editor is open; Stage is mounted.
-            stageRef.current?.container() ?? null
-          }
+          stageContainer={overlayEdit ? stageContainerEl : null}
           scale={scale}
           stagePos={stagePos}
         />

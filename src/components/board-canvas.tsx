@@ -194,7 +194,7 @@ export function BoardCanvas({
   const [penStrokeWidth, setPenStrokeWidth] = useState(3);
   const [highlighterStrokeWidth, setHighlighterStrokeWidth] = useState(16);
   const [eraserMode, setEraserMode] = useState<"tap" | "brush">("brush");
-  const [eraserBrushRadius, setEraserBrushRadius] = useState(20);
+  const [eraserBrushRadius, setEraserBrushRadius] = useState(6);
   useEffect(() => {
     if (!linkSelection) {
       setLinkDraft("");
@@ -641,7 +641,7 @@ export function BoardCanvas({
           await writes.flushObjectPatchNow(id, patch);
         }
         for (const create of change.creates) {
-          const id = crypto.randomUUID();
+          const id = create.id ?? crypto.randomUUID();
           await setDoc(doc(db, "boards", boardId, "objects", id), {
             ...create.fields,
             zIndex: Date.now(),
@@ -1670,7 +1670,7 @@ export function BoardCanvas({
                   ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200"
                   : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300"
               }`}
-              title="Drag to erase pen, highlighter, and line strokes"
+              title="Drag to partially erase pen, highlighter, and line strokes (pixel brush)"
             >
               Brush
             </button>
@@ -1678,7 +1678,7 @@ export function BoardCanvas({
               <>
                 <span className="px-0.5 text-zinc-400">|</span>
                 <span className="px-1 text-zinc-500">Size</span>
-                {([12, 20, 32] as const).map((r) => (
+                {([4, 8, 12] as const).map((r) => (
                   <button
                     key={r}
                     type="button"
@@ -1688,8 +1688,9 @@ export function BoardCanvas({
                         ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100"
                         : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300"
                     }`}
+                    title={`${r}px brush radius`}
                   >
-                    {r === 12 ? "S" : r === 20 ? "M" : "L"}
+                    {r === 4 ? "S" : r === 8 ? "M" : "L"}
                   </button>
                 ))}
               </>
