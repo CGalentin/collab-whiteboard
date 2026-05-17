@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { defaultBoardTitle, isDefaultBoardTitle } from "@/lib/board";
 import { updateBoardTitleAsOwner } from "@/lib/boards-client";
+import { cursorNameFromUser } from "@/lib/cursors";
 
 type BoardTitleHeaderProps = {
   user: User;
@@ -273,9 +274,8 @@ export function BoardTitleHeader({
         )}
 
         <p className="mt-1 min-w-0 break-words text-sm text-zinc-600 dark:text-zinc-400">
-          <span className="font-medium text-zinc-500 dark:text-zinc-500">User</span>{" "}
           <span className="text-zinc-800 dark:text-zinc-200">
-            {user.email ?? user.displayName ?? user.uid}
+            {cursorNameFromUser(user)}
           </span>
           {!isOwner ? (
             <span className="text-zinc-500 dark:text-zinc-500"> · Viewing as collaborator</span>

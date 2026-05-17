@@ -97,10 +97,19 @@ export function BoardPaletteStrip({
           className="absolute inset-0"
           style={{
             background:
-              "conic-gradient(from 180deg at 50% 50%, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #6366f1, #a855f7, #ef4444)",
+              choice.kind === "custom"
+                ? choice.fill
+                : "conic-gradient(from 180deg at 50% 50%, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #6366f1, #a855f7, #ef4444)",
           }}
         />
-        <span className="absolute inset-[3px] rounded-sm bg-white dark:bg-zinc-900" />
+        <span
+          className="absolute inset-[3px] rounded-sm border border-zinc-200/80 dark:border-zinc-600/80"
+          style={
+            choice.kind === "custom"
+              ? { backgroundColor: choice.fill }
+              : { backgroundColor: "var(--background, #fff)" }
+          }
+        />
       </button>
     </div>
   );

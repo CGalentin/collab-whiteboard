@@ -203,6 +203,7 @@ function LoginForm() {
         }
         const cred = await createUserWithEmailAndPassword(auth, trimmed, password);
         await updateProfile(cred.user, { displayName: name });
+        await cred.user.reload();
         const verifyUrl = getAuthActionContinueUrl(
           `/login?from=${encodeURIComponent(from)}&emailSent=1`,
         );

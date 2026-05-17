@@ -16,13 +16,13 @@
 | Area | State |
 |------|--------|
 | **MVP + v2** | **PR 01–35** shipped (**PR 24** skipped) |
-| **App cleanup** | **PR 36–39** code + partial QA; **PR 40–54** in repo, **checkboxes unchecked** for your review |
-| **Next session** | Start **PR 40** (sign-up display name), then 41 → 54 in order |
+| **App cleanup** | **PR 36–40** signed off; **PR 41–54** in repo, **checkboxes unchecked** for your review |
+| **Next session** | **PR 41** (object color on create), then 42 → 54 |
 | **Do not** | Batch-check PRs or ship without per-PR manual QA |
 
 ### Workflow
 
-1. Open roadmap → find next unchecked PR (starts at **40**).
+1. Open roadmap → find next unchecked PR (starts at **41**).
 2. Hard-refresh board → run that PR’s **QA** bullets.
 3. Check boxes in **BUILD_ROADMAP.md** when satisfied.
 4. Repeat.
@@ -42,13 +42,12 @@ Key files: `board-stage.tsx`, `board-canvas.tsx`, `board-group-drag.ts`, `board-
 
 ---
 
-## PR 40–54 — awaiting your sign-off
+## PR 41–54 — awaiting your sign-off
 
-All checkboxes **unchecked** in roadmap. Implementation exists from prior agent sessions; treat as **review + QA**, not greenfield build.
+Implementation exists from prior agent sessions; treat as **review + QA**, not greenfield build.
 
 | PR | One-line reminder |
 |----|-------------------|
-| 40 | Sign-up display name → presence/cursors |
 | 41 | Yellow sticky default; palette on shapes + pen |
 | 42 | Pen/highlighter S/M/L width |
 | 43 | Multi-select duplicate (+ frame children) |

@@ -26,17 +26,24 @@ export type BoardPaletteChoice =
   | { kind: "swatch"; index: number }
   | { kind: "custom"; fill: string; stroke: string };
 
-export function paletteChoiceToStyle(
-  choice: BoardPaletteChoice,
-): { fill: string; stroke: string } {
+export type BoardPaletteStyle = {
+  fill: string;
+  /** Shape border / sticky outline */
+  stroke: string;
+  /** Pen, line, and toolbar chip — custom picker uses `fill`, not contrast `stroke` */
+  ink: string;
+};
+
+export function paletteChoiceToStyle(choice: BoardPaletteChoice): BoardPaletteStyle {
   if (choice.kind === "custom") {
-    return { fill: choice.fill, stroke: choice.stroke };
+    return { fill: choice.fill, stroke: choice.stroke, ink: choice.fill };
   }
   const s = BOARD_PALETTE_SWATCHES[choice.index];
   if (!s) {
-    return { fill: BOARD_PALETTE_SWATCHES[3]!.fill, stroke: BOARD_PALETTE_SWATCHES[3]!.stroke };
+    const d = BOARD_PALETTE_SWATCHES[3]!;
+    return { fill: d.fill, stroke: d.stroke, ink: d.stroke };
   }
-  return { fill: s.fill, stroke: s.stroke };
+  return { fill: s.fill, stroke: s.stroke, ink: s.stroke };
 }
 
 /** Find swatch index when fill+stroke match a preset (exact). */

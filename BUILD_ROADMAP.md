@@ -409,7 +409,8 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | **37** | Tools return to Select | Yes | Fixed (immediate release on pen/comment/link); **re-verify** |
 | **38** | Lasso + group move | Yes | **Group drag, multi-select color, drag fix** landed; **re-verify** lasso QA |
 | **39** | Line/freehand move + color | Yes | Move + palette color for pen/highlighter/line; **re-verify** |
-| **40–54** | Sign-up → icons | Yes (40–53); **54** partial | **Unchecked below — start at PR 40** |
+| **40** | Sign-up display name | Yes | **Signed off** |
+| **41–54** | Colors → icons | Yes (41–53); **54** partial | **Start at PR 41** |
 
 **Recent agent work (not yet your sign-off on 40–54):**
 
@@ -418,7 +419,7 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 - **Color:** Pen/highlighter/line color before draw + when selected; Color menu no longer exits pen/highlighter.
 - **Eraser:** **Tap** (delete whole object) vs **Brush** (partial stroke erase via `board-eraser-geometry.ts`); brush splits freehand/lines instead of deleting whole stroke.
 
-**Start next session:** [PR 40 — sign-up display name](#pr-40--featsignup-display-name-2) (checkboxes unchecked).
+**Start next session:** [PR 41 — object color on create](#pr-41--featobject-color-on-create-3-17) (checkboxes unchecked).
 
 See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
@@ -455,10 +456,10 @@ See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
 ### PR 40 — `feat/signup-display-name` *(#2)*
 
-- [ ] Required display name field on sign-up only.
-- [ ] `updateProfile({ displayName })` after account creation.
-- [ ] Validation + inline errors.
-- [ ] **QA:** New user name appears in presence/cursors.
+- [x] Required display name field on sign-up only.
+- [x] `updateProfile({ displayName })` after account creation.
+- [x] Validation + inline errors.
+- [x] **QA:** New user name appears in presence/cursors.
 
 ### PR 41 — `feat/object-color-on-create` *(#3, #17)*
 

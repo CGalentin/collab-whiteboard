@@ -260,7 +260,7 @@ export function BoardCanvas({
 
   const colorChipStyle = useMemo(() => {
     if (activeRailTool === "pen" || lineToolActive) {
-      return { backgroundColor: shapeStyle.stroke };
+      return { backgroundColor: shapeStyle.ink };
     }
     if (activeRailTool === "highlighter") {
       return { backgroundColor: shapeStyle.fill };
@@ -382,9 +382,9 @@ export function BoardCanvas({
   );
 
   const recolorBoardObject = useCallback(
-    (o: BoardObject, fill: string, stroke: string) => {
+    (o: BoardObject, fill: string, stroke: string, ink: string) => {
       if (o.type === "line" || o.type === "freehand") {
-        void writes.setStrokeColor(o.id, stroke);
+        void writes.setStrokeColor(o.id, ink);
         return;
       }
       if (o.type === "text") {
@@ -409,12 +409,12 @@ export function BoardCanvas({
   const applyPaletteChoice = useCallback(
     (next: BoardPaletteChoice) => {
       setBoardPaletteChoice(next);
-      const { fill, stroke } = paletteChoiceToStyle(next);
+      const { fill, stroke, ink } = paletteChoiceToStyle(next);
       const ids = selectedIdsRef.current;
       for (const id of ids) {
         const o = objectsRef.current.find((x) => x.id === id);
         if (!o) continue;
-        recolorBoardObject(o, fill, stroke);
+        recolorBoardObject(o, fill, stroke, ink);
       }
     },
     [recolorBoardObject],
@@ -1033,7 +1033,7 @@ export function BoardCanvas({
         await user.getIdToken();
         const db = getFirebaseDb();
         const id = crypto.randomUUID();
-        const { stroke: lineColor } = shapePaletteRef.current;
+        const { ink: lineColor } = shapePaletteRef.current;
         await setDoc(doc(db, "boards", boardId, "objects", id), {
           type: "line",
           x1,
@@ -1259,7 +1259,7 @@ export function BoardCanvas({
           y1: lineState.y1,
           x2: lineState.px,
           y2: lineState.py,
-          stroke: shapeStyle.stroke,
+          stroke: shapeStyle.ink,
           lineStyle: lineState.lineStyle,
         }
       : null;
@@ -1808,7 +1808,7 @@ export function BoardCanvas({
           textSearchActive={textSearchActive}
           textSearchMatchIds={textSearchMatchIds}
           railDrawMode={railDrawMode}
-          railPenStrokeColor={shapeStyle.stroke}
+          railPenStrokeColor={shapeStyle.ink}
           railHighlighterStrokeColor={shapeStyle.fill}
           penStrokeWidth={penStrokeWidth}
           highlighterStrokeWidth={highlighterStrokeWidth}
