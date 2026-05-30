@@ -1,6 +1,7 @@
 "use client";
 
 import { BoardToolGlyph } from "@/components/board-tool-glyphs";
+import { useBoardTool } from "@/context/board-tool-context";
 
 const railBtn =
   "flex h-11 w-full touch-manipulation items-center justify-center rounded-lg border text-zinc-700 transition dark:text-zinc-200";
@@ -35,6 +36,17 @@ export function BoardCanvasRailMid(props: BoardCanvasRailMidProps) {
     duplicatingSelection,
     canActOnSelection,
   } = props;
+  const { setMobileOpen } = useBoardTool();
+
+  const closeMobileAfter = (fn: () => void) => () => {
+    fn();
+    if (
+      typeof globalThis.matchMedia === "function" &&
+      globalThis.matchMedia("(max-width: 1023px)").matches
+    ) {
+      setMobileOpen(false);
+    }
+  };
 
   return (
     <div className="space-y-1 border-t border-zinc-200 pt-2 dark:border-zinc-800">
@@ -42,7 +54,7 @@ export function BoardCanvasRailMid(props: BoardCanvasRailMidProps) {
 
       <button
         type="button"
-        onClick={onToggleLine}
+        onClick={closeMobileAfter(onToggleLine)}
         className={`${railBtn} ${lineToolActive ? railBtnActive : railBtnIdle}`}
         title="Line tool — click twice on the canvas. Esc cancels."
         aria-label="Line tool"
@@ -52,7 +64,7 @@ export function BoardCanvasRailMid(props: BoardCanvasRailMidProps) {
 
       <button
         type="button"
-        onClick={onAddText}
+        onClick={closeMobileAfter(onAddText)}
         disabled={addingTextObj}
         className={`${railBtn} ${railBtnIdle} disabled:opacity-50`}
         title="Add text box"
@@ -63,7 +75,7 @@ export function BoardCanvasRailMid(props: BoardCanvasRailMidProps) {
 
       <button
         type="button"
-        onClick={onConnect}
+        onClick={closeMobileAfter(onConnect)}
         disabled={linkingConnector || !canConnect}
         className={`${railBtn} ${railBtnIdle} disabled:opacity-40`}
         title="Connect — arrow from first selected shape to second (Shift+click both, then click here)"
@@ -74,7 +86,7 @@ export function BoardCanvasRailMid(props: BoardCanvasRailMidProps) {
 
       <button
         type="button"
-        onClick={onDuplicate}
+        onClick={closeMobileAfter(onDuplicate)}
         disabled={duplicatingSelection || !canActOnSelection}
         className={`${railBtn} ${railBtnIdle} disabled:opacity-40`}
         title="Duplicate selection"

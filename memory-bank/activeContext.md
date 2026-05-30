@@ -16,20 +16,20 @@
 | Area | State |
 |------|--------|
 | **MVP + v2** | **PR 01–35** shipped (**PR 24** skipped) |
-| **App cleanup** | **PR 36–44 signed off**; **PR 45–54** in repo, **checkboxes unchecked** |
-| **Next session** | **PR 45** (comment pin + link decouple), then 46 → 54 |
+| **App cleanup** | **PR 36–52 interim signed off**; **PR 53–54** pending QA |
+| **Next session** | **PR 53** (mobile color picker re-QA), then **PR 54** (toolbar PNGs) |
 | **Do not** | Batch-check PRs or ship without per-PR manual QA |
 
 ### Workflow
 
-1. Open roadmap → next unchecked PR (**45**).
+1. Open roadmap → next unchecked PR (**53**).
 2. Hard-refresh board → run that PR’s **QA** bullets.
 3. Check boxes in **BUILD_ROADMAP.md** when satisfied.
 4. Repeat.
 
 ---
 
-## Signed off — app cleanup (PR 36–44)
+## Signed off — app cleanup (PR 36–52 interim)
 
 | PR | Notes |
 |----|--------|
@@ -38,17 +38,30 @@
 | **42** | Pen/highlighter S/M/L stroke width; cross-browser sync |
 | **43** | Multi-select duplicate; frame + children; connector remap |
 | **44** | Owner delete on dashboard; shared boards = leave only |
+| **45** | Comment pin 52px hit pad; link row hidden for `type === "comment"`; Konva tap handlers |
+| **46** | Collapsible link panel — collapsed by default; Apply collapses |
+| **47** | One-way connector arrow; connect tool hint + endpoint filter |
+| **48** | Text font size presets; 9 named font families in `board-font-presets.ts` |
+| **49** | Rotate 90° toolbar; polygon = box transform only (`docs/CONFLICTS.md`) |
+| **50** | Snap to grid 24px; `snapBoxToGrid()` on transform end |
+| **51** | Dashboard **My boards** / **Shared with me** sections |
+| **52** | Mobile left collapsible tool menu (interim); auto-collapse on selection |
 
 **Also signed off in roadmap (36–39):** hand pan, tool→select, lasso group drag, line/freehand move+color — optional re-verify if regressions appear.
 
-Key files: `board-canvas.tsx`, `board-stage.tsx`, `boards-client.ts` (`deleteOwnedBoard`), `dashboard/page.tsx`.
+Key files: `board-tool-rail.tsx`, `board-canvas.tsx`, `board-stage.tsx`, `board-canvas-rail-mid.tsx`, `boards-client.ts`, `dashboard/page.tsx`.
 
 ---
 
-## This session — code landed (unnumbered PRs)
+## This session — code landed (unnumbered / extra UX)
 
 | Topic | Files |
 |-------|--------|
+| **Mobile left tool menu** | `board-tool-rail.tsx` — slide-out panel, edge tab, auto-close |
+| **Mobile mid-rail close** | `board-canvas-rail-mid.tsx` — closes menu after line/text/connect/duplicate |
+| **Board page padding** | `board/[boardId]/page.tsx` — removed bottom bar inset |
+| **Collapsible search** | `board-canvas.tsx` — magnifier icon; expand on tap; Esc/outside close |
+| **Mobile comments** | `board-stage.tsx` — auto-open editor after pin; tap selected pin to edit |
 | **Undo/redo fix** | `use-board-object-writes.ts` (`cancelPendingWrites`); `board-canvas.tsx` history mutex |
 | **Keyboard shortcuts** | Ctrl/Cmd+A X C V Z Y on board; `board-shortcuts.ts` |
 | **Right-click menu** | `board-context-menu.tsx` — cut/copy/paste/duplicate/delete/select all/undo/redo |
@@ -57,22 +70,12 @@ Key files: `board-canvas.tsx`, `board-stage.tsx`, `boards-client.ts` (`deleteOwn
 
 ---
 
-## PR 45–54 — awaiting sign-off
-
-Implementation exists from prior sessions; treat as **review + QA**, not greenfield build.
+## PR 53–54 — awaiting sign-off
 
 | PR | One-line reminder |
 |----|-------------------|
-| **45** | Comment pin hit target; no link bar on comments |
-| **46** | Collapsible link panel |
-| **47** | One-way connector arrow |
-| **48** | Text font size + families |
-| **49** | Rotate 90° |
-| **50** | Snap to grid (24px) |
-| **51** | My boards / Shared with me — **may already match dashboard UI; quick verify** |
-| **52** | Mobile toolbar interim |
-| **53** | Mobile color dropdown (partially fixed in PR 41 — re-QA) |
-| **54** | Custom toolbar PNGs (partial) |
+| **53** | Mobile color dropdown touch/z-index — partially fixed in PR 41; re-QA on phone |
+| **54** | Custom toolbar PNGs (partial in `public/icons/`) |
 
 ---
 
@@ -84,9 +87,9 @@ Hand pan, select-after-tool, lasso group, line/freehand color, eraser tap vs bru
 
 ## Open decisions
 
+- **PR 52:** Full mobile mockup layout still **blocked**; interim left menu shipped instead of bottom bar.
 - **PR 54:** Remaining SVG icons when assets ready.
 - **PR 35:** Two-account sharing QA; **`npm run deploy:rules`** when rules change.
-- **PR 52:** Full mobile mockup blocked.
 - **Board delete:** Owner delete does not remove collaborators’ `users/{uid}/boards` index or orphan subcollections (cursors/presence/members).
 
 ## Blockers

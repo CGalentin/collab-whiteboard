@@ -192,10 +192,18 @@ export function BoardCanvas({
   const lineToolActive = lineState.kind !== "off";
   const shapePaletteRef = useRef(paletteChoiceToStyle({ kind: "swatch", index: 3 }));
   const [boardSearchQuery, setBoardSearchQuery] = useState("");
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const boardSearchQueryRef = useRef("");
+  const searchToolbarRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     boardSearchQueryRef.current = boardSearchQuery;
   }, [boardSearchQuery]);
+
+  const openSearchPanel = useCallback(() => {
+    setSearchExpanded(true);
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  }, []);
 
   const boardSearchTrim = boardSearchQuery.trim();
   const textSearchActive = boardSearchTrim.length > 0;
@@ -340,11 +348,9 @@ export function BoardCanvas({
       const btn = colorButtonRef.current;
       if (!btn) return;
       const r = btn.getBoundingClientRect();
-      // Clear mobile tool rail (~3.5rem) + safe area
-      const bottomInset = 56 + 16;
       const maxHeight = Math.min(
-        window.innerHeight * 0.38,
-        Math.max(140, window.innerHeight - r.bottom - 12 - bottomInset),
+        window.innerHeight * 0.5,
+        Math.max(140, window.innerHeight - r.bottom - 16),
       );
       setMobileColorDropdownStyle({
         position: "fixed",
@@ -368,7 +374,7 @@ export function BoardCanvas({
   }, [colorDropdownOpen]);
 
   useEffect(() => {
-    if (!colorDropdownOpen && !shapesMenuOpen) return;
+    if (!colorDropdownOpen && !shapesMenuOpen && !searchExpanded) return;
     const onDoc = (e: PointerEvent) => {
       const t = e.target;
       if (!(t instanceof Node)) return;
@@ -387,11 +393,19 @@ export function BoardCanvas({
       ) {
         setShapesMenuOpen(false);
       }
+      if (
+        searchExpanded &&
+        searchToolbarRef.current &&
+        !searchToolbarRef.current.contains(t)
+      ) {
+        setSearchExpanded(false);
+      }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setColorDropdownOpen(false);
         setShapesMenuOpen(false);
+        setSearchExpanded(false);
       }
     };
     document.addEventListener("pointerdown", onDoc);
@@ -400,7 +414,7 @@ export function BoardCanvas({
       document.removeEventListener("pointerdown", onDoc);
       document.removeEventListener("keydown", onKey);
     };
-  }, [colorDropdownOpen, shapesMenuOpen]);
+  }, [colorDropdownOpen, shapesMenuOpen, searchExpanded]);
 
   useEffect(() => {
     setSelectedObjectIds((prev) =>
@@ -1085,6 +1099,11 @@ export function BoardCanvas({
           e.preventDefault();
           return;
         }
+        if (searchExpanded) {
+          setSearchExpanded(false);
+          e.preventDefault();
+          return;
+        }
         cancelLineTool();
         setSelectedObjectIds([]);
         setContextMenu(null);
@@ -1148,6 +1167,7 @@ export function BoardCanvas({
     redoHistory,
     selectAllObjects,
     undoHistory,
+    searchExpanded,
   ]);
 
   const finishLineDoc = useCallback(
@@ -1586,40 +1606,86 @@ export function BoardCanvas({
       <div className="board-canvas-grid pointer-events-none absolute inset-0 z-0 opacity-45 dark:opacity-[0.35]" />
 
       <div className="absolute left-3 top-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap items-center gap-2 pointer-events-auto max-lg:z-[65]">
-        <div className="flex min-w-[9rem] max-w-[14rem] flex-1 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white/95 px-2 py-1 shadow dark:border-zinc-700 dark:bg-zinc-900/95 sm:min-w-[12rem] sm:max-w-[18rem]">
-          <label htmlFor="board-text-search" className="sr-only">
-            Search sticky notes and text boxes
-          </label>
-          <span className="text-zinc-400 dark:text-zinc-500" aria-hidden>
-            <svg
-              className="h-4 w-4 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+        <div ref={searchToolbarRef} className="relative shrink-0">
+          {searchExpanded ? (
+            <div className="flex min-w-[9rem] max-w-[14rem] items-center gap-1.5 rounded-lg border border-emerald-500 bg-white/95 px-2 py-1 shadow ring-2 ring-emerald-500/30 dark:border-emerald-500 dark:bg-zinc-900/95 sm:min-w-[12rem] sm:max-w-[18rem]">
+              <label htmlFor="board-text-search" className="sr-only">
+                Search sticky notes and text boxes
+              </label>
+              <span
+                className="text-emerald-600 dark:text-emerald-400"
+                aria-hidden
+              >
+                <svg
+                  className="h-4 w-4 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                  />
+                </svg>
+              </span>
+              <input
+                ref={searchInputRef}
+                id="board-text-search"
+                type="search"
+                value={boardSearchQuery}
+                onChange={(e) => setBoardSearchQuery(e.target.value)}
+                placeholder="Search stickies & text…"
+                autoComplete="off"
+                className="min-w-0 flex-1 bg-transparent py-0.5 text-xs text-zinc-900 placeholder:text-zinc-500 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500"
               />
-            </svg>
-          </span>
-          <input
-            id="board-text-search"
-            type="search"
-            value={boardSearchQuery}
-            onChange={(e) => setBoardSearchQuery(e.target.value)}
-            placeholder="Search stickies & text…"
-            autoComplete="off"
-            className="min-w-0 flex-1 bg-transparent py-0.5 text-xs text-zinc-900 placeholder:text-zinc-500 focus:outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500"
-          />
-          {textSearchActive ? (
-            <span className="shrink-0 tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
-              {textSearchMatchIds.size} match
-              {textSearchMatchIds.size === 1 ? "" : "es"}
-            </span>
-          ) : null}
+              {textSearchActive ? (
+                <span className="shrink-0 tabular-nums text-[11px] text-zinc-500 dark:text-zinc-400">
+                  {textSearchMatchIds.size} match
+                  {textSearchMatchIds.size === 1 ? "" : "es"}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={openSearchPanel}
+              className={`relative inline-flex min-h-11 min-w-11 touch-manipulation items-center justify-center rounded-lg border px-2.5 py-1.5 shadow dark:bg-zinc-900 ${
+                textSearchActive
+                  ? "border-emerald-500/80 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200"
+                  : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              }`}
+              aria-expanded={false}
+              aria-controls="board-text-search"
+              aria-label={
+                textSearchActive
+                  ? `Search — ${textSearchMatchIds.size} matches, tap to edit query`
+                  : "Search stickies and text boxes"
+              }
+              title="Search stickies & text"
+            >
+              <svg
+                className="h-4 w-4 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                />
+              </svg>
+              {textSearchActive ? (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-600 px-1 text-[9px] font-semibold tabular-nums text-white">
+                  {textSearchMatchIds.size}
+                </span>
+              ) : null}
+            </button>
+          )}
         </div>
         {onRequestAiAssistant ? (
           <button

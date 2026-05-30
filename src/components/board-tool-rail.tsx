@@ -30,11 +30,18 @@ type BoardToolRailProps = {
 };
 
 const iconBtnBase =
-  "flex h-11 w-full touch-manipulation items-center justify-center rounded-lg border text-zinc-700 transition dark:text-zinc-200";
+  "flex min-h-11 w-full touch-manipulation items-center rounded-lg border text-zinc-700 transition dark:text-zinc-200";
 const iconBtnIdle =
   "border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800";
 const iconBtnOn =
   "border-brand-teal bg-emerald-50 text-brand-teal shadow-sm dark:border-teal-600 dark:bg-teal-950/50 dark:text-teal-200";
+
+function isMobileLayout() {
+  if (globalThis.matchMedia) {
+    return globalThis.matchMedia("(max-width: 1023px)").matches;
+  }
+  return true;
+}
 
 export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
   const {
@@ -55,25 +62,28 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
   const canUndo = historyCanUndo;
   const canRedo = historyCanRedo;
 
+  const closeMobileIfNeeded = () => {
+    if (isMobileLayout()) setMobileOpen(false);
+  };
+
   const desktopShellClass = useMemo(() => {
     return `flex w-14 shrink-0 flex-col rounded-xl border border-zinc-200 bg-white/90 dark:border-zinc-800 dark:bg-zinc-900/55`;
   }, []);
 
-  const mobileSheetShellClass =
-    "flex w-full max-w-full flex-col rounded-t-2xl border border-b-0 border-t border-x border-zinc-200 bg-white/95 shadow-[0_-8px_28px_rgba(0,0,0,0.08)] dark:border-zinc-800 dark:bg-zinc-900/95";
+  const mobilePanelShellClass =
+    "flex h-full min-h-0 w-full flex-col border-r border-zinc-200 bg-white/98 shadow-xl dark:border-zinc-800 dark:bg-zinc-950/98";
 
-  function isMobileLayout() {
-    if (globalThis.matchMedia) {
-      return globalThis.matchMedia("(max-width: 1023px)").matches;
-    }
-    return true;
-  }
+  const activeToolLabel =
+    activeTool === null
+      ? "Select"
+      : (OTHER_RAIL_TOOLS.find((t) => t.id === activeTool)?.label ??
+        activeTool.replace(/-/g, " "));
 
   function openTemplates() {
     setNotice(null);
     setActiveTool(null);
     openTemplatesModal();
-    if (isMobileLayout()) setMobileOpen(false);
+    closeMobileIfNeeded();
   }
 
   function chooseTool(button: ToolButton) {
@@ -87,14 +97,14 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
     } else {
       setActiveTool(button.id);
     }
-    if (isMobileLayout()) setMobileOpen(false);
+    closeMobileIfNeeded();
   }
 
   function chooseSelectMode() {
     setNotice(null);
     closeTemplatesModal();
     setActiveTool(null);
-    if (isMobileLayout()) setMobileOpen(false);
+    closeMobileIfNeeded();
   }
 
   function undoToolSelection() {
@@ -104,6 +114,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
     }
     setNotice(null);
     requestUndo();
+    closeMobileIfNeeded();
   }
 
   function redoToolSelection() {
@@ -113,56 +124,74 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
     }
     setNotice(null);
     requestRedo();
+    closeMobileIfNeeded();
   }
 
-  const content = (shell: string) => (
+  const renderToolButton = (
+    button: ToolButton | { id: "templates" | "select"; label: string },
+    selected: boolean,
+    onClick: () => void,
+    glyphId: Parameters<typeof BoardToolGlyph>[0]["id"],
+    mobileLabeled = false,
+  ) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${iconBtnBase} ${selected ? iconBtnOn : iconBtnIdle} ${
+        mobileLabeled ? "justify-start gap-2.5 px-2.5" : "justify-center"
+      }`}
+      aria-label={button.label}
+      title={button.label}
+    >
+      <BoardToolGlyph id={glyphId} className="h-5 w-5 shrink-0" />
+      {mobileLabeled ? (
+        <span className="truncate text-left text-xs font-medium">{button.label}</span>
+      ) : null}
+    </button>
+  );
+
+  const content = (shell: string, mobileLabeled = false) => (
     <div className={`${shell} ${className ?? ""}`}>
-      <div className="flex min-h-10 items-center justify-center border-b border-zinc-200 px-1 py-1 dark:border-zinc-800">
-        <p className="sr-only">Board tools</p>
+      <div className="flex min-h-10 shrink-0 items-center justify-center border-b border-zinc-200 px-2 py-2 dark:border-zinc-800">
+        <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+          {mobileLabeled ? "Tools" : <span className="sr-only">Board tools</span>}
+        </p>
       </div>
 
-      <div className="min-h-0 max-h-[min(50dvh,26rem)] flex-1 space-y-1 overflow-y-auto overflow-x-visible p-1.5 lg:max-h-none">
-        <button
-          type="button"
-          onClick={openTemplates}
-          className={`${iconBtnBase} ${
-            templatesModalOpen ? iconBtnOn : iconBtnIdle
-          }`}
-          aria-label="Templates"
-          title="Templates — open gallery"
-        >
-          <BoardToolGlyph id="templates" />
-        </button>
-        <button
-          type="button"
-          onClick={chooseSelectMode}
-          className={`${iconBtnBase} ${
-            activeTool === null && !templatesModalOpen ? iconBtnOn : iconBtnIdle
-          }`}
-          aria-label="Select"
-          title="Select — move and resize objects (default). Click again after another tool to return here."
-        >
-          <BoardToolGlyph id="select" />
-        </button>
-        {OTHER_RAIL_TOOLS.map((button) => {
-          const selected = activeTool === button.id;
-          return (
-            <button
-              key={button.id}
-              type="button"
-              onClick={() => chooseTool(button)}
-              className={`${iconBtnBase} ${selected ? iconBtnOn : iconBtnIdle}`}
-              aria-label={button.label}
-              title={button.label}
-            >
-              <BoardToolGlyph id={button.id} />
-            </button>
-          );
-        })}
-        {midRailSlot ? <div className="overflow-x-visible">{midRailSlot}</div> : null}
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-visible p-1.5">
+        {renderToolButton(
+          { id: "templates", label: "Templates" },
+          templatesModalOpen,
+          openTemplates,
+          "templates",
+          mobileLabeled,
+        )}
+        {renderToolButton(
+          { id: "select", label: "Select" },
+          activeTool === null && !templatesModalOpen,
+          chooseSelectMode,
+          "select",
+          mobileLabeled,
+        )}
+        {OTHER_RAIL_TOOLS.map((button) => (
+          <span key={button.id}>
+            {renderToolButton(
+              button,
+              activeTool === button.id,
+              () => chooseTool(button),
+              button.id,
+              mobileLabeled,
+            )}
+          </span>
+        ))}
+        {midRailSlot ? (
+          <div className="overflow-x-visible border-t border-zinc-200 pt-2 dark:border-zinc-800">
+            {midRailSlot}
+          </div>
+        ) : null}
       </div>
 
-      <div className="space-y-1 border-t border-zinc-200 p-1.5 dark:border-zinc-800">
+      <div className="shrink-0 space-y-1 border-t border-zinc-200 p-1.5 dark:border-zinc-800">
         <div className="grid grid-cols-1 gap-1">
           <button
             type="button"
@@ -170,10 +199,21 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
             disabled={!canUndo}
             aria-label="Undo"
             title="Undo"
-            className={`${iconBtnBase} ${iconBtnIdle} disabled:opacity-40`}
+            className={`${iconBtnBase} justify-center ${iconBtnIdle} disabled:opacity-40`}
           >
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 10L5 6l4-4M5 6h11a4 4 0 014 4v1" />
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.75}
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 10L5 6l4-4M5 6h11a4 4 0 014 4v1"
+              />
             </svg>
           </button>
           <button
@@ -182,10 +222,21 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
             disabled={!canRedo}
             aria-label="Redo"
             title="Redo"
-            className={`${iconBtnBase} ${iconBtnIdle} disabled:opacity-40`}
+            className={`${iconBtnBase} justify-center ${iconBtnIdle} disabled:opacity-40`}
           >
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4-4-4-4M19 6H8a4 4 0 00-4 4v1" />
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.75}
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 10l4-4-4-4M19 6H8a4 4 0 00-4 4v1"
+              />
             </svg>
           </button>
         </div>
@@ -199,7 +250,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
             className="truncate text-center text-[10px] text-zinc-500 dark:text-zinc-500"
             title={activeTool ?? "select"}
           >
-            {activeTool ? activeTool.replace(/-/g, " ") : "Select"}
+            {activeToolLabel}
           </p>
         )}
       </div>
@@ -208,58 +259,68 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
 
   return (
     <>
-      <div className="hidden lg:block">{content(desktopShellClass)}</div>
+      <div className="hidden lg:block">{content(desktopShellClass, false)}</div>
 
       <div className="lg:hidden">
         {mobileOpen ? (
           <button
             type="button"
-            className="fixed inset-0 z-[55] min-h-0 min-w-0 border-0 bg-zinc-900/35 p-0"
+            className="fixed inset-0 z-[55] min-h-0 min-w-0 border-0 bg-zinc-900/40 p-0"
             onClick={() => setMobileOpen(false)}
-            aria-label="Close tools"
+            aria-label="Close tools menu"
           />
         ) : null}
 
-        {mobileOpen ? (
-          <div
-            id="board-tool-drawer"
-            className="fixed left-0 right-0 z-[60] max-h-[38dvh] overflow-y-auto sm:left-2 sm:right-2"
-            style={{
-              bottom: "calc(3.5rem + env(safe-area-inset-bottom, 0px))",
-            }}
-            role="dialog"
-            aria-label="Board tools"
-          >
-            {content(mobileSheetShellClass)}
-          </div>
-        ) : null}
-
         <div
-          className="fixed bottom-0 left-0 right-0 z-[60] flex min-h-11 items-stretch gap-1 border-t border-zinc-200/90 bg-white/95 px-2 py-0.5 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur dark:border-zinc-800/90 dark:bg-zinc-950/95"
-          style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}
+          id="board-tool-drawer"
+          className={`fixed left-0 top-0 z-[60] flex h-[100dvh] max-w-[min(13.5rem,78vw)] flex-col transition-transform duration-200 ease-out ${
+            mobileOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+          }`}
+          style={{
+            paddingTop: "env(safe-area-inset-top, 0px)",
+            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          }}
+          role="dialog"
+          aria-label="Board tools"
+          aria-hidden={!mobileOpen}
         >
+          {content(mobilePanelShellClass, true)}
+        </div>
+
+        {!mobileOpen ? (
           <button
             type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="flex min-h-11 min-w-11 flex-1 touch-manipulation items-center justify-center gap-1.5 rounded-lg border border-zinc-300/90 bg-zinc-50/90 text-sm font-medium text-zinc-800 dark:border-zinc-600 dark:bg-zinc-900/80 dark:text-zinc-200"
-            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen(true)}
+            className="fixed left-0 top-1/2 z-[58] flex min-h-[3.25rem] min-w-[2.75rem] -translate-y-1/2 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-r-xl border border-l-0 border-zinc-200/90 bg-white/95 py-2 pl-1 pr-1.5 shadow-md dark:border-zinc-700 dark:bg-zinc-900/95"
+            aria-expanded={false}
             aria-controls="board-tool-drawer"
-            title="Tools"
+            title={`Tools — ${activeToolLabel}`}
           >
-            <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+            <svg
+              className="h-5 w-5 shrink-0 text-zinc-700 dark:text-zinc-200"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.75}
+              aria-hidden
+            >
               <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h10" />
             </svg>
-            <span className="sr-only">Tools</span>
-            <span className="text-sm text-zinc-400" aria-hidden>
-              {mobileOpen ? "▾" : "▴"}
+            <span className="max-w-[2.25rem] truncate text-[9px] font-semibold leading-tight text-zinc-500 dark:text-zinc-400">
+              {activeToolLabel.split(" ")[0]}
             </span>
           </button>
-          <p className="flex min-w-0 max-w-[40%] items-center self-center truncate text-center text-xs text-zinc-500 sm:max-w-[50%] dark:text-zinc-500">
-            {activeTool
-              ? OTHER_RAIL_TOOLS.find((t) => t.id === activeTool)?.label ?? activeTool
-              : "Select"}
-          </p>
-        </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="fixed left-[min(13.5rem,78vw)] top-1/2 z-[61] flex h-10 w-8 -translate-y-1/2 touch-manipulation items-center justify-center rounded-r-lg border border-l-0 border-zinc-200 bg-white/95 text-zinc-600 shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+            aria-label="Close tools menu"
+            title="Close tools"
+          >
+            ‹
+          </button>
+        )}
       </div>
     </>
   );

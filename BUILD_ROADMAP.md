@@ -420,16 +420,20 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | **48** | Text font + size | Yes | **Signed off** (9 named fonts) |
 | **49** | Rotate 90° | Yes | **Signed off** |
 | **50** | Snap to grid | Yes | **Signed off** (box snap on resize) |
-| **51–54** | Dashboard → icons | Yes (51–53); **54** partial | **Start at PR 51** |
+| **51** | Dashboard My / Shared sections | Yes | **Signed off** (verify with invite if needed) |
+| **52** | Mobile toolbar layout | Yes | **Interim signed off** — left collapsible menu (replaces bottom bar) |
+| **53–54** | Mobile color picker → icons | Yes (53); **54** partial | **Start at PR 53** |
 
 **Recent session work (May 2026):**
 
-- **PR 42–44:** Signed off — pen S/M/L width, multi-select duplicate, dashboard delete board.
+- **PR 45–51:** Signed off — comment pin/link decouple, collapsible link panel, connectors, fonts, rotate, snap-to-grid, dashboard sections.
+- **PR 52 (interim):** Mobile **left slide-out tool menu** — collapsed tab on left edge; icon + label list when open; auto-collapse after any tool/action; removed bottom bar padding — `board-tool-rail.tsx`, `board-canvas-rail-mid.tsx`, `board/[boardId]/page.tsx`.
+- **Extra UX:** Collapsible toolbar search (magnifier → expand); mobile comment auto-open editor + tap-to-edit; comment pin Konva `onTap`/`onDblTap`.
+- **PR 42–44:** Pen S/M/L width, multi-select duplicate, dashboard delete board.
 - **Undo/redo + edit UX:** `cancelPendingWrites`, Ctrl/Cmd+A X C V Z Y, canvas right-click menu (`board-context-menu.tsx`).
 - **Cross-browser sync:** Optimistic drag patches yield to remote Firestore updates (`board-stage.tsx`); objects listener retry.
-- **Earlier:** PR 40–41 display name, palette/ink/mobile color; eraser brush fixes.
 
-**Start next session:** [PR 51 — dashboard board sections](#pr-51--featdashboard-board-sections-18) (checkboxes unchecked).
+**Start next session:** [PR 53 — mobile color picker](#pr-53--fixmobile-color-picker-12) (re-QA; much fixed in PR 41).
 
 See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
@@ -536,12 +540,13 @@ See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
 ### PR 51 — `feat/dashboard-board-sections` *(#18)*
 
-- [ ] **My boards** vs **Shared with me** sections.
-- [ ] **QA:** Owned and shared boards in correct groups.
+- [x] **My boards** vs **Shared with me** sections.
+- [x] **QA:** Owned and shared boards in correct groups.
 
 ### PR 52 — `fix/mobile-toolbar-layout` *(#11 — partial)*
 
-- [ ] Interim: shorter bottom bar + reduced drawer height (`max-h-[38dvh]`).
+- [x] **Interim:** Left collapsible slide-out tool menu (replaces bottom bar/drawer); collapsed tab shows active tool; icon + label rows when open; auto-collapse on selection/backdrop; full canvas when closed — `board-tool-rail.tsx`, `board-canvas-rail-mid.tsx`.
+- [x] **QA:** Open Tools tab → pick tool → menu closes → board visible.
 - [ ] Full layout per user mockup (blocked).
 
 ### PR 53 — `fix/mobile-color-picker` *(#12)*
@@ -569,7 +574,7 @@ See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
 | Area | Behavior / files |
 |------|-------------------|
-| **Left rail** | **`board-tool-rail.tsx`** + **`BoardToolGlyph`** (`**board-tool-glyphs.tsx**`). **Custom PNGs:** hand, pen, highlighter, eraser, lasso (`public/icons/`). **SVG:** templates, select, hyperlinks, undo/redo. **Mid-rail:** line, connect, duplicate (SVG); **text** (PNG). |
+| **Left rail** | **`board-tool-rail.tsx`** + **`BoardToolGlyph`** (`**board-tool-glyphs.tsx**`). **Desktop:** fixed vertical icon rail (~56px). **Mobile (<1024px):** collapsible **left slide-out menu** — edge tab when closed, full-height panel + backdrop when open; auto-collapse after tool pick. **Custom PNGs:** hand, pen, highlighter, eraser, lasso (`public/icons/`). **SVG:** templates, select, hyperlinks, undo/redo. **Mid-rail:** line, connect, duplicate (SVG); **text** (PNG). |
 | **Top canvas toolbar** | **`board-canvas.tsx`** (absolute strip): Search, AI, Help; **Color** + **Shapes** dropdowns; **Sticky** (add note); **Comments** (toggle place mode); link row when selection supports it; **Copy / Paste / Delete / Clear board**; line-tool hint. |
 | **Removed from manual UI** | **Draw** (rail type); **Add frame** button (frames still from **templates** / **AI** / existing docs; **`type: "frame"`** unchanged). |
 | **Stage shell** | Canvas card **`overflow-visible`** for toolbar menus; **`BoardStage`** wrapped in inner **`overflow-hidden`** so Konva still clips. |
