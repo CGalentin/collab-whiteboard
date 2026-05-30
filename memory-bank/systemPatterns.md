@@ -26,8 +26,16 @@ Browser (Next.js React)
 ## Realtime & conflicts
 
 - Per-field **`updateDoc`**; **same-field LWW** — [docs/CONFLICTS.md](../docs/CONFLICTS.md) (includes AI two-user note).
-- **Debounced** patches, batched **`writeBatch`** where applicable — [docs/PERF_NOTES.md](../docs/PERF_NOTES.md). **New object creates** (e.g. **`freehand`** strokes) use **`setDoc`** per stroke (same as other one-shot creates); merged edits still use **`useBoardObjectWrites`**.
+- **Debounced** patches, batched **`writeBatch`** where applicable — [docs/PERF_NOTES.md](../docs/PERF_NOTES.md). **`cancelPendingWrites()`** before undo/redo snapshot apply.
+- **Drag optimistic UI:** `board-stage.tsx` applies local position patches during drag; **remote `updatedAt` wins** when another client edits the same object (fixes Chrome stuck on Edge updates).
+- **Objects listener:** `use-board-objects.ts` retries `onSnapshot` on error.
 - **AI:** [docs/AI_DEVELOPMENT_LOG.md](../docs/AI_DEVELOPMENT_LOG.md); tools run on client after API returns.
+
+## Board editing UX
+
+- **Keyboard** (canvas focus, not in inputs): Ctrl/Cmd+A select all, X cut, C copy, V paste, Z undo, Y / Shift+Z redo — `board-canvas.tsx`, `board-shortcuts.ts`.
+- **Context menu:** right-click canvas — `board-context-menu.tsx`.
+- **Undo/redo:** snapshot stack in `board-canvas.tsx`; rail buttons via `BoardToolProvider` request tokens.
 
 ## Security
 

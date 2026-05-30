@@ -588,26 +588,27 @@ export function BoardStage({
   const [optimisticPatches, setOptimisticPatches] = useState<
     Map<string, Record<string, unknown>>
   >(() => new Map());
+  const [activeDragIds, setActiveDragIds] = useState<string[]>([]);
+  const [committedLocalPatchAt, setCommittedLocalPatchAt] = useState<
+    Map<string, number>
+  >(() => new Map());
   const pendingDragNodeResetRef = useRef<Konva.Node | null>(null);
 
-  const activeOptimisticPatches = useMemo(() => {
-    if (optimisticPatches.size === 0) return optimisticPatches;
-    const next = new Map<string, Record<string, unknown>>();
-    for (const [id, patch] of optimisticPatches) {
-      const o = objects.find((x) => x.id === id);
-      if (o && optimisticPatchMatches(o, patch)) continue;
-      next.set(id, patch);
-    }
-    return next;
-  }, [objects, optimisticPatches]);
-
   const displayObjects = useMemo(() => {
-    if (activeOptimisticPatches.size === 0) return objects;
+    if (optimisticPatches.size === 0) return objects;
+    const activeDragSet = new Set(activeDragIds);
     return objects.map((o) => {
-      const patch = activeOptimisticPatches.get(o.id);
-      return patch ? applyOptimisticPatch(o, patch) : o;
+      const patch = optimisticPatches.get(o.id);
+      if (!patch) return o;
+      if (optimisticPatchMatches(o, patch)) return o;
+      if (activeDragSet.has(o.id)) return applyOptimisticPatch(o, patch);
+      const committedAt = committedLocalPatchAt.get(o.id) ?? 0;
+      const remoteUpdatedMs = o.updatedAt?.toMillis?.() ?? 0;
+      if (remoteUpdatedMs > committedAt + 50) return o;
+      if (committedAt > 0) return applyOptimisticPatch(o, patch);
+      return o;
     });
-  }, [objects, activeOptimisticPatches]);
+  }, [objects, optimisticPatches, activeDragIds, committedLocalPatchAt]);
 
   useLayoutEffect(() => {
     const node = pendingDragNodeResetRef.current;
@@ -1066,6 +1067,11 @@ export function BoardStage({
         selectedObjectIds.includes(draggedId)
           ? selectedObjectIds
           : [draggedId];
+      setActiveDragIds((prev) => {
+        const next = new Set(prev);
+        for (const id of idsToTrack) next.add(id);
+        return [...next];
+      });
       setOptimisticPatches((prev) => {
         const next = new Map(prev);
         let cleared = false;
@@ -1183,6 +1189,9 @@ export function BoardStage({
 
       const o = objects.find((x) => x.id === draggedId);
       if (!o) {
+        setActiveDragIds((prev) =>
+          prev.filter((id) => !origins.has(id) && id !== draggedId),
+        );
         if (node.x() !== 0 || node.y() !== 0) node.position({ x: 0, y: 0 });
         return;
       }
@@ -1192,6 +1201,9 @@ export function BoardStage({
         origin ?? boardObjectDragPosition(o) ?? { x: 0, y: 0 };
       let { dx, dy } = dragDeltaFromNode(o, node, dragOrigin);
       if (dx === 0 && dy === 0) {
+        setActiveDragIds((prev) =>
+          prev.filter((id) => !origins.has(id) && id !== draggedId),
+        );
         setOptimisticPatches((prev) => {
           if (!prev.has(draggedId)) return prev;
           const next = new Map(prev);
@@ -1223,7 +1235,19 @@ export function BoardStage({
         if (id === draggedId) draggedPatch = patch;
       }
 
-      if (patches.length === 0) return;
+      if (patches.length === 0) {
+        setActiveDragIds((prev) =>
+          prev.filter((id) => !origins.has(id)),
+        );
+        return;
+      }
+
+      const committedAt = Date.now();
+      setCommittedLocalPatchAt((prev) => {
+        const next = new Map(prev);
+        for (const { id } of patches) next.set(id, committedAt);
+        return next;
+      });
 
       setOptimisticPatches((prev) => {
         const next = new Map(prev);
@@ -1243,6 +1267,10 @@ export function BoardStage({
           x: draggedPatch.x,
           y: draggedPatch.y,
         });
+      }
+
+      for (const id of origins.keys()) {
+        setActiveDragIds((prev) => prev.filter((x) => x !== id));
       }
     },
     [objects, writes, snapToGridEnabled, snapPos, buildPositionPatches],

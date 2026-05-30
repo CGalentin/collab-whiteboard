@@ -16,7 +16,7 @@ Pan/zoom, stickies, shapes, sync, cursors, presence, auth, deploy, AI panel — 
 
 **Goal:** Fix edge cases and polish UX **without** disrupting shipped collab, sync, auth, or AI. Work in **small PRs** with lint/build + manual QA per [BUILD_ROADMAP.md](../BUILD_ROADMAP.md).
 
-**Status (May 2026):** **PR 36–53** implemented. **PR 54** partial — custom PNGs for pen, highlighter, lasso, hand, text, eraser in **`public/icons/`**; remaining tools still SVG until assets uploaded. Optional: PR 52 full mobile mockup, PR 48 font families, PR 43 frame duplicate.
+**Status (May 2026):** **PR 36–44 signed off** in roadmap QA. **PR 45–53** implemented in repo (review + sign-off). **PR 54** partial — custom PNGs for pen, highlighter, lasso, hand, text, eraser in **`public/icons/`**. **Next:** PR 45 → 54 manual QA. Optional: PR 52 full mobile mockup, PR 35 sharing QA.
 
 **Non-goals for this epic:** new AI features; full offline PWA; PR 24 demo/social.
 

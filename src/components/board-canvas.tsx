@@ -57,11 +57,19 @@ import {
   DEFAULT_BOARD_FONT_FAMILY,
 } from "@/lib/board-font-presets";
 import { boardObjectWorldAabb, pointInsideAxisRect } from "@/lib/board-geometry";
+import {
+  isEditableShortcutTarget,
+  isModShortcut,
+} from "@/lib/board-shortcuts";
 import { BoardPaletteStrip } from "@/components/board-palette-strip";
 import { BoardShapesMenu } from "@/components/board-shapes-menu";
 import { BoardToolGlyph } from "@/components/board-tool-glyphs";
 import { BoardToolRail } from "@/components/board-tool-rail";
 import { BoardCanvasRailMid } from "@/components/board-canvas-rail-mid";
+import {
+  BoardContextMenu,
+  type BoardContextMenuItem,
+} from "@/components/board-context-menu";
 import type { BoardObjectWrites } from "@/hooks/use-board-object-writes";
 import type { BoardLineConnectorStyle } from "@/lib/board-line-connector";
 import type { PolygonKind } from "@/lib/board-polygon-kinds";
@@ -92,6 +100,19 @@ function snapshotFields(o: BoardObject): Record<string, unknown> {
   return cloneBoardObjectFields(o, 0, 0, o.zIndex, new Map());
 }
 
+function boardSnapshotChanged(
+  before: BoardObject[],
+  after: BoardObject[],
+): boolean {
+  if (before.length !== after.length) return true;
+  const afterById = new Map(after.map((o) => [o.id, o] as const));
+  for (const o of before) {
+    const cur = afterById.get(o.id);
+    if (!cur || JSON.stringify(o) !== JSON.stringify(cur)) return true;
+  }
+  return false;
+}
+
 /**
  * Shared board: CSS grid underlay + Konva stage (objects, cursors, pan/zoom).
  */
@@ -109,6 +130,7 @@ export function BoardCanvas({
   const remoteCursors = useRemoteCursors(boardId, user.uid);
   const objects = useBoardObjects(boardId);
   const baseWrites = useBoardObjectWrites(boardId, user);
+  const { cancelPendingWrites } = baseWrites;
 
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const selectedIdsRef = useRef(selectedObjectIds);
@@ -125,6 +147,7 @@ export function BoardCanvas({
   const redoStackRef = useRef<BoardObject[][]>(redoStack);
   const pendingHistorySnapshotRef = useRef<BoardObject[] | null>(null);
   const applyingHistoryRef = useRef(false);
+  const historyBusyRef = useRef(false);
   const lastHandledUndoTokenRef = useRef(0);
   const lastHandledRedoTokenRef = useRef(0);
   useEffect(() => {
@@ -159,6 +182,10 @@ export function BoardCanvas({
   const [linkingConnector, setLinkingConnector] = useState(false);
   const [pasting, setPasting] = useState(false);
   const internalClipboardRef = useRef<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [lineState, setLineState] = useState<LineToolState>({ kind: "off" });
   const lineStateRef = useRef<LineToolState>({ kind: "off" });
   const lineToolActive = lineState.kind !== "off";
@@ -472,18 +499,7 @@ export function BoardCanvas({
     if (applyingHistoryRef.current) return;
     const snap = pendingHistorySnapshotRef.current;
     if (!snap) return;
-    let changed = snap.length !== objects.length;
-    if (!changed) {
-      const cur = objects;
-      for (let i = 0; i < cur.length; i += 1) {
-        const a = cur[i];
-        const b = snap[i];
-        if (!a || !b || a.id !== b.id || JSON.stringify(a) !== JSON.stringify(b)) {
-          changed = true;
-          break;
-        }
-      }
-    }
+    const changed = boardSnapshotChanged(snap, objects);
     pendingHistorySnapshotRef.current = null;
     if (!changed) return;
     setUndoStack((prev) => [...prev, snap].slice(-HISTORY_LIMIT));
@@ -492,46 +508,59 @@ export function BoardCanvas({
 
   const applySnapshot = useCallback(
     async (target: BoardObject[]) => {
-      await user.getIdToken();
-      const db = getFirebaseDb();
-      const current = objectsRef.current;
-      const curMap = new Map(current.map((o) => [o.id, o] as const));
-      const targetMap = new Map(target.map((o) => [o.id, o] as const));
-      const BATCH_SIZE = 300;
+      if (historyBusyRef.current) return;
+      historyBusyRef.current = true;
+      cancelPendingWrites();
+      pendingHistorySnapshotRef.current = null;
+      try {
+        await user.getIdToken();
+        const db = getFirebaseDb();
+        const current = objectsRef.current;
+        const curMap = new Map(current.map((o) => [o.id, o] as const));
+        const targetMap = new Map(target.map((o) => [o.id, o] as const));
+        const BATCH_SIZE = 300;
 
-      const toDelete = current
-        .filter((o) => !targetMap.has(o.id))
-        .map((o) => doc(db, "boards", boardId, "objects", o.id));
-      for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
-        const chunk = toDelete.slice(i, i + BATCH_SIZE);
-        const batch = writeBatch(db);
-        chunk.forEach((r) => batch.delete(r));
-        await batch.commit();
-      }
+        const toDelete = current
+          .filter((o) => !targetMap.has(o.id))
+          .map((o) => doc(db, "boards", boardId, "objects", o.id));
+        for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
+          const chunk = toDelete.slice(i, i + BATCH_SIZE);
+          const batch = writeBatch(db);
+          chunk.forEach((r) => batch.delete(r));
+          await batch.commit();
+        }
 
-      const upserts = target.filter((t) => {
-        const c = curMap.get(t.id);
-        if (!c) return true;
-        return JSON.stringify(snapshotFields(c)) !== JSON.stringify(snapshotFields(t));
-      });
-      for (let i = 0; i < upserts.length; i += BATCH_SIZE) {
-        const chunk = upserts.slice(i, i + BATCH_SIZE);
-        const batch = writeBatch(db);
-        chunk.forEach((o) =>
-          batch.set(doc(db, "boards", boardId, "objects", o.id), {
-            ...snapshotFields(o),
-            updatedAt: serverTimestamp(),
-          }),
-        );
-        await batch.commit();
+        const upserts = target.filter((t) => {
+          const c = curMap.get(t.id);
+          if (!c) return true;
+          return (
+            JSON.stringify(snapshotFields(c)) !== JSON.stringify(snapshotFields(t))
+          );
+        });
+        for (let i = 0; i < upserts.length; i += BATCH_SIZE) {
+          const chunk = upserts.slice(i, i + BATCH_SIZE);
+          const batch = writeBatch(db);
+          chunk.forEach((o) =>
+            batch.set(doc(db, "boards", boardId, "objects", o.id), {
+              ...snapshotFields(o),
+              updatedAt: serverTimestamp(),
+            }),
+          );
+          await batch.commit();
+        }
+      } finally {
+        historyBusyRef.current = false;
       }
     },
-    [boardId, user],
+    [boardId, user, cancelPendingWrites],
   );
 
   const undoHistory = useCallback(async () => {
+    if (historyBusyRef.current) return;
     const stack = undoStackRef.current;
     if (stack.length === 0) return;
+    cancelPendingWrites();
+    pendingHistorySnapshotRef.current = null;
     const target = stack[stack.length - 1]!;
     const current = objectsRef.current.map((o) => ({ ...o }));
     applyingHistoryRef.current = true;
@@ -543,11 +572,14 @@ export function BoardCanvas({
     } finally {
       applyingHistoryRef.current = false;
     }
-  }, [applySnapshot]);
+  }, [applySnapshot, cancelPendingWrites]);
 
   const redoHistory = useCallback(async () => {
+    if (historyBusyRef.current) return;
     const stack = redoStackRef.current;
     if (stack.length === 0) return;
+    cancelPendingWrites();
+    pendingHistorySnapshotRef.current = null;
     const target = stack[stack.length - 1]!;
     const current = objectsRef.current.map((o) => ({ ...o }));
     applyingHistoryRef.current = true;
@@ -559,7 +591,7 @@ export function BoardCanvas({
     } finally {
       applyingHistoryRef.current = false;
     }
-  }, [applySnapshot]);
+  }, [applySnapshot, cancelPendingWrites]);
 
   useEffect(() => {
     if (!boardTool) return;
@@ -744,12 +776,14 @@ export function BoardCanvas({
     [boardTool],
   );
 
-  const deleteSelection = useCallback(async () => {
+  const deleteSelection = useCallback(async (opts?: { skipConfirm?: boolean }) => {
     if (selectedObjectIds.length === 0) return;
-    const ok = window.confirm(
-      `Delete ${selectedObjectIds.length} selected object(s)?`,
-    );
-    if (!ok) return;
+    if (!opts?.skipConfirm) {
+      const ok = window.confirm(
+        `Delete ${selectedObjectIds.length} selected object(s)?`,
+      );
+      if (!ok) return;
+    }
     captureHistoryCheckpoint();
 
     setDeletingSelection(true);
@@ -873,6 +907,18 @@ export function BoardCanvas({
       console.warn("[objects] clipboard write failed; kept internal buffer", e);
     }
   }, [selectedObjectIds, objects]);
+
+  const cutSelection = useCallback(async () => {
+    if (selectedObjectIds.length === 0) return;
+    await copySelection();
+    await deleteSelection({ skipConfirm: true });
+  }, [selectedObjectIds.length, copySelection, deleteSelection]);
+
+  const selectAllObjects = useCallback(() => {
+    setSelectedObjectIds(objectsRef.current.map((o) => o.id));
+    cancelLineTool();
+    releaseRailToolForEditing();
+  }, [cancelLineTool, releaseRailToolForEditing]);
 
   const pasteFromClipboard = useCallback(async () => {
     setPasting(true);
@@ -1005,68 +1051,78 @@ export function BoardCanvas({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (isEditableShortcutTarget(e.target)) return;
+
       if (e.code === "Escape") {
         if (boardSearchQueryRef.current.trim().length > 0) {
           setBoardSearchQuery("");
+          e.preventDefault();
           return;
         }
         cancelLineTool();
         setSelectedObjectIds([]);
+        setContextMenu(null);
         return;
       }
+
+      if (isModShortcut(e)) {
+        const key = e.key.toLowerCase();
+        if (key === "a") {
+          e.preventDefault();
+          selectAllObjects();
+          return;
+        }
+        if (key === "c") {
+          if (selectedIdsRef.current.length === 0) return;
+          e.preventDefault();
+          void copySelection();
+          return;
+        }
+        if (key === "x") {
+          if (selectedIdsRef.current.length === 0) return;
+          e.preventDefault();
+          void cutSelection();
+          return;
+        }
+        if (key === "v") {
+          e.preventDefault();
+          void pasteFromClipboard();
+          return;
+        }
+        if (key === "z") {
+          e.preventDefault();
+          if (e.shiftKey) {
+            void redoHistory();
+          } else {
+            void undoHistory();
+          }
+          return;
+        }
+        if (key === "y") {
+          e.preventDefault();
+          void redoHistory();
+          return;
+        }
+      }
+
       if (e.code !== "Delete" && e.code !== "Backspace") return;
-      const t = e.target as HTMLElement;
-      if (
-        t.closest("textarea") ||
-        t.closest("input") ||
-        t.isContentEditable
-      ) {
-        return;
-      }
       if (selectedIdsRef.current.length === 0) return;
       e.preventDefault();
       void deleteSelection();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [cancelLineTool, deleteSelection]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const mod = e.ctrlKey || e.metaKey;
-      if (!mod) return;
-      const t = e.target as HTMLElement;
-      if (
-        t.closest("textarea") ||
-        t.closest("input") ||
-        t.isContentEditable
-      ) {
-        return;
-      }
-      const key = e.key.toLowerCase();
-      if (key === "c") {
-        if (selectedIdsRef.current.length === 0) return;
-        e.preventDefault();
-        void copySelection();
-        return;
-      }
-      if (key === "v") {
-        e.preventDefault();
-        void pasteFromClipboard();
-        return;
-      }
-      if (key === "z") {
-        e.preventDefault();
-        if (e.shiftKey) {
-          void redoHistory();
-        } else {
-          void undoHistory();
-        }
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [copySelection, pasteFromClipboard, undoHistory, redoHistory]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [
+    cancelLineTool,
+    copySelection,
+    cutSelection,
+    deleteSelection,
+    pasteFromClipboard,
+    redoHistory,
+    selectAllObjects,
+    undoHistory,
+  ]);
 
   const finishLineDoc = useCallback(
     async (
@@ -1369,6 +1425,100 @@ export function BoardCanvas({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [boardHelpOpen]);
+
+  const modKeyLabel = useMemo(
+    () =>
+      typeof navigator !== "undefined" &&
+      /Mac|iPhone|iPad/i.test(navigator.platform)
+        ? "⌘"
+        : "Ctrl",
+    [],
+  );
+
+  const handleBoardContextMenu = useCallback((e: React.MouseEvent) => {
+    if (isEditableShortcutTarget(e.target)) return;
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const contextMenuItems = useMemo((): BoardContextMenuItem[] => {
+    const mod = modKeyLabel;
+    const hasSelection = selectedObjectIds.length > 0;
+    return [
+      {
+        id: "undo",
+        label: "Undo",
+        shortcut: `${mod}+Z`,
+        disabled: undoStack.length === 0,
+        onSelect: () => void undoHistory(),
+      },
+      {
+        id: "redo",
+        label: "Redo",
+        shortcut: `${mod}+Y`,
+        disabled: redoStack.length === 0,
+        onSelect: () => void redoHistory(),
+      },
+      {
+        id: "cut",
+        label: "Cut",
+        shortcut: `${mod}+X`,
+        disabled: !hasSelection,
+        onSelect: () => void cutSelection(),
+      },
+      {
+        id: "copy",
+        label: "Copy",
+        shortcut: `${mod}+C`,
+        disabled: !hasSelection,
+        onSelect: () => void copySelection(),
+      },
+      {
+        id: "paste",
+        label: "Paste",
+        shortcut: `${mod}+V`,
+        disabled: pasting,
+        onSelect: () => void pasteFromClipboard(),
+      },
+      {
+        id: "duplicate",
+        label: "Duplicate",
+        disabled: !hasSelection || duplicatingSelection,
+        onSelect: () => void duplicateSelection(),
+      },
+      {
+        id: "delete",
+        label: "Delete",
+        shortcut: "Del",
+        disabled: !hasSelection || deletingSelection,
+        onSelect: () => void deleteSelection(),
+      },
+      {
+        id: "select-all",
+        label: "Select all",
+        shortcut: `${mod}+A`,
+        disabled: objects.length === 0,
+        onSelect: () => selectAllObjects(),
+      },
+    ];
+  }, [
+    modKeyLabel,
+    selectedObjectIds.length,
+    undoStack.length,
+    redoStack.length,
+    pasting,
+    duplicatingSelection,
+    deletingSelection,
+    objects.length,
+    undoHistory,
+    redoHistory,
+    cutSelection,
+    copySelection,
+    pasteFromClipboard,
+    duplicateSelection,
+    deleteSelection,
+    selectAllObjects,
+  ]);
 
   const midRailSlot = useMemo(
     () => (
@@ -1837,7 +1987,10 @@ export function BoardCanvas({
         ) : null}
       </div>
 
-      <div className="relative z-[1] min-h-0 w-full min-w-0 flex-1 overflow-hidden">
+      <div
+        className="relative z-[1] min-h-0 w-full min-w-0 flex-1 overflow-hidden"
+        onContextMenu={handleBoardContextMenu}
+      >
         <BoardStage
           user={user}
           boardId={boardId}
@@ -1955,20 +2108,36 @@ export function BoardCanvas({
                     board.
                   </li>
                   <li>
-                    <strong className="text-zinc-900 dark:text-zinc-100">Copy / Paste</strong> (
+                    <strong className="text-zinc-900 dark:text-zinc-100">Edit</strong> shortcuts on the board
+                    (when not typing in an input):{" "}
                     <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
-                      Ctrl/Cmd+C
+                      Ctrl/Cmd+A
                     </kbd>{" "}
-                    ·{" "}
+                    select all ·{" "}
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      X
+                    </kbd>{" "}
+                    cut ·{" "}
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      C
+                    </kbd>{" "}
+                    copy ·{" "}
                     <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
                       V
                     </kbd>{" "}
-                    when focus is not in an input). <strong className="text-zinc-900 dark:text-zinc-100">Duplicate</strong>,{" "}
-                    <strong className="text-zinc-900 dark:text-zinc-100">Delete</strong>, and{" "}
+                    paste ·{" "}
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      Z
+                    </kbd>{" "}
+                    undo ·{" "}
+                    <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                      Y
+                    </kbd>{" "}
+                    or Shift+Z redo ·{" "}
                     <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
                       Del
                     </kbd>{" "}
-                    / Backspace when not typing.
+                    delete. Right-click the canvas for the same actions.
                   </li>
                   <li>
                     <strong className="text-zinc-900 dark:text-zinc-100">Marquee</strong> and the transformer
@@ -1978,15 +2147,16 @@ export function BoardCanvas({
                     ; templates open from <strong className="text-zinc-900 dark:text-zinc-100">Templates</strong>.
                   </li>
                   <li>
-                    <strong className="text-zinc-900 dark:text-zinc-100">Undo / Redo</strong> in the rail and{" "}
+                    <strong className="text-zinc-900 dark:text-zinc-100">Undo / Redo</strong> in the left rail, via
+                    keyboard, or the canvas right-click menu (
                     <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
                       Ctrl/Cmd+Z
-                    </kbd>{" "}
-                    /{" "}
+                    </kbd>
+                    ,{" "}
                     <kbd className="rounded border border-zinc-300 bg-zinc-100 px-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800">
-                      Ctrl/Cmd+Shift+Z
-                    </kbd>{" "}
-                    on the board (when not typing in an input).
+                      Ctrl/Cmd+Y
+                    </kbd>
+                    , or Shift+Z).
                   </li>
                 </ul>
                 <p className="mt-4 break-all font-mono text-[11px] text-zinc-600 dark:text-zinc-400">
@@ -2000,6 +2170,15 @@ export function BoardCanvas({
             document.body,
           )
         : null}
+
+      {contextMenu ? (
+        <BoardContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenuItems}
+          onClose={() => setContextMenu(null)}
+        />
+      ) : null}
 
       <BoardCanvasTemplatesModalPortal
         user={user}

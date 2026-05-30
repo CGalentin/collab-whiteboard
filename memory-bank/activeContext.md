@@ -5,9 +5,9 @@
 ## Session handoff (new chat)
 
 1. **`memory-bank/progress.md`** + **this file**
-2. **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** — section **“Where we left off”** under epic PR 36–54
+2. **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** — **“Where we left off”** (PR 36–54 epic)
 3. Manual QA **one PR at a time**; check roadmap boxes only after your sign-off
-4. **`npm run lint`** + **`npm run build`** before push
+4. **`npm run lint`** + **`npm run build`** before commit/push
 
 ---
 
@@ -16,52 +16,69 @@
 | Area | State |
 |------|--------|
 | **MVP + v2** | **PR 01–35** shipped (**PR 24** skipped) |
-| **App cleanup** | **PR 36–40** signed off; **PR 41–54** in repo, **checkboxes unchecked** for your review |
-| **Next session** | **PR 41** (object color on create), then 42 → 54 |
+| **App cleanup** | **PR 36–44 signed off**; **PR 45–54** in repo, **checkboxes unchecked** |
+| **Next session** | **PR 45** (comment pin + link decouple), then 46 → 54 |
 | **Do not** | Batch-check PRs or ship without per-PR manual QA |
 
 ### Workflow
 
-1. Open roadmap → find next unchecked PR (starts at **41**).
+1. Open roadmap → next unchecked PR (**45**).
 2. Hard-refresh board → run that PR’s **QA** bullets.
 3. Check boxes in **BUILD_ROADMAP.md** when satisfied.
 4. Repeat.
 
 ---
 
-## PR 36–39 — agent work (re-verify when you have time)
+## Signed off — app cleanup (PR 36–44)
 
-| PR | What landed in code | Your QA |
-|----|---------------------|---------|
-| **37** | `releaseRailToolForEditing()` immediately on pen/comment/link (not after Firestore) | Re-verify |
-| **38** | Lasso group select/move; multi-select color; `commitDragFromNode` drag fix | Re-verify |
-| **39** | Line/freehand move; pen/highlighter/line **Color** before & after draw | Re-verify |
-| **—** | Eraser **Tap** vs **Brush**; partial stroke erase (`board-eraser-geometry.ts`) | Not a numbered PR — test with eraser tool |
+| PR | Notes |
+|----|--------|
+| **40** | Sign-up display name; presence/cursors; board header name |
+| **41** | Yellow sticky default; palette recolor; pen ink; custom + mobile color picker |
+| **42** | Pen/highlighter S/M/L stroke width; cross-browser sync |
+| **43** | Multi-select duplicate; frame + children; connector remap |
+| **44** | Owner delete on dashboard; shared boards = leave only |
 
-Key files: `board-stage.tsx`, `board-canvas.tsx`, `board-group-drag.ts`, `board-eraser-geometry.ts`, `board-lasso-geometry.ts`.
+**Also signed off in roadmap (36–39):** hand pan, tool→select, lasso group drag, line/freehand move+color — optional re-verify if regressions appear.
+
+Key files: `board-canvas.tsx`, `board-stage.tsx`, `boards-client.ts` (`deleteOwnedBoard`), `dashboard/page.tsx`.
 
 ---
 
-## PR 41–54 — awaiting your sign-off
+## This session — code landed (unnumbered PRs)
 
-Implementation exists from prior agent sessions; treat as **review + QA**, not greenfield build.
+| Topic | Files |
+|-------|--------|
+| **Undo/redo fix** | `use-board-object-writes.ts` (`cancelPendingWrites`); `board-canvas.tsx` history mutex |
+| **Keyboard shortcuts** | Ctrl/Cmd+A X C V Z Y on board; `board-shortcuts.ts` |
+| **Right-click menu** | `board-context-menu.tsx` — cut/copy/paste/duplicate/delete/select all/undo/redo |
+| **Cross-browser sync** | `board-stage.tsx` — optimistic drag patches yield to remote `updatedAt` |
+| **Listener retry** | `use-board-objects.ts` — resubscribe on snapshot error |
+
+---
+
+## PR 45–54 — awaiting sign-off
+
+Implementation exists from prior sessions; treat as **review + QA**, not greenfield build.
 
 | PR | One-line reminder |
 |----|-------------------|
-| 41 | Yellow sticky default; palette on shapes + pen |
-| 42 | Pen/highlighter S/M/L width |
-| 43 | Multi-select duplicate (+ frame children) |
-| 44 | Delete board on dashboard |
-| 45 | Comment pin; no link bar on comments |
-| 46 | Collapsible link panel |
-| 47 | One-way connector arrow |
-| 48 | Text font size + families |
-| 49 | Rotate 90° |
-| 50 | Snap to grid (24px) |
-| 51 | My boards / Shared with me |
-| 52 | Mobile toolbar interim |
-| 53 | Mobile color dropdown z-index |
-| 54 | Custom toolbar PNGs (partial) |
+| **45** | Comment pin hit target; no link bar on comments |
+| **46** | Collapsible link panel |
+| **47** | One-way connector arrow |
+| **48** | Text font size + families |
+| **49** | Rotate 90° |
+| **50** | Snap to grid (24px) |
+| **51** | My boards / Shared with me — **may already match dashboard UI; quick verify** |
+| **52** | Mobile toolbar interim |
+| **53** | Mobile color dropdown (partially fixed in PR 41 — re-QA) |
+| **54** | Custom toolbar PNGs (partial) |
+
+---
+
+## PR 36–39 — optional re-verify
+
+Hand pan, select-after-tool, lasso group, line/freehand color, eraser tap vs brush.
 
 ---
 
@@ -70,7 +87,7 @@ Implementation exists from prior agent sessions; treat as **review + QA**, not g
 - **PR 54:** Remaining SVG icons when assets ready.
 - **PR 35:** Two-account sharing QA; **`npm run deploy:rules`** when rules change.
 - **PR 52:** Full mobile mockup blocked.
-- **Eraser:** Styled connector lines may simplify to plain segments after partial brush erase.
+- **Board delete:** Owner delete does not remove collaborators’ `users/{uid}/boards` index or orphan subcollections (cursors/presence/members).
 
 ## Blockers
 

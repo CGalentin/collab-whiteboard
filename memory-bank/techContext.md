@@ -2,7 +2,7 @@
 
 ## Start here next session
 
-Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. **PR 24** (demo/social) is **skipped**. **PR 35:** run **manual QA** if you use sharing; **deploy rules** when the rules file changes. **PR 32** optional template thumbnails. Board chrome: **`board-canvas`** top toolbar + **`board-tool-rail`** / **`board-tool-glyphs.tsx`** — see [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) **Board UI vs roadmap**.
+Read **[`progress.md`](./progress.md)** and **[`activeContext.md`](./activeContext.md)**. **Next QA:** **PR 45** (comment pin + link decouple). **PR 24** skipped. **PR 35:** sharing QA when needed; **deploy rules** when rules file changes.
 
 ---
 

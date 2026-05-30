@@ -119,6 +119,12 @@ export function useBoardObjectWrites(boardId: string, user: User) {
     }, OBJECT_PATCH_DEBOUNCE_MS);
   }, [clearFlushTimer, commitPendingBatch]);
 
+  /** Drop queued patches (e.g. before undo/redo snapshot apply). */
+  const cancelPendingWrites = useCallback(() => {
+    clearFlushTimer();
+    pendingObjectPatches.current.clear();
+  }, [clearFlushTimer]);
+
   const queueObjectPatch = useCallback(
     (objectId: string, patch: Record<string, unknown>) => {
       const merged = {
@@ -292,6 +298,7 @@ export function useBoardObjectWrites(boardId: string, user: User) {
     setStickyColors,
     setFillStrokeColors,
     setStrokeColor,
+    cancelPendingWrites,
   };
 }
 

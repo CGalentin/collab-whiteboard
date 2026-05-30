@@ -410,16 +410,20 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | **38** | Lasso + group move | Yes | **Group drag, multi-select color, drag fix** landed; **re-verify** lasso QA |
 | **39** | Line/freehand move + color | Yes | Move + palette color for pen/highlighter/line; **re-verify** |
 | **40** | Sign-up display name | Yes | **Signed off** |
-| **41–54** | Colors → icons | Yes (41–53); **54** partial | **Start at PR 41** |
+| **41** | Object color on create | Yes | **Signed off** (incl. custom picker `ink`, mobile color panel) |
+| **42** | Pen stroke width S/M/L | Yes | **Signed off** |
+| **43** | Multi-select duplicate | Yes | **Signed off** |
+| **44** | Delete board on dashboard | Yes | **Signed off** |
+| **45–54** | Comments → icons | Yes (45–53); **54** partial | **Start at PR 45** |
 
-**Recent agent work (not yet your sign-off on 40–54):**
+**Recent session work (May 2026):**
 
-- **Lasso:** Multi-select group move, live drag preview, palette applies to whole selection (`board-group-drag.ts`, `board-stage.tsx`, `board-canvas.tsx`).
-- **Drag:** Fixed absolute vs offset node reset (stickies no longer jump to 0,0).
-- **Color:** Pen/highlighter/line color before draw + when selected; Color menu no longer exits pen/highlighter.
-- **Eraser:** **Tap** (delete whole object) vs **Brush** (partial stroke erase via `board-eraser-geometry.ts`); brush splits freehand/lines instead of deleting whole stroke.
+- **PR 42–44:** Signed off — pen S/M/L width, multi-select duplicate, dashboard delete board.
+- **Undo/redo + edit UX:** `cancelPendingWrites`, Ctrl/Cmd+A X C V Z Y, canvas right-click menu (`board-context-menu.tsx`).
+- **Cross-browser sync:** Optimistic drag patches yield to remote Firestore updates (`board-stage.tsx`); objects listener retry.
+- **Earlier:** PR 40–41 display name, palette/ink/mobile color; eraser brush fixes.
 
-**Start next session:** [PR 41 — object color on create](#pr-41--featobject-color-on-create-3-17) (checkboxes unchecked).
+**Start next session:** [PR 45 — comments pin and link decouple](#pr-45--fixcomments-pin-and-link-decouple-10-16) (checkboxes unchecked).
 
 See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
@@ -463,29 +467,29 @@ See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
 ### PR 41 — `feat/object-color-on-create` *(#3, #17)*
 
-- [ ] Default sticky swatch yellow (index 3).
-- [ ] Palette recolors selected rect/circle/polygon/sticky/line (not sticky-only).
-- [ ] Pen stroke from board palette.
-- [ ] **QA:** New sticky yellow; change color after select.
+- [x] Default sticky swatch yellow (index 3).
+- [x] Palette recolors selected rect/circle/polygon/sticky/line (not sticky-only).
+- [x] Pen stroke from board palette.
+- [x] **QA:** New sticky yellow; change color after select.
 
 ### PR 42 — `feat/pen-stroke-width` *(#5)*
 
-- [ ] S/M/L presets when pen or highlighter active.
-- [ ] Persist `strokeWidth` on `freehand`; use in preview + commit.
-- [ ] **QA:** Two widths sync across browsers.
+- [x] S/M/L presets when pen or highlighter active.
+- [x] Persist `strokeWidth` on `freehand`; use in preview + commit.
+- [x] **QA:** Two widths sync across browsers.
 
 ### PR 43 — `feat/duplicate-selection-batch` *(#4)*
 
-- [ ] Duplicate works for multi-select (≥1 ids).
-- [ ] Frame + children duplicated when applicable (objects whose center lies inside frame bounds).
-- [ ] **QA:** Lasso 3 objects → Duplicate → offset copies + connector remap.
+- [x] Duplicate works for multi-select (≥1 ids).
+- [x] Frame + children duplicated when applicable (objects whose center lies inside frame bounds).
+- [x] **QA:** Lasso 3 objects → Duplicate → offset copies + connector remap.
 
 ### PR 44 — `feat/delete-board-dashboard` *(#9)*
 
-- [ ] Owner delete on dashboard card with confirm.
-- [ ] Delete metadata + user index; batch-delete objects subcollection.
-- [ ] Shared boards: leave only, not delete.
-- [ ] **QA:** Deleted board gone from list and URL.
+- [x] Owner delete on dashboard card with confirm.
+- [x] Delete metadata + user index; batch-delete objects subcollection.
+- [x] Shared boards: leave only, not delete.
+- [x] **QA:** Deleted board gone from list and URL.
 
 ### PR 45 — `fix/comments-pin-and-link-decouple` *(#10, #16)*
 
