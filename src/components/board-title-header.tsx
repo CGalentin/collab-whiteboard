@@ -273,12 +273,13 @@ export function BoardTitleHeader({
           </div>
         )}
 
-        <p className="mt-1 min-w-0 break-words text-sm text-zinc-600 dark:text-zinc-400">
-          <span className="text-zinc-800 dark:text-zinc-200">
-            {cursorNameFromUser(user)}
-          </span>
+        <p className="mt-1 min-w-0 break-words text-base font-semibold text-zinc-800 dark:text-zinc-100 sm:text-lg">
+          <span>{cursorNameFromUser(user)}</span>
           {!isOwner ? (
-            <span className="text-zinc-500 dark:text-zinc-500"> · Viewing as collaborator</span>
+            <span className="text-sm font-normal text-zinc-500 dark:text-zinc-500">
+              {" "}
+              · Viewing as collaborator
+            </span>
           ) : null}
         </p>
       </div>

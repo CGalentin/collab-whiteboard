@@ -16,20 +16,20 @@
 | Area | State |
 |------|--------|
 | **MVP + v2** | **PR 01–35** shipped (**PR 24** skipped) |
-| **App cleanup** | **PR 36–52 interim signed off**; **PR 53–54** pending QA |
-| **Next session** | **PR 53** (mobile color picker re-QA), then **PR 54** (toolbar PNGs) |
+| **App cleanup** | **PR 36–53 signed off**; **PR 54** partial (toolbar PNGs) |
+| **Next session** | **PR 54** (upload remaining toolbar icons) |
 | **Do not** | Batch-check PRs or ship without per-PR manual QA |
 
 ### Workflow
 
-1. Open roadmap → next unchecked PR (**53**).
+1. Open roadmap → next unchecked PR (**54**).
 2. Hard-refresh board → run that PR’s **QA** bullets.
 3. Check boxes in **BUILD_ROADMAP.md** when satisfied.
 4. Repeat.
 
 ---
 
-## Signed off — app cleanup (PR 36–52 interim)
+## Signed off — app cleanup (PR 36–53)
 
 | PR | Notes |
 |----|--------|
@@ -45,11 +45,14 @@
 | **49** | Rotate 90° toolbar; polygon = box transform only (`docs/CONFLICTS.md`) |
 | **50** | Snap to grid 24px; `snapBoxToGrid()` on transform end |
 | **51** | Dashboard **My boards** / **Shared with me** sections |
-| **52** | Mobile left collapsible tool menu (interim); auto-collapse on selection |
+| **52** | Mobile left collapsible tool menu (interim); auto-collapse; overlays top toolbar |
+| **53** | Mobile Color dropdown — fixed panel, z-70, scrollable, 40px swatches |
 
-**Also signed off in roadmap (36–39):** hand pan, tool→select, lasso group drag, line/freehand move+color — optional re-verify if regressions appear.
+**Also signed off in roadmap (36–39):** hand pan, tool→select (one-shot tools only), lasso group drag, line/freehand move+color — optional re-verify if regressions appear.
 
-Key files: `board-tool-rail.tsx`, `board-canvas.tsx`, `board-stage.tsx`, `board-canvas-rail-mid.tsx`, `boards-client.ts`, `dashboard/page.tsx`.
+**Note:** Pen, highlighter, eraser, and hand **stay active** after use (no auto-return to Select).
+
+Key files: `board-tool-rail.tsx`, `board-canvas.tsx`, `board-palette-strip.tsx`, `board-stage.tsx`.
 
 ---
 
@@ -57,31 +60,27 @@ Key files: `board-tool-rail.tsx`, `board-canvas.tsx`, `board-stage.tsx`, `board-
 
 | Topic | Files |
 |-------|--------|
+| **Persistent draw tools** | `board-canvas.tsx` — pen/highlighter/eraser/hand skip `releaseRailToolForEditing` |
+| **Mobile menu z-index** | `board-tool-rail.tsx` — drawer z-85 overlays top toolbar |
+| **Dashboard user info** | `dashboard/page.tsx` — name + email in header |
+| **Board user name** | `board-title-header.tsx` — larger display name |
 | **Mobile left tool menu** | `board-tool-rail.tsx` — slide-out panel, edge tab, auto-close |
-| **Mobile mid-rail close** | `board-canvas-rail-mid.tsx` — closes menu after line/text/connect/duplicate |
-| **Board page padding** | `board/[boardId]/page.tsx` — removed bottom bar inset |
-| **Collapsible search** | `board-canvas.tsx` — magnifier icon; expand on tap; Esc/outside close |
-| **Mobile comments** | `board-stage.tsx` — auto-open editor after pin; tap selected pin to edit |
-| **Undo/redo fix** | `use-board-object-writes.ts` (`cancelPendingWrites`); `board-canvas.tsx` history mutex |
-| **Keyboard shortcuts** | Ctrl/Cmd+A X C V Z Y on board; `board-shortcuts.ts` |
-| **Right-click menu** | `board-context-menu.tsx` — cut/copy/paste/duplicate/delete/select all/undo/redo |
-| **Cross-browser sync** | `board-stage.tsx` — optimistic drag patches yield to remote `updatedAt` |
-| **Listener retry** | `use-board-objects.ts` — resubscribe on snapshot error |
+| **Collapsible search** | `board-canvas.tsx` — magnifier icon; expand on tap |
+| **Mobile comments** | `board-stage.tsx` — auto-open editor; tap selected pin to edit |
 
 ---
 
-## PR 53–54 — awaiting sign-off
+## PR 54 — awaiting sign-off
 
 | PR | One-line reminder |
 |----|-------------------|
-| **53** | Mobile color dropdown touch/z-index — partially fixed in PR 41; re-QA on phone |
-| **54** | Custom toolbar PNGs (partial in `public/icons/`) |
+| **54** | Custom toolbar PNGs (partial in `public/icons/`); SVG fallbacks remain |
 
 ---
 
 ## PR 36–39 — optional re-verify
 
-Hand pan, select-after-tool, lasso group, line/freehand color, eraser tap vs brush.
+Hand pan, lasso group, line/freehand color, eraser tap vs brush.
 
 ---
 
@@ -90,7 +89,8 @@ Hand pan, select-after-tool, lasso group, line/freehand color, eraser tap vs bru
 - **PR 52:** Full mobile mockup layout still **blocked**; interim left menu shipped instead of bottom bar.
 - **PR 54:** Remaining SVG icons when assets ready.
 - **PR 35:** Two-account sharing QA; **`npm run deploy:rules`** when rules change.
-- **Board delete:** Owner delete does not remove collaborators’ `users/{uid}/boards` index or orphan subcollections (cursors/presence/members).
+- **PR 37:** Roadmap still lists pen→Select; **behavior changed** — persistent draw tools only.
+- **Board delete:** Owner delete does not remove collaborators’ `users/{uid}/boards` index or orphan subcollections.
 
 ## Blockers
 

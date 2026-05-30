@@ -138,7 +138,7 @@ type BoardStageProps = {
   onHistoryCheckpoint?: () => void;
   /** Left-rail / mobile tools: pan the viewport with a hand (blocks object interaction while active). */
   handToolActive?: boolean;
-  /** After pen/highlighter stroke or lasso completes — parent returns to Select. */
+  /** After one-shot rail actions (lasso, comment, link) — parent may return to Select. */
   onRailActionComplete?: () => void;
   penStrokeWidth?: number;
   highlighterStrokeWidth?: number;
@@ -1572,7 +1572,6 @@ export function BoardStage({
           cleanupDrawingListeners.current = null;
           setDrawingDraft(null);
           const committed = pts;
-          onRailActionComplete?.();
           if (committed.length < 4) {
             return;
           }

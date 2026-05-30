@@ -231,6 +231,12 @@ function DashboardContent() {
 
   if (!user) return null;
 
+  const userName =
+    user.displayName?.trim() ||
+    user.email?.split("@")[0]?.trim() ||
+    user.uid;
+  const userEmail = user.email?.trim() || null;
+
   return (
     <main className="min-h-screen w-full min-w-0 max-w-full overflow-x-hidden bg-gradient-to-b from-emerald-50/70 via-white to-zinc-50 px-4 py-5 font-sans text-zinc-900 dark:from-emerald-950/40 dark:via-zinc-950 dark:to-zinc-950 dark:text-zinc-100 sm:px-6 sm:py-6">
       <header className="mx-auto flex w-full max-w-5xl flex-col items-stretch justify-between gap-4 border-b border-brand-teal/10 pb-5 sm:flex-row sm:items-center sm:gap-3">
@@ -239,6 +245,16 @@ function DashboardContent() {
             CollabBoard
           </p>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Dashboard</p>
+          <div className="mt-3 min-w-0">
+            <p className="truncate text-base font-semibold text-zinc-900 dark:text-white sm:text-lg">
+              {userName}
+            </p>
+            {userEmail ? (
+              <p className="mt-0.5 truncate text-sm text-zinc-600 dark:text-zinc-400">
+                {userEmail}
+              </p>
+            ) : null}
+          </div>
         </div>
         <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2 sm:w-auto sm:shrink-0 sm:justify-start">
           <ThemeToggle />
@@ -268,14 +284,11 @@ function DashboardContent() {
           >
             Your boards
           </h1>
-          <p className="mt-2 break-words text-sm text-zinc-600 dark:text-zinc-400">
-            Signed in as {user.displayName ?? user.email ?? user.uid}
+          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+            Create an empty board or pick a template above.
           </p>
 
-          <div className="mt-5 flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center sm:gap-3">
-            <p className="min-w-0 text-sm text-zinc-600 dark:text-zinc-400">
-              Create an empty board or pick a template above.
-            </p>
+          <div className="mt-5 flex flex-col items-stretch justify-end gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             <button
               type="button"
               onClick={() => void handleCreateBoard()}

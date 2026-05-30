@@ -422,18 +422,20 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | **50** | Snap to grid | Yes | **Signed off** (box snap on resize) |
 | **51** | Dashboard My / Shared sections | Yes | **Signed off** (verify with invite if needed) |
 | **52** | Mobile toolbar layout | Yes | **Interim signed off** — left collapsible menu (replaces bottom bar) |
-| **53–54** | Mobile color picker → icons | Yes (53); **54** partial | **Start at PR 53** |
+| **53** | Mobile color picker | Yes | **Signed off** — fixed panel, z-70, 40px swatches |
+| **54** | Toolbar PNG icons | Yes (partial) | **Start at PR 54** |
 
 **Recent session work (May 2026):**
 
 - **PR 45–51:** Signed off — comment pin/link decouple, collapsible link panel, connectors, fonts, rotate, snap-to-grid, dashboard sections.
-- **PR 52 (interim):** Mobile **left slide-out tool menu** — collapsed tab on left edge; icon + label list when open; auto-collapse after any tool/action; removed bottom bar padding — `board-tool-rail.tsx`, `board-canvas-rail-mid.tsx`, `board/[boardId]/page.tsx`.
-- **Extra UX:** Collapsible toolbar search (magnifier → expand); mobile comment auto-open editor + tap-to-edit; comment pin Konva `onTap`/`onDblTap`.
+- **PR 52 (interim):** Mobile **left slide-out tool menu** — collapsed tab on left edge; icon + label list when open; auto-collapse after any tool/action; z-index above top toolbar when open.
+- **PR 53:** Mobile **Color** dropdown — fixed positioning below button, `z-index: 70`, scrollable max-height, 40px touch swatches — `board-canvas.tsx`, `board-palette-strip.tsx`.
+- **Extra UX:** Pen/highlighter/eraser stay active after each stroke (like Hand); dashboard + board user name display; collapsible search; mobile comments.
 - **PR 42–44:** Pen S/M/L width, multi-select duplicate, dashboard delete board.
 - **Undo/redo + edit UX:** `cancelPendingWrites`, Ctrl/Cmd+A X C V Z Y, canvas right-click menu (`board-context-menu.tsx`).
 - **Cross-browser sync:** Optimistic drag patches yield to remote Firestore updates (`board-stage.tsx`); objects listener retry.
 
-**Start next session:** [PR 53 — mobile color picker](#pr-53--fixmobile-color-picker-12) (re-QA; much fixed in PR 41).
+**Start next session:** [PR 54 — toolbar icon refresh](#pr-54--choretoolbar-icon-refresh-19--partial) (partial PNGs in `public/icons/`).
 
 See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
@@ -551,8 +553,9 @@ See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
 ### PR 53 — `fix/mobile-color-picker` *(#12)*
 
-- [ ] Fix touch/z-index/overflow on Color dropdown (`z-[60]` on mobile).
-- [ ] **QA:** Mobile → Color → swatches work.
+- [x] Fix touch/z-index/overflow on Color dropdown — mobile uses **fixed** panel below button (`z-index: 70`), scrollable `maxHeight`, not clipped by canvas — `board-canvas.tsx`.
+- [x] 40px touch swatches + native custom color input — `board-palette-strip.tsx`.
+- [x] **QA:** Mobile → Color → swatches and custom picker work.
 
 ### PR 54 — `chore/toolbar-icon-refresh` *(#19 — partial)*
 

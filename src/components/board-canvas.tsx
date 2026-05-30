@@ -30,7 +30,7 @@ import {
 import { cloneBoardObjectFields } from "@/lib/clone-board-object";
 import { BoardCanvasTemplatesModalPortal } from "@/components/board-templates-modal";
 import { BoardStage } from "@/components/board-stage";
-import { useBoardToolOptional } from "@/context/board-tool-context";
+import { useBoardToolOptional, type BoardRailToolId } from "@/context/board-tool-context";
 import { useBoardObjectWrites } from "@/hooks/use-board-object-writes";
 import { useBoardObjects } from "@/hooks/use-board-objects";
 import { useRemoteCursors } from "@/hooks/use-board-cursors";
@@ -96,6 +96,14 @@ type BoardCanvasProps = {
 };
 
 const HISTORY_LIMIT = 80;
+
+/** Stay active until the user picks another tool (same as Hand). */
+const PERSISTENT_RAIL_TOOLS: ReadonlySet<BoardRailToolId> = new Set([
+  "hand",
+  "pen",
+  "highlighter",
+  "eraser",
+]);
 
 function snapshotFields(o: BoardObject): Record<string, unknown> {
   return cloneBoardObjectFields(o, 0, 0, o.zIndex, new Map());
@@ -629,8 +637,12 @@ export function BoardCanvas({
     setLineState({ kind: "off" });
   }, []);
 
-  /** Exit pen/highlighter/lasso/etc. so the canvas is in pointer–select mode. */
+  /** Exit one-shot rail tools (lasso, comments, hyperlinks, …) back to Select. */
   const releaseRailToolForEditing = useCallback(() => {
+    const tool = boardTool?.activeTool;
+    if (tool && PERSISTENT_RAIL_TOOLS.has(tool)) {
+      return;
+    }
     boardTool?.setNotice(null);
     boardTool?.setActiveTool(null);
   }, [boardTool]);

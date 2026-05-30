@@ -265,7 +265,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
         {mobileOpen ? (
           <button
             type="button"
-            className="fixed inset-0 z-[55] min-h-0 min-w-0 border-0 bg-zinc-900/40 p-0"
+            className="fixed inset-0 z-[80] min-h-0 min-w-0 border-0 bg-zinc-900/40 p-0"
             onClick={() => setMobileOpen(false)}
             aria-label="Close tools menu"
           />
@@ -273,7 +273,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
 
         <div
           id="board-tool-drawer"
-          className={`fixed left-0 top-0 z-[60] flex h-[100dvh] max-w-[min(13.5rem,78vw)] flex-col transition-transform duration-200 ease-out ${
+          className={`fixed left-0 top-0 z-[85] flex h-[100dvh] max-w-[min(13.5rem,78vw)] flex-col transition-transform duration-200 ease-out ${
             mobileOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
           }`}
           style={{
@@ -314,7 +314,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
           <button
             type="button"
             onClick={() => setMobileOpen(false)}
-            className="fixed left-[min(13.5rem,78vw)] top-1/2 z-[61] flex h-10 w-8 -translate-y-1/2 touch-manipulation items-center justify-center rounded-r-lg border border-l-0 border-zinc-200 bg-white/95 text-zinc-600 shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+            className="fixed left-[min(13.5rem,78vw)] top-1/2 z-[86] flex h-10 w-8 -translate-y-1/2 touch-manipulation items-center justify-center rounded-r-lg border border-l-0 border-zinc-200 bg-white/95 text-zinc-600 shadow-md dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
             aria-label="Close tools menu"
             title="Close tools"
           >

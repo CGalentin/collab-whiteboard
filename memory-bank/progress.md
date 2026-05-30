@@ -2,15 +2,14 @@
 
 *Snapshot log; align with [PRESEARCH_AND_TRACKING.md](../PRESEARCH_AND_TRACKING.md) and [BUILD_ROADMAP.md](../BUILD_ROADMAP.md) checkboxes.*
 
-**Status:** **MVP (PR 01–23)** + **v2 (PR 25–35)** shipped. **PR 24** skipped. **App cleanup:** **PR 36–52 interim signed off**; continue **PR 53 → 54** one-by-one QA.
+**Status:** **MVP (PR 01–23)** + **v2 (PR 25–35)** shipped. **PR 24** skipped. **App cleanup:** **PR 36–53 signed off**; **PR 54** partial icons remain.
 
 ## Start here next session
 
 1. Read **`memory-bank/progress.md`** and **`memory-bank/activeContext.md`**
 2. Open **[BUILD_ROADMAP.md](../BUILD_ROADMAP.md)** → **“Where we left off”**
-3. Begin **PR 53** — mobile color picker re-QA on phone; check boxes only when signed off
-4. Continue **PR 54** (toolbar PNGs)
-5. **`npm run lint`** + **`npm run build`** before commit/push
+3. Begin **PR 54** — upload remaining toolbar PNGs; check boxes when assets + QA done
+4. **`npm run lint`** + **`npm run build`** before commit/push
 
 **Remote:** `https://github.com/CGalentin/collab-whiteboard`
 
@@ -65,12 +64,12 @@ Demo/social/Gauntlet delivery checklist not pursued.
 | 50 | Snap-to-grid 24px; full box snap on resize |
 | 51 | Dashboard My boards / Shared with me |
 | 52 | Mobile left collapsible tool menu (interim; full mockup still blocked) |
+| 53 | Mobile color picker — fixed panel, z-70, 40px swatches, scroll |
 
-### In repo — QA pending (53–54)
+### In repo — QA pending (54)
 
 | PR | Summary |
 |----|---------|
-| 53 | Mobile color picker z-index/touch (re-QA; much fixed in PR 41) |
 | 54 | Partial custom icons in `public/icons/` |
 
 ### Session work (May 2026 — latest)
@@ -78,7 +77,9 @@ Demo/social/Gauntlet delivery checklist not pursued.
 | Topic | Notes |
 |-------|--------|
 | **PR 45–51 QA** | User signed off comment pin, link panel, connectors, fonts, rotate, snap, dashboard sections |
-| **PR 52 interim** | Left slide-out tool menu on mobile; auto-collapse; removed bottom bar padding |
+| **PR 52 interim** | Left slide-out tool menu on mobile; auto-collapse; z-index above top toolbar |
+| **PR 53 QA** | Mobile Color dropdown signed off — fixed positioning, z-70, touch swatches |
+| **Persistent draw tools** | Pen/highlighter/eraser/hand stay active after each gesture |
 | **Mobile comments** | Auto-open editor after pin; tap selected pin to edit; larger touch textarea |
 | **Collapsible search** | Toolbar search collapsed to magnifier; expand/collapse on tap |
 | **PR 42–44 QA** | Pen width, duplicate batch, dashboard delete |
