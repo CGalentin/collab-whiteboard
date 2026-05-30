@@ -44,6 +44,10 @@ Lasso uses a closed freehand polygon. An object is selected if its **anchor**, *
 
 With **two or more** objects selected (lasso, shift-click, or marquee), **group drag** moves every selected draggable object together (live preview + Firestore on release). **Color** (toolbar palette), **Rotate 90°**, **Duplicate**, and **Delete** apply to the full selection. **Transform** handles attach to all transformable selected shapes (not lines, freehand, or comments).
 
+### Flowchart polygons (`type: "polygon"`, PR 49)
+
+Konva **Transformer** resizes the object’s **bounding box** (`x`, `y`, `width`, `height`, `rotation`) only. Internal geometry (diamond points, star radii, flowchart paths) is **recomputed from the box** on transform end — there is no free-form vertex edit. **Rotate 90°** (toolbar) updates `rotation` the same way as other transformable shapes.
+
 ### Connectors
 
 A **`connector`** references `fromId` and `toId`. If either object is **deleted**, the client **stops drawing** the arrow until the doc is removed or IDs fixed—orphan connector docs may remain in Firestore (cleanup TBD).

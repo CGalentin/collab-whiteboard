@@ -74,18 +74,21 @@ export function BoardInlineTextEditor({
   return (
     <textarea
       ref={taRef}
-      className={`fixed z-[60] box-border resize-none rounded border-2 ${borderClass} p-2 text-sm leading-snug shadow-xl outline-none ${
-        variant === "text" || variant === "comment" ? "" : "text-zinc-900"
-      }`}
+      className={`fixed box-border resize-none rounded border-2 ${borderClass} p-2 text-base leading-snug shadow-xl outline-none touch-manipulation ${
+        variant === "comment" ? "z-[72]" : "z-[60]"
+      } ${variant === "text" || variant === "comment" ? "" : "text-zinc-900"}`}
       style={{
         left,
         top,
-        width,
-        height,
+        width: Math.max(width, 160),
+        height: Math.max(height, 44),
+        fontSize: Math.max(16, 14 * scale),
         ...surfaceStyle,
       }}
       value={draft}
       onChange={(e) => onDraftChange(e.target.value)}
+      autoComplete="off"
+      inputMode="text"
       onBlur={() => {
         flushOnClose();
         onClose();

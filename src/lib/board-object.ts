@@ -340,6 +340,20 @@ export function getBoardObjectHref(o: BoardObject): string | undefined {
   }
 }
 
+/** Whether the object can be an endpoint for a shape-to-shape `connector` (rail Connect tool). */
+export function boardObjectSupportsConnectorEndpoint(o: BoardObject): boolean {
+  return (
+    o.type === "sticky" ||
+    o.type === "rect" ||
+    o.type === "circle" ||
+    o.type === "ellipse" ||
+    o.type === "text" ||
+    o.type === "frame" ||
+    o.type === "polygon" ||
+    o.type === "link"
+  );
+}
+
 /** Whether the user can set an https link on this object (including standalone `link`). */
 export function boardObjectSupportsUserHref(o: BoardObject): boolean {
   return (

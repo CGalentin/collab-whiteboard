@@ -46,6 +46,7 @@ import {
 import type { EraserBrushChange } from "@/lib/board-eraser-geometry";
 import { getTextSearchMatchIds } from "@/lib/board-search";
 import {
+  boardObjectSupportsConnectorEndpoint,
   boardObjectSupportsUserHref,
   getBoardObjectHref,
 } from "@/lib/board-object";
@@ -234,7 +235,7 @@ export function BoardCanvas({
       return;
     }
     setLinkDraft(getBoardObjectHref(linkSelection) ?? "");
-    setLinkPanelOpen(Boolean(getBoardObjectHref(linkSelection)));
+    setLinkPanelOpen(false);
   }, [linkSelection]);
 
   const selectedColorTarget = useMemo(() => {
@@ -989,8 +990,21 @@ export function BoardCanvas({
 
   const connectTwoSelected = useCallback(async () => {
     if (selectedObjectIds.length !== 2) return;
-    const [a, b] = selectedObjectIds;
-    if (!a || !b || a === b) return;
+    const [fromId, toId] = selectedObjectIds;
+    if (!fromId || !toId || fromId === toId) return;
+    const from = objects.find((o) => o.id === fromId);
+    const to = objects.find((o) => o.id === toId);
+    if (
+      !from ||
+      !to ||
+      !boardObjectSupportsConnectorEndpoint(from) ||
+      !boardObjectSupportsConnectorEndpoint(to)
+    ) {
+      boardTool?.setNotice(
+        "Connect two shapes (sticky, rectangle, circle, text, etc.) — not lines, freehand, or connectors.",
+      );
+      return;
+    }
     captureHistoryCheckpoint();
 
     setLinkingConnector(true);
@@ -1001,8 +1015,8 @@ export function BoardCanvas({
       const { fill: connectorColor } = shapePaletteRef.current;
       await setDoc(doc(db, "boards", boardId, "objects", id), {
         type: "connector",
-        fromId: a,
-        toId: b,
+        fromId,
+        toId,
         stroke: connectorColor,
         strokeWidth: 2,
         zIndex: Date.now(),
@@ -1024,11 +1038,23 @@ export function BoardCanvas({
     boardId,
     user,
     selectedObjectIds,
+    objects,
     cancelLineTool,
     captureHistoryCheckpoint,
     releaseRailToolForEditing,
     boardTool,
   ]);
+
+  const canConnect = useMemo(() => {
+    if (selectedObjectIds.length !== 2) return false;
+    const endpoints = selectedObjectIds
+      .map((id) => objects.find((o) => o.id === id))
+      .filter((o): o is BoardObject => o !== undefined);
+    return (
+      endpoints.length === 2 &&
+      endpoints.every(boardObjectSupportsConnectorEndpoint)
+    );
+  }, [selectedObjectIds, objects]);
 
   const rotateSelection90 = useCallback(() => {
     if (selectedObjectIds.length === 0) return;
@@ -1401,6 +1427,7 @@ export function BoardCanvas({
     } else {
       writes.queueObjectPatch(linkSelection.id, { href: n });
     }
+    setLinkPanelOpen(false);
   }, [linkSelection, linkDraft, writes, boardTool]);
 
   const clearSelectionLink = useCallback(() => {
@@ -1529,7 +1556,7 @@ export function BoardCanvas({
         lineToolActive={lineToolActive}
         onConnect={() => void connectTwoSelected()}
         linkingConnector={linkingConnector}
-        canConnect={selectedObjectIds.length === 2}
+        canConnect={canConnect}
         onDuplicate={() => void duplicateSelection()}
         duplicatingSelection={duplicatingSelection}
         canActOnSelection={selectedObjectIds.length > 0}
@@ -1538,6 +1565,7 @@ export function BoardCanvas({
     [
       addingTextObj,
       lineToolActive,
+      canConnect,
       linkingConnector,
       selectedObjectIds.length,
       duplicatingSelection,
@@ -1752,8 +1780,8 @@ export function BoardCanvas({
               ? "border-emerald-500 ring-2 ring-emerald-500/30 text-zinc-900 dark:border-emerald-500 dark:text-zinc-100"
               : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
           }`}
-          title="Place comment pins on the board (click again to stop)"
-          aria-label="Comments — place pins on the board"
+          title="Place comment pins — editor opens after each tap on the board"
+          aria-label="Comments — place pins; editor opens to type"
           aria-pressed={activeRailTool === "comments"}
         >
           <BoardToolGlyph id="comments" className="h-4 w-4 shrink-0" />
@@ -1773,6 +1801,11 @@ export function BoardCanvas({
               <span className="max-w-[10rem] truncate font-mono text-[10px] text-zinc-600 dark:text-sky-200/80">
                 {linkDraft}
               </span>
+            ) : !linkPanelOpen ? (
+              <BoardToolGlyph
+                id="hyperlinks"
+                className="h-3.5 w-3.5 shrink-0 opacity-60"
+              />
             ) : null}
             {linkPanelOpen ? (
               <>
@@ -1983,6 +2016,14 @@ export function BoardCanvas({
                 ? "Click the board for the connector start."
                 : "Click the board for the line start."
               : "Click again for the end point. Esc cancels."}
+          </p>
+        ) : canConnect ? (
+          <p className="w-full text-[11px] text-zinc-600 dark:text-zinc-400 sm:w-auto">
+            Two shapes selected — left-rail{" "}
+            <strong className="text-zinc-800 dark:text-zinc-200">Connect</strong> draws
+            an arrow from the <strong className="text-zinc-800 dark:text-zinc-200">first</strong>{" "}
+            to the <strong className="text-zinc-800 dark:text-zinc-200">second</strong>{" "}
+            (Shift+click order).
           </p>
         ) : null}
       </div>

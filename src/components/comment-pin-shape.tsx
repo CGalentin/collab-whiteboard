@@ -6,12 +6,16 @@ import { Circle, Group, Text } from "react-konva";
 import type { BoardObjectComment } from "@/lib/board-object";
 
 const R = 17;
+/** Invisible touch target — 52px diameter (mobile-friendly). */
+const HIT_R = 26;
+/** Ignore small finger jitter so tap still registers (Konva default is 3px). */
+const DRAG_DISTANCE = 12;
 
 type CommentPinShapeProps = {
   object: BoardObjectComment;
   isSelected: boolean;
   innerRef: (node: Konva.Node | null) => void;
-  onObjectTap: (e: KonvaEventObject<MouseEvent>) => void;
+  onObjectTap: (e: KonvaEventObject<Event>) => void;
   onRequestEdit: () => void;
   onDragEnd: (e: KonvaEventObject<Event>) => void;
   onDragMove?: (e: KonvaEventObject<Event>) => void;
@@ -45,6 +49,7 @@ export function CommentPinShape({
       y={object.y}
       draggable={canInteract}
       listening={canInteract}
+      dragDistance={DRAG_DISTANCE}
       onDragStart={(e) => {
         e.cancelBubble = true;
         onDragStart?.();
@@ -60,7 +65,14 @@ export function CommentPinShape({
       onMouseDown={(e) => {
         e.cancelBubble = true;
       }}
+      onTouchStart={(e) => {
+        e.cancelBubble = true;
+      }}
       onClick={(e) => {
+        e.cancelBubble = true;
+        onObjectTap(e);
+      }}
+      onTap={(e) => {
         e.cancelBubble = true;
         onObjectTap(e);
       }}
@@ -68,7 +80,19 @@ export function CommentPinShape({
         e.cancelBubble = true;
         onRequestEdit();
       }}
+      onDblTap={(e) => {
+        e.cancelBubble = true;
+        onRequestEdit();
+      }}
     >
+      <Circle
+        x={0}
+        y={0}
+        radius={HIT_R}
+        fill="rgba(0,0,0,0.001)"
+        listening={canInteract}
+        perfectDrawEnabled={false}
+      />
       <Circle
         x={0}
         y={0}
@@ -85,6 +109,7 @@ export function CommentPinShape({
         fill="#7c3aed"
         stroke="#fafafa"
         strokeWidth={2}
+        listening={false}
       />
       <Text
         x={-R}

@@ -66,8 +66,8 @@ export function BoardCanvasRailMid(props: BoardCanvasRailMidProps) {
         onClick={onConnect}
         disabled={linkingConnector || !canConnect}
         className={`${railBtn} ${railBtnIdle} disabled:opacity-40`}
-        title="Connect two selected objects"
-        aria-label="Connect selection"
+        title="Connect — arrow from first selected shape to second (Shift+click both, then click here)"
+        aria-label="Connect selection — arrow from first selected to second"
       >
         <BoardToolGlyph id="connect" />
       </button>

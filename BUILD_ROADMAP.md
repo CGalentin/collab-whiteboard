@@ -414,7 +414,13 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 | **42** | Pen stroke width S/M/L | Yes | **Signed off** |
 | **43** | Multi-select duplicate | Yes | **Signed off** |
 | **44** | Delete board on dashboard | Yes | **Signed off** |
-| **45–54** | Comments → icons | Yes (45–53); **54** partial | **Start at PR 45** |
+| **45** | Comments pin + link decouple | Yes | **Signed off** (44px invisible hit pad) |
+| **46** | Collapsible link panel | Yes | **Signed off** |
+| **47** | Connectors + connect tool | Yes | **Signed off** |
+| **48** | Text font + size | Yes | **Signed off** (9 named fonts) |
+| **49** | Rotate 90° | Yes | **Signed off** |
+| **50** | Snap to grid | Yes | **Signed off** (box snap on resize) |
+| **51–54** | Dashboard → icons | Yes (51–53); **54** partial | **Start at PR 51** |
 
 **Recent session work (May 2026):**
 
@@ -423,7 +429,7 @@ Check items as you go. Each task is sized for **~15 minutes** of focused work; i
 - **Cross-browser sync:** Optimistic drag patches yield to remote Firestore updates (`board-stage.tsx`); objects listener retry.
 - **Earlier:** PR 40–41 display name, palette/ink/mobile color; eraser brush fixes.
 
-**Start next session:** [PR 45 — comments pin and link decouple](#pr-45--fixcomments-pin-and-link-decouple-10-16) (checkboxes unchecked).
+**Start next session:** [PR 51 — dashboard board sections](#pr-51--featdashboard-board-sections-18) (checkboxes unchecked).
 
 See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
@@ -493,40 +499,40 @@ See also: **`memory-bank/activeContext.md`**, **`memory-bank/progress.md`**.
 
 ### PR 45 — `fix/comments-pin-and-link-decouple` *(#10, #16)*
 
-- [ ] Larger comment pin hit target.
-- [ ] Hide link URL row for `type === "comment"` by default.
-- [ ] **QA:** Place comment → no link bar; easier tap.
+- [x] Larger comment pin hit target.
+- [x] Hide link URL row for `type === "comment"` by default.
+- [x] **QA:** Place comment → no link bar; easier tap.
 
 ### PR 46 — `feat/link-panel-collapsible` *(#14)*
 
-- [ ] Link row collapsed by default; expand to edit URL.
-- [ ] Collapse shows truncated URL / icon.
-- [ ] **QA:** Select shape → expand link → save → collapse.
+- [x] Link row collapsed by default; expand to edit URL.
+- [x] Collapse shows truncated URL / icon.
+- [x] **QA:** Select shape → expand link → save → collapse.
 
 ### PR 47 — `fix/connectors-and-connect-tool` *(#15, #13 optional)*
 
-- [ ] Connector arrow points to `toId` only (not both ends).
-- [ ] Connect tool UX hint (first selected = from).
-- [ ] Debug connect or mark deferred in roadmap.
-- [ ] **QA:** Connect two shapes → single arrow at end.
+- [x] Connector arrow points to `toId` only (not both ends).
+- [x] Connect tool UX hint (first selected = from).
+- [x] Debug connect or mark deferred in roadmap. *(Validated — endpoint filter + toolbar hint; rail Connect works.)*
+- [x] **QA:** Connect two shapes → single arrow at end.
 
 ### PR 48 — `feat/text-font-and-size` *(#23)*
 
-- [ ] Font size presets for text when selected.
-- [ ] 2–3 font families; Firestore fields + render (Sans / Serif / Mono).
-- [ ] **QA:** Font change syncs.
+- [x] Font size presets for text when selected.
+- [x] 2–3 font families; Firestore fields + render (named faces: Arial, Georgia, Courier New, etc.).
+- [x] **QA:** Font change syncs.
 
 ### PR 49 — `feat/shape-edit-and-rotate-control` *(#20, #21)*
 
-- [ ] Toolbar **Rotate 90°** for transformable types.
-- [ ] Document polygon = box transform only.
-- [ ] **QA:** Rotate button updates Firestore `rotation`.
+- [x] Toolbar **Rotate 90°** for transformable types.
+- [x] Document polygon = box transform only.
+- [x] **QA:** Rotate button updates Firestore `rotation`.
 
 ### PR 50 — `feat/snap-to-grid` *(#20)*
 
-- [ ] Shared `GRID_SIZE` constant (24px).
-- [ ] Toolbar toggle; snap drag/transform end when on.
-- [ ] **QA:** Snap on → objects land on grid.
+- [x] Shared `GRID_SIZE` constant (24px).
+- [x] Toolbar toggle; snap drag/transform end when on.
+- [x] **QA:** Snap on → objects land on grid.
 
 ### PR 51 — `feat/dashboard-board-sections` *(#18)*
 

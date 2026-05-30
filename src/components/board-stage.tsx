@@ -48,7 +48,7 @@ import {
   boardObjectPositionPatch,
   dragDeltaFromNode,
 } from "@/lib/board-group-drag";
-import { snapCoordToGrid } from "@/lib/board-grid";
+import { snapBoxToGrid, snapCoordToGrid } from "@/lib/board-grid";
 import {
   applyEraserBrushChangeToObjects,
   computeEraserBrushChanges,
@@ -221,6 +221,7 @@ function commitTransformNode(
   node: Konva.Node,
   o: BoardObject,
   queueObjectPatch: BoardObjectWrites["queueObjectPatch"],
+  snapToGrid = false,
 ) {
   const id = node.id();
   if (!id) return;
@@ -235,11 +236,17 @@ function commitTransformNode(
     const nh = Math.max(8, r.height() * sy);
     r.width(nw);
     r.height(nh);
+    const box = snapToGrid
+      ? snapBoxToGrid(r.x(), r.y(), nw, nh)
+      : { x: r.x(), y: r.y(), width: nw, height: nh };
+    r.position({ x: box.x, y: box.y });
+    r.width(box.width);
+    r.height(box.height);
     queueObjectPatch(id, {
-      x: r.x(),
-      y: r.y(),
-      width: nw,
-      height: nh,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
       rotation: r.rotation(),
     });
     return;
@@ -257,19 +264,45 @@ function commitTransformNode(
     if (Math.abs(nrx - nry) < 0.75) {
       const nr = (nrx + nry) / 2;
       c.radius(nr);
+      const bounds = snapToGrid
+        ? snapBoxToGrid(c.x() - nr, c.y() - nr, nr * 2, nr * 2, undefined, 8)
+        : {
+            x: c.x() - nr,
+            y: c.y() - nr,
+            width: nr * 2,
+            height: nr * 2,
+          };
+      const snappedR = Math.min(bounds.width, bounds.height) / 2;
+      const cx = bounds.x + snappedR;
+      const cy = bounds.y + snappedR;
+      c.position({ x: cx, y: cy });
+      c.radius(snappedR);
       queueObjectPatch(id, {
-        x: c.x(),
-        y: c.y(),
-        radius: nr,
+        x: cx,
+        y: cy,
+        radius: snappedR,
         rotation: c.rotation(),
       });
     } else {
+      const bounds = snapToGrid
+        ? snapBoxToGrid(c.x() - nrx, c.y() - nry, nrx * 2, nry * 2, undefined, 8)
+        : {
+            x: c.x() - nrx,
+            y: c.y() - nry,
+            width: nrx * 2,
+            height: nry * 2,
+          };
+      const nrx2 = bounds.width / 2;
+      const nry2 = bounds.height / 2;
+      const cx = bounds.x + nrx2;
+      const cy = bounds.y + nry2;
+      c.position({ x: cx, y: cy });
       queueObjectPatch(id, {
         type: "ellipse",
-        x: c.x(),
-        y: c.y(),
-        radiusX: nrx,
-        radiusY: nry,
+        x: cx,
+        y: cy,
+        radiusX: nrx2,
+        radiusY: nry2,
         radius: deleteField(),
         rotation: c.rotation(),
       });
@@ -287,11 +320,26 @@ function commitTransformNode(
     e.scaleY(1);
     e.radiusX(nrx);
     e.radiusY(nry);
+    const bounds = snapToGrid
+      ? snapBoxToGrid(e.x() - nrx, e.y() - nry, nrx * 2, nry * 2, undefined, 8)
+      : {
+          x: e.x() - nrx,
+          y: e.y() - nry,
+          width: nrx * 2,
+          height: nry * 2,
+        };
+    const nrx2 = bounds.width / 2;
+    const nry2 = bounds.height / 2;
+    const cx = bounds.x + nrx2;
+    const cy = bounds.y + nry2;
+    e.position({ x: cx, y: cy });
+    e.radiusX(nrx2);
+    e.radiusY(nry2);
     queueObjectPatch(id, {
-      x: e.x(),
-      y: e.y(),
-      radiusX: nrx,
-      radiusY: nry,
+      x: cx,
+      y: cy,
+      radiusX: nrx2,
+      radiusY: nry2,
       rotation: e.rotation(),
     });
     return;
@@ -301,10 +349,20 @@ function commitTransformNode(
     const g = node as Konva.Group;
     const sx = g.scaleX();
     const sy = g.scaleY();
-    const w = Math.max(8, o.width * sx);
-    const h = Math.max(8, o.height * sy);
+    let w = Math.max(8, o.width * sx);
+    let h = Math.max(8, o.height * sy);
     g.scaleX(1);
     g.scaleY(1);
+    let px = g.x();
+    let py = g.y();
+    if (snapToGrid) {
+      const box = snapBoxToGrid(px, py, w, h);
+      px = box.x;
+      py = box.y;
+      w = box.width;
+      h = box.height;
+      g.position({ x: px, y: py });
+    }
     if (o.kind === "plus") {
       const t = plusStrokeThickness(w, h);
       const cx = w / 2;
@@ -443,8 +501,8 @@ function commitTransformNode(
       }
     }
     queueObjectPatch(id, {
-      x: g.x(),
-      y: g.y(),
+      x: px,
+      y: py,
       width: w,
       height: h,
       rotation: g.rotation(),
@@ -466,11 +524,17 @@ function commitTransformNode(
     g.scaleY(1);
     rect.width(nw);
     rect.height(nh);
+    const box = snapToGrid
+      ? snapBoxToGrid(g.x(), g.y(), nw, nh, undefined, minBox)
+      : { x: g.x(), y: g.y(), width: nw, height: nh };
+    g.position({ x: box.x, y: box.y });
+    rect.width(box.width);
+    rect.height(box.height);
     queueObjectPatch(id, {
-      x: g.x(),
-      y: g.y(),
-      width: nw,
-      height: nh,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
       rotation: g.rotation(),
     });
   }
@@ -620,6 +684,8 @@ export function BoardStage({
   type OverlayEdit = {
     kind: "sticky" | "rect" | "text" | "comment";
     id: string;
+    /** Pin position for comment editor before/at snapshot (world coords). */
+    commentPin?: { x: number; y: number };
   };
   const [overlayEdit, setOverlayEdit] = useState<OverlayEdit | null>(null);
   const [stageContainerEl, setStageContainerEl] =
@@ -977,13 +1043,28 @@ export function BoardStage({
       const o = objects.find(
         (x): x is BoardObjectComment => x.id === id && x.type === "comment",
       );
-      if (o) {
-        setOverlayEdit({ kind: "comment", id });
-        setOverlayDraft(o.body);
-        onSelectObject(id, false);
-      }
+      if (!o) return;
+      setOverlayEdit({
+        kind: "comment",
+        id,
+        commentPin: { x: o.x, y: o.y },
+      });
+      setOverlayDraft(o.body);
+      onSelectObject(id, false);
     },
     [objects, onSelectObject],
+  );
+
+  const openCommentEditorAt = useCallback(
+    (id: string, pinX: number, pinY: number, body = "") => {
+      setOverlayEdit({
+        kind: "comment",
+        id,
+        commentPin: { x: pinX, y: pinY },
+      });
+      setOverlayDraft(body);
+    },
+    [],
   );
 
   const overlayTarget =
@@ -1021,7 +1102,16 @@ export function BoardStage({
               height: 140,
               fill: "rgba(255,255,255,0.96)",
             }
-          : null;
+          : overlayEdit?.kind === "comment" && overlayEdit.commentPin
+            ? {
+                id: overlayEdit.id,
+                x: overlayEdit.commentPin.x + 18,
+                y: overlayEdit.commentPin.y - 52,
+                width: 240,
+                height: 140,
+                fill: "rgba(255,255,255,0.96)",
+              }
+            : null;
 
   useEffect(() => {
     overlayDraftRef.current = overlayDraft;
@@ -1033,6 +1123,14 @@ export function BoardStage({
       else transformTargets.current.delete(id);
     },
     [],
+  );
+
+  const snapPos = useCallback(
+    (x: number, y: number) =>
+      snapToGridEnabled
+        ? { x: snapCoordToGrid(x), y: snapCoordToGrid(y) }
+        : { x, y },
+    [snapToGridEnabled],
   );
 
   const handleTransformEnd = useCallback(() => {
@@ -1051,10 +1149,10 @@ export function BoardStage({
         o.type === "connector"
       )
         continue;
-      commitTransformNode(node, o, writes.queueObjectPatch);
+      commitTransformNode(node, o, writes.queueObjectPatch, snapToGridEnabled);
     }
     tr.getLayer()?.batchDraw();
-  }, [objects, writes.queueObjectPatch]);
+  }, [objects, writes.queueObjectPatch, snapToGridEnabled]);
 
   const groupDragOriginsRef = useRef<Map<string, { x: number; y: number }>>(
     new Map(),
@@ -1102,14 +1200,6 @@ export function BoardStage({
       groupDragOriginsRef.current = m;
     },
     [objects, selectedObjectIds],
-  );
-
-  const snapPos = useCallback(
-    (x: number, y: number) =>
-      snapToGridEnabled
-        ? { x: snapCoordToGrid(x), y: snapCoordToGrid(y) }
-        : { x, y },
-    [snapToGridEnabled],
   );
 
   const buildPositionPatches = useCallback(
@@ -1608,6 +1698,7 @@ export function BoardStage({
               zIndex: Date.now(),
               updatedAt: serverTimestamp(),
             });
+            openCommentEditorAt(newId, wp.x, wp.y);
             onCommentPlaced?.(newId);
           } catch (err) {
             console.error("[objects] add comment failed", err);
@@ -1730,6 +1821,7 @@ export function BoardStage({
       lassoActive,
       commentPlaceActive,
       onCommentPlaced,
+      openCommentEditorAt,
       linkPlaceActive,
       onLinkPlaced,
       onHistoryCheckpoint,
@@ -1897,9 +1989,26 @@ export function BoardStage({
                       isSelected={selectedObjectIds.includes(o.id)}
                       interactionLocked={interactionLocked}
                       innerRef={() => {}}
-                      onObjectTap={(ev) =>
-                        onSelectObject(o.id, ev.evt.shiftKey, ev.evt)
-                      }
+                      onObjectTap={(ev) => {
+                        const pt =
+                          "pointerType" in ev.evt
+                            ? ev.evt.pointerType
+                            : undefined;
+                        if (
+                          (pt === "touch" || pt === "pen") &&
+                          selectedObjectIds.includes(o.id)
+                        ) {
+                          openCommentEditor(o.id);
+                          return;
+                        }
+                        const shiftKey =
+                          ev.evt instanceof MouseEvent ? ev.evt.shiftKey : false;
+                        onSelectObject(
+                          o.id,
+                          shiftKey,
+                          ev.evt instanceof MouseEvent ? ev.evt : undefined,
+                        );
+                      }}
                       onRequestEdit={() => openCommentEditor(o.id)}
                       {...objectDragHandlers(o.id)}
                     />
