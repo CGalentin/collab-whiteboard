@@ -363,6 +363,8 @@ function commitTransformNode(
       h = box.height;
       g.position({ x: px, y: py });
     }
+    g.width(w);
+    g.height(h);
     if (o.kind === "plus") {
       const t = plusStrokeThickness(w, h);
       const cx = w / 2;
@@ -382,14 +384,14 @@ function commitTransformNode(
         hbar.height(t);
       }
     } else if (o.kind === "roundRect") {
-      const r = g.findOne<Konva.Rect>("Rect");
+      const r = g.findOne<Konva.Rect>(".round-rect-poly");
       if (r) {
         r.width(w);
         r.height(h);
         r.cornerRadius(Math.min(w, h) * 0.15);
       }
     } else if (o.kind === "star") {
-      const s = g.findOne<Konva.Star>("Star");
+      const s = g.findOne<Konva.Star>(".star-poly");
       if (s) {
         const { outer, inner, cx, cy } = defaultStarRadii(w, h);
         s.x(cx);
@@ -495,7 +497,7 @@ function commitTransformNode(
       if (lh) lh.points([w / 2 - inner, h / 2, w / 2 + inner, h / 2]);
       if (lv) lv.points([w / 2, h / 2 - inner, w / 2, h / 2 + inner]);
     } else {
-      const line = g.findOne<Konva.Line>("Line");
+      const line = g.findOne<Konva.Line>(".line-poly");
       if (line) {
         line.points(getPolygonLinePointsFlat(o.kind, w, h));
       }

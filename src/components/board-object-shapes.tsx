@@ -234,6 +234,8 @@ function BoardObjectShapeInner({
       ref: innerRef,
       x: o.x,
       y: o.y,
+      width: w,
+      height: h,
       rotation: o.rotation,
       draggable: canInteract,
       listening: canInteract,

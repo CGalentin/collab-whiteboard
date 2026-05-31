@@ -30,7 +30,7 @@ type BoardToolRailProps = {
 };
 
 const iconBtnBase =
-  "flex min-h-11 w-full touch-manipulation items-center rounded-lg border text-zinc-700 transition dark:text-zinc-200";
+  "flex min-h-11 w-full touch-manipulation items-center justify-start gap-2.5 rounded-lg border px-2.5 text-zinc-700 transition dark:text-zinc-200";
 const iconBtnIdle =
   "border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800";
 const iconBtnOn =
@@ -67,7 +67,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
   };
 
   const desktopShellClass = useMemo(() => {
-    return `flex w-14 shrink-0 flex-col rounded-xl border border-zinc-200 bg-white/90 dark:border-zinc-800 dark:bg-zinc-900/55`;
+    return `flex w-[11rem] shrink-0 flex-col rounded-xl border border-zinc-200 bg-white/90 dark:border-zinc-800 dark:bg-zinc-900/55`;
   }, []);
 
   const mobilePanelShellClass =
@@ -132,30 +132,23 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
     selected: boolean,
     onClick: () => void,
     glyphId: Parameters<typeof BoardToolGlyph>[0]["id"],
-    mobileLabeled = false,
   ) => (
     <button
       type="button"
       onClick={onClick}
-      className={`${iconBtnBase} ${selected ? iconBtnOn : iconBtnIdle} ${
-        mobileLabeled ? "justify-start gap-2.5 px-2.5" : "justify-center"
-      }`}
+      className={`${iconBtnBase} ${selected ? iconBtnOn : iconBtnIdle}`}
       aria-label={button.label}
       title={button.label}
     >
       <BoardToolGlyph id={glyphId} className="h-5 w-5 shrink-0" />
-      {mobileLabeled ? (
-        <span className="truncate text-left text-xs font-medium">{button.label}</span>
-      ) : null}
+      <span className="truncate text-left text-xs font-medium">{button.label}</span>
     </button>
   );
 
-  const content = (shell: string, mobileLabeled = false) => (
+  const content = (shell: string) => (
     <div className={`${shell} ${className ?? ""}`}>
-      <div className="flex min-h-10 shrink-0 items-center justify-center border-b border-zinc-200 px-2 py-2 dark:border-zinc-800">
-        <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
-          {mobileLabeled ? "Tools" : <span className="sr-only">Board tools</span>}
-        </p>
+      <div className="flex min-h-10 shrink-0 items-center border-b border-zinc-200 px-2.5 py-2 dark:border-zinc-800">
+        <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Tools</p>
       </div>
 
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-visible p-1.5">
@@ -164,14 +157,12 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
           templatesModalOpen,
           openTemplates,
           "templates",
-          mobileLabeled,
         )}
         {renderToolButton(
           { id: "select", label: "Select" },
           activeTool === null && !templatesModalOpen,
           chooseSelectMode,
           "select",
-          mobileLabeled,
         )}
         {OTHER_RAIL_TOOLS.map((button) => (
           <span key={button.id}>
@@ -180,86 +171,76 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
               activeTool === button.id,
               () => chooseTool(button),
               button.id,
-              mobileLabeled,
             )}
           </span>
         ))}
         {midRailSlot ? (
-          <div className="overflow-x-visible border-t border-zinc-200 pt-2 dark:border-zinc-800">
-            {midRailSlot}
-          </div>
+          <div className="overflow-x-visible">{midRailSlot}</div>
         ) : null}
       </div>
 
       <div className="shrink-0 space-y-1 border-t border-zinc-200 p-1.5 dark:border-zinc-800">
-        <div className="grid grid-cols-1 gap-1">
-          <button
-            type="button"
-            onClick={undoToolSelection}
-            disabled={!canUndo}
-            aria-label="Undo"
-            title="Undo"
-            className={`${iconBtnBase} justify-center ${iconBtnIdle} disabled:opacity-40`}
+        <button
+          type="button"
+          onClick={undoToolSelection}
+          disabled={!canUndo}
+          aria-label="Undo"
+          title="Undo"
+          className={`${iconBtnBase} ${iconBtnIdle} disabled:opacity-40`}
+        >
+          <svg
+            className="h-5 w-5 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.75}
+            aria-hidden
           >
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.75}
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 10L5 6l4-4M5 6h11a4 4 0 014 4v1"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={redoToolSelection}
-            disabled={!canRedo}
-            aria-label="Redo"
-            title="Redo"
-            className={`${iconBtnBase} justify-center ${iconBtnIdle} disabled:opacity-40`}
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 10L5 6l4-4M5 6h11a4 4 0 014 4v1"
+            />
+          </svg>
+          <span className="truncate text-left text-xs font-medium">Undo</span>
+        </button>
+        <button
+          type="button"
+          onClick={redoToolSelection}
+          disabled={!canRedo}
+          aria-label="Redo"
+          title="Redo"
+          className={`${iconBtnBase} ${iconBtnIdle} disabled:opacity-40`}
+        >
+          <svg
+            className="h-5 w-5 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.75}
+            aria-hidden
           >
-            <svg
-              className="h-5 w-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.75}
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 10l4-4-4-4M19 6H8a4 4 0 00-4 4v1"
-              />
-            </svg>
-          </button>
-        </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 10l4-4-4-4M19 6H8a4 4 0 00-4 4v1"
+            />
+          </svg>
+          <span className="truncate text-left text-xs font-medium">Redo</span>
+        </button>
 
         {notice ? (
           <p className="rounded-md border border-amber-300 bg-amber-50 px-1.5 py-1 text-[10px] leading-snug text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-300">
             {notice}
           </p>
-        ) : (
-          <p
-            className="truncate text-center text-[10px] text-zinc-500 dark:text-zinc-500"
-            title={activeTool ?? "select"}
-          >
-            {activeToolLabel}
-          </p>
-        )}
+        ) : null}
       </div>
     </div>
   );
 
   return (
     <>
-      <div className="hidden lg:block">{content(desktopShellClass, false)}</div>
+      <div className="hidden lg:block">{content(desktopShellClass)}</div>
 
       <div className="lg:hidden">
         {mobileOpen ? (
@@ -284,7 +265,7 @@ export function BoardToolRail({ className, midRailSlot }: BoardToolRailProps) {
           aria-label="Board tools"
           aria-hidden={!mobileOpen}
         >
-          {content(mobilePanelShellClass, true)}
+          {content(mobilePanelShellClass)}
         </div>
 
         {!mobileOpen ? (

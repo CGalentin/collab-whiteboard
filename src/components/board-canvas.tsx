@@ -1592,6 +1592,9 @@ export function BoardCanvas({
         onDuplicate={() => void duplicateSelection()}
         duplicatingSelection={duplicatingSelection}
         canActOnSelection={selectedObjectIds.length > 0}
+        snapToGridEnabled={snapToGridEnabled}
+        onToggleSnap={() => setSnapToGridEnabled((v) => !v)}
+        onRotate90={rotateSelection90}
       />
     ),
     [
@@ -1601,10 +1604,12 @@ export function BoardCanvas({
       linkingConnector,
       selectedObjectIds.length,
       duplicatingSelection,
+      snapToGridEnabled,
       addTextObject,
       toggleLineTool,
       connectTwoSelected,
       duplicateSelection,
+      rotateSelection90,
     ],
   );
 
@@ -1920,27 +1925,6 @@ export function BoardCanvas({
             ) : null}
           </div>
         ) : null}
-        <button
-          type="button"
-          onClick={() => setSnapToGridEnabled((v) => !v)}
-          className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow ${
-            snapToGridEnabled
-              ? "border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
-              : "border-zinc-300 bg-white text-zinc-700 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
-          }`}
-          title="Snap objects to 24px grid when moving"
-        >
-          Snap
-        </button>
-        <button
-          type="button"
-          onClick={rotateSelection90}
-          disabled={selectedObjectIds.length === 0}
-          className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow disabled:opacity-40 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
-          title="Rotate selection 90°"
-        >
-          Rotate 90°
-        </button>
         {(activeRailTool === "pen" || activeRailTool === "highlighter") && (
           <div className="flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-1 py-0.5 text-[10px] dark:border-zinc-600 dark:bg-zinc-900">
             <span className="px-1 text-zinc-500">Size</span>
@@ -2263,7 +2247,9 @@ export function BoardCanvas({
                     work with stickies, shapes, and other objects as usual. <strong className="text-zinc-900 dark:text-zinc-100">Sticky</strong>{" "}
                     and <strong className="text-zinc-900 dark:text-zinc-100">Comments</strong> are on the top toolbar; drawing, lasso, and
                     hyperlinks stay on the <strong className="text-zinc-900 dark:text-zinc-100">left tool rail</strong>
-                    ; templates open from <strong className="text-zinc-900 dark:text-zinc-100">Templates</strong>.
+                    ; line, text, connect, duplicate, <strong className="text-zinc-900 dark:text-zinc-100">snap</strong>, and{" "}
+                    <strong className="text-zinc-900 dark:text-zinc-100">rotate 90°</strong> are on the rail mid-section.
+                    Templates open from <strong className="text-zinc-900 dark:text-zinc-100">Templates</strong>.
                   </li>
                   <li>
                     <strong className="text-zinc-900 dark:text-zinc-100">Undo / Redo</strong> in the left rail, via

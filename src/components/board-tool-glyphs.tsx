@@ -12,6 +12,8 @@ export type BoardToolGlyphId =
   | "text"
   | "connect"
   | "duplicate"
+  | "snap-grid"
+  | "rotate-90"
   | "sticky-add"
   | "shapes";
 
@@ -187,6 +189,23 @@ export function BoardToolGlyph({ id, className = "h-5 w-5" }: Props) {
             strokeLinecap="round"
             strokeLinejoin="round"
             d="M5.5 15.5v-8A2 2 0 017.5 5.5h8"
+          />
+        </svg>
+      );
+    case "snap-grid":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
+          <path strokeLinecap="round" d="M4 8V4M4 4h4M4 4l5 5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 20h12M8 12h12M8 4h12M4 8v12" />
+        </svg>
+      );
+    case "rotate-90":
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} aria-hidden>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M16.5 7.5H19.5V10.5M19 12a7 7 0 11-2.05-4.95"
           />
         </svg>
       );
